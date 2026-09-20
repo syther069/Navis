@@ -1,0 +1,338 @@
+"use client";
+
+import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
+import { useState } from "react";
+
+import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
+import { strategyDocumentSchema } from "../../lib/domain/strategy";
+
+type FormValues = {
+  name: string;
+  objective: string;
+  maxTradeBps: number;
+  maxPositionBps: number;
+  minReserveBps: number;
+  maxSlippageBps: number;
+};
+
+type CreationResult = Readonly<{
+  agent: {
+    id: string;
+    slug: string;
+    name: string;
+    status: string;
+    strategyHash: string;
+    riskPolicyHash: string;
+  };
+  link:
+    | { status: "not_requested" }
+    | { status: "linked"; externalAgentId: string; wallet: string; requestId: string }
+    | { status: "failed"; error: string };
+}>;
+
+const demoAssets = [
+  "demo_mint_equity_a",
+  "demo_mint_equity_b",
+  "demo_mint_equity_c",
+  "demo_mint_equity_d",
+];
+
+const initialValues: FormValues = {
+  name: "",
+  objective: "",
+  maxTradeBps: 1_000,
+  maxPositionBps: 3_500,
+  minReserveBps: 2_000,
+  maxSlippageBps: 75,
+};
+
+export function AgentForm({
+  persistenceAvailable,
+  clawPumpAvailable,
+}: {
+  persistenceAvailable: boolean;
+  clawPumpAvailable: boolean;
+}) {
+  const [values, setValues] = useState(initialValues);
+  const [reviewing, setReviewing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [linkClawPump, setLinkClawPump] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [result, setResult] = useState<CreationResult | null>(null);
+
+  async function createAgent() {
+    setCreating(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...values, linkClawPump }),
+      });
+      const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!response.ok || !body.agent) {
+        throw new Error(
+          typeof body.error === "string" ? body.error : "Agent creation failed.",
+        );
+      }
+      setResult(body as unknown as CreationResult);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Agent creation failed.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (result) {
+    return (
+      <section className="agent-form route-panel" aria-labelledby="agent-created-title">
+        <span className="route-eyebrow">Local record committed</span>
+        <h2 id="agent-created-title">{result.agent.name} is a persistent draft</h2>
+        <dl className="review-list">
+          <ReviewRow label="Agent ID" value={result.agent.id} />
+          <ReviewRow label="Strategy hash" value={result.agent.strategyHash} />
+          <ReviewRow label="Policy hash" value={result.agent.riskPolicyHash} />
+          <ReviewRow label="ClawPump link" value={result.link.status} />
+          {result.link.status === "linked" ? (
+            <ReviewRow label="External wallet" value={result.link.wallet} />
+          ) : null}
+          {result.link.status === "failed" ? (
+            <ReviewRow label="Link result" value={result.link.error} />
+          ) : null}
+        </dl>
+        <p className="form-note">
+          No funding or onchain transaction was performed. External wallet evidence is
+          shown only when returned by ClawPump.
+        </p>
+      </section>
+    );
+  }
+
+  function update(name: keyof FormValues, value: string) {
+    setValues((current) => ({
+      ...current,
+      [name]: name === "name" || name === "objective" ? value : Number(value),
+    }));
+  }
+
+  function review(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const strategy = strategyDocumentSchema.safeParse({
+      objective: values.objective,
+      horizon: "monthly",
+      cadence: { kind: "manual" },
+      universe: demoAssets,
+      signals: ["Deterministic demo relative-strength fixture"],
+      allowedActions: ["BUY", "SELL", "HOLD", "REBALANCE"],
+      riskPolicyVersion: 1,
+    });
+    const policy = riskPolicyDocumentSchema.safeParse({
+      constraints: [
+        { type: "allowed_mints", mints: demoAssets },
+        { type: "max_trade_bps", value: values.maxTradeBps },
+        { type: "max_position_bps", value: values.maxPositionBps },
+        { type: "min_reserve_bps", value: values.minReserveBps },
+        { type: "max_slippage_bps", value: values.maxSlippageBps },
+        { type: "max_daily_turnover_bps", value: 2_500 },
+        { type: "cooldown_seconds", value: 3_600 },
+        { type: "max_data_age_seconds", value: 300 },
+        { type: "min_liquidity_usd_micros", value: "1000000000" },
+        { type: "allowed_modes", modes: ["demo"] },
+      ],
+    });
+
+    if (values.name.trim().length < 2 || !strategy.success || !policy.success) {
+      setError(
+        policy.error?.issues[0]?.message ??
+          strategy.error?.issues[0]?.message ??
+          "Agent name must contain at least two characters",
+      );
+      return;
+    }
+
+    setError(null);
+    setReviewing(true);
+  }
+
+  if (reviewing) {
+    return (
+      <section className="agent-form route-panel" aria-labelledby="agent-review-title">
+        <span className="route-eyebrow">Review required</span>
+        <h2 id="agent-review-title">Confirm the mandate before creation</h2>
+        <dl className="review-list">
+          <ReviewRow label="Agent" value={values.name} />
+          <ReviewRow label="Objective" value={values.objective} />
+          <ReviewRow label="Universe" value="4 explicit demo assets" />
+          <ReviewRow
+            label="Max trade / position"
+            value={`${values.maxTradeBps / 100}% / ${values.maxPositionBps / 100}%`}
+          />
+          <ReviewRow label="Minimum reserve" value={`${values.minReserveBps / 100}%`} />
+          <ReviewRow
+            label="Maximum slippage"
+            value={`${values.maxSlippageBps / 100}%`}
+          />
+        </dl>
+        <div className="form-actions">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setReviewing(false)}
+          >
+            <ArrowLeft aria-hidden="true" size={17} /> Edit mandate
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={!persistenceAvailable || creating}
+            onClick={() => void createAgent()}
+          >
+            <Check aria-hidden="true" size={17} />
+            {creating ? "Creating…" : "Create agent"}
+          </button>
+        </div>
+        <label className="form-checkbox">
+          <input
+            type="checkbox"
+            checked={linkClawPump}
+            disabled={!clawPumpAvailable}
+            onChange={(event) => setLinkClawPump(event.target.checked)}
+          />
+          <span>
+            Link a ClawPump agent after local creation
+            <small>
+              {clawPumpAvailable
+                ? "Provider failure will preserve the local draft."
+                : "ClawPump is not configured on this instance."}
+            </small>
+          </span>
+        </label>
+        {error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <p className="form-note">
+          {persistenceAvailable
+            ? "Authenticate the connected wallet before committing this reviewed bundle."
+            : "Creation is unavailable until DATABASE_URL and SESSION_SECRET are configured."}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <form className="agent-form route-panel" onSubmit={review} noValidate>
+      <TextField label="Agent name" name="name" value={values.name} update={update} />
+      <div className="form-field">
+        <label htmlFor="objective">Objective</label>
+        <textarea
+          id="objective"
+          value={values.objective}
+          onChange={(event) => update("objective", event.target.value)}
+          required
+          minLength={20}
+          rows={4}
+        />
+        <small>State the capital mandate in at least 20 characters.</small>
+      </div>
+      <fieldset>
+        <legend>Risk limits</legend>
+        <div className="numeric-grid">
+          <NumberField
+            label="Max trade (bps)"
+            name="maxTradeBps"
+            value={values.maxTradeBps}
+            update={update}
+          />
+          <NumberField
+            label="Max position (bps)"
+            name="maxPositionBps"
+            value={values.maxPositionBps}
+            update={update}
+          />
+          <NumberField
+            label="Minimum reserve (bps)"
+            name="minReserveBps"
+            value={values.minReserveBps}
+            update={update}
+          />
+          <NumberField
+            label="Max slippage (bps)"
+            name="maxSlippageBps"
+            value={values.maxSlippageBps}
+            update={update}
+          />
+        </div>
+      </fieldset>
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button className="primary-button" type="submit">
+        Review mandate <ArrowRight aria-hidden="true" size={18} />
+      </button>
+    </form>
+  );
+}
+
+function TextField({
+  label,
+  name,
+  value,
+  update,
+}: {
+  label: string;
+  name: "name";
+  value: string;
+  update: (name: keyof FormValues, value: string) => void;
+}) {
+  return (
+    <div className="form-field">
+      <label htmlFor={name}>{label}</label>
+      <input
+        id={name}
+        value={value}
+        onChange={(event) => update(name, event.target.value)}
+        required
+        minLength={2}
+      />
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  name,
+  value,
+  update,
+}: {
+  label: string;
+  name: Exclude<keyof FormValues, "name" | "objective">;
+  value: number;
+  update: (name: keyof FormValues, value: string) => void;
+}) {
+  return (
+    <div className="form-field">
+      <label htmlFor={name}>{label}</label>
+      <input
+        id={name}
+        type="number"
+        min={0}
+        max={10_000}
+        value={value}
+        onChange={(event) => update(name, event.target.value)}
+      />
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}

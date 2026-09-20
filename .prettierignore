@@ -1,0 +1,7 @@
+.next
+node_modules
+out
+build
+dist
+drizzle/meta
+package-lock.json

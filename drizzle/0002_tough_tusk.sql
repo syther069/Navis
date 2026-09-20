@@ -1,0 +1,3 @@
+ALTER TABLE "agents" ADD COLUMN "active_strategy_version" integer;--> statement-breakpoint
+ALTER TABLE "agents" ADD COLUMN "active_risk_policy_version" integer;--> statement-breakpoint
+ALTER TABLE "agents" ADD CONSTRAINT "agents_active_versions_check" CHECK (("agents"."active_strategy_version" IS NULL OR "agents"."active_strategy_version" > 0) AND ("agents"."active_risk_policy_version" IS NULL OR "agents"."active_risk_policy_version" > 0) AND ("agents"."status" <> 'active' OR ("agents"."active_strategy_version" IS NOT NULL AND "agents"."active_risk_policy_version" IS NOT NULL)));

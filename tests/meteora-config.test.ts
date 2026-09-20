@@ -1,0 +1,261 @@
+import {
+  Keypair,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import { createHash } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  getNavisMeteoraCurvePreview,
+  METEORA_DBC_PROGRAM_ID,
+  validateNavisMeteoraConfig,
+  WRAPPED_SOL_MINT,
+} from "../lib/integrations/meteora/config";
+import { MeteoraDbcClient } from "../lib/integrations/meteora/client";
+
+describe("Navis Meteora DBC configuration", () => {
+  it("builds and validates the exact equity-like profile with the official SDK", () => {
+    const receiver = Keypair.generate().publicKey.toBase58();
+    const generated = validateNavisMeteoraConfig(receiver);
+
+    expect(generated.migrationQuoteThreshold.toString(10)).toBe("4828261560");
+    expect(generated.migrationOption).toBe(1);
+    expect(generated.migrationFeeOption).toBe(3);
+    expect(generated.tokenUpdateAuthority).toBe(1);
+  });
+
+  it("discloses cluster, program, quote mint, fees, and locked liquidity", () => {
+    const preview = getNavisMeteoraCurvePreview("devnet");
+
+    expect(preview.programId).toBe(METEORA_DBC_PROGRAM_ID);
+    expect(preview.quoteMint).toBe(WRAPPED_SOL_MINT);
+    expect(preview.pricing.migrationQuoteThresholdSol).toBe("4.82826156");
+    expect(preview.fees.baseTradingFeeBps).toBe(100);
+    expect(preview.migration.totalPermanentlyLockedPercent).toBe(10);
+    expect(preview.cluster).toBe("devnet");
+  });
+
+  it("prepares an unsigned create-config transaction with review evidence", async () => {
+    const client = new MeteoraDbcClient({
+      cluster: "devnet",
+      endpoint: "http://127.0.0.1:8899",
+    });
+    const config = Keypair.generate();
+    const payer = Keypair.generate();
+    const blockhash = Keypair.generate().publicKey.toBase58();
+    const transaction = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: config.publicKey, isSigner: true, isWritable: true },
+        ],
+        data: Buffer.alloc(0),
+      }),
+    );
+
+    vi.spyOn(client.connection, "getLatestBlockhash").mockResolvedValue({
+      blockhash,
+      lastValidBlockHeight: 1234,
+    });
+    vi.spyOn(client.sdk.partner, "createConfig").mockResolvedValue(transaction);
+
+    const prepared = await client.prepareCreateConfigTransaction({
+      config: config.publicKey.toBase58(),
+      payer: payer.publicKey.toBase58(),
+    });
+
+    expect(prepared.kind).toBe("meteora.createConfig");
+    expect(prepared.accounts.config).toBe(config.publicKey.toBase58());
+    expect(prepared.accounts.payer).toBe(payer.publicKey.toBase58());
+    expect(prepared.accounts.feeClaimer).toBe(payer.publicKey.toBase58());
+    expect(prepared.accounts.leftoverReceiver).toBe(payer.publicKey.toBase58());
+    expect(prepared.requiredSigners).toEqual([
+      payer.publicKey.toBase58(),
+      config.publicKey.toBase58(),
+    ]);
+    expect(prepared.recentBlockhash).toBe(blockhash);
+    expect(prepared.messageSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(prepared.serializedTransaction).toEqual(expect.any(String));
+    expect(prepared.review.signaturesRequired).toBe(2);
+    expect(prepared.review.migrationQuoteThresholdLamports).toBe("4828261560");
+    expect(
+      Transaction.from(Buffer.from(prepared.serializedTransaction, "base64"))
+        .signatures,
+    ).toHaveLength(2);
+  });
+
+  it("simulates only a signed transaction matching the prepared message", async () => {
+    const client = new MeteoraDbcClient({
+      cluster: "devnet",
+      endpoint: "http://127.0.0.1:8899",
+    });
+    const config = Keypair.generate();
+    const payer = Keypair.generate();
+    const transaction = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: config.publicKey, isSigner: true, isWritable: true },
+        ],
+        data: Buffer.alloc(0),
+      }),
+    );
+    transaction.feePayer = payer.publicKey;
+    transaction.recentBlockhash = Keypair.generate().publicKey.toBase58();
+    transaction.partialSign(payer, config);
+    const messageSha256 = createHash("sha256")
+      .update(transaction.serializeMessage())
+      .digest("hex");
+
+    vi.spyOn(client.connection, "simulateTransaction").mockResolvedValue({
+      context: { slot: 55 },
+      value: { err: null, logs: ["ok"], unitsConsumed: 123 },
+    } as Awaited<ReturnType<typeof client.connection.simulateTransaction>>);
+
+    const simulation = await client.simulateSignedConfigTransaction({
+      serializedTransaction: transaction.serialize().toString("base64"),
+      expectedMessageSha256: messageSha256,
+      expectedPayer: payer.publicKey.toBase58(),
+    });
+
+    expect(simulation.kind).toBe("meteora.simulateConfig");
+    expect(simulation.contextSlot).toBe(55);
+    expect(simulation.signatureCount).toBe(2);
+    expect(simulation.error).toBeNull();
+    expect(simulation.logs).toEqual(["ok"]);
+    expect(simulation.unitsConsumed).toBe(123);
+  });
+
+  it("submits only a signed transaction matching the prepared message", async () => {
+    const client = new MeteoraDbcClient({
+      cluster: "devnet",
+      endpoint: "http://127.0.0.1:8899",
+    });
+    const config = Keypair.generate();
+    const payer = Keypair.generate();
+    const transaction = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: config.publicKey, isSigner: true, isWritable: true },
+        ],
+        data: Buffer.alloc(0),
+      }),
+    );
+    transaction.feePayer = payer.publicKey;
+    transaction.recentBlockhash = Keypair.generate().publicKey.toBase58();
+    transaction.partialSign(payer, config);
+    const messageSha256 = createHash("sha256")
+      .update(transaction.serializeMessage())
+      .digest("hex");
+    const signature = Keypair.generate().publicKey.toBase58();
+
+    vi.spyOn(client.connection, "sendRawTransaction").mockResolvedValue(signature);
+
+    const submitted = await client.submitSignedConfigTransaction({
+      serializedTransaction: transaction.serialize().toString("base64"),
+      expectedMessageSha256: messageSha256,
+      expectedPayer: payer.publicKey.toBase58(),
+    });
+
+    expect(submitted.kind).toBe("meteora.submitConfig");
+    expect(submitted.transactionSignature).toBe(signature);
+    expect(submitted.signatureCount).toBe(2);
+    expect(submitted.messageSha256).toBe(messageSha256);
+    expect(submitted.feePayer).toBe(payer.publicKey.toBase58());
+    expect(client.connection.sendRawTransaction).toHaveBeenCalledOnce();
+  });
+
+  it("prepares an unsigned create-pool transaction with derived pool evidence", async () => {
+    const client = new MeteoraDbcClient({
+      cluster: "devnet",
+      endpoint: "http://127.0.0.1:8899",
+    });
+    const config = Keypair.generate();
+    const baseMint = Keypair.generate();
+    const payer = Keypair.generate();
+    const blockhash = Keypair.generate().publicKey.toBase58();
+    const transaction = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: baseMint.publicKey, isSigner: true, isWritable: true },
+        ],
+        data: Buffer.alloc(0),
+      }),
+    );
+
+    vi.spyOn(client.connection, "getLatestBlockhash").mockResolvedValue({
+      blockhash,
+      lastValidBlockHeight: 4321,
+    });
+    vi.spyOn(client.sdk.creator, "createPool").mockResolvedValue(transaction);
+
+    const prepared = await client.prepareCreatePoolTransaction({
+      config: config.publicKey.toBase58(),
+      baseMint: baseMint.publicKey.toBase58(),
+      payer: payer.publicKey.toBase58(),
+      name: "Navis Test",
+      symbol: "NAVT",
+      uri: "https://example.com/navis-test.json",
+    });
+
+    expect(prepared.kind).toBe("meteora.createPool");
+    expect(prepared.accounts.config).toBe(config.publicKey.toBase58());
+    expect(prepared.accounts.baseMint).toBe(baseMint.publicKey.toBase58());
+    expect(prepared.accounts.payer).toBe(payer.publicKey.toBase58());
+    expect(prepared.accounts.poolAddress).toEqual(expect.any(String));
+    expect(prepared.requiredSigners).toEqual([
+      payer.publicKey.toBase58(),
+      baseMint.publicKey.toBase58(),
+    ]);
+    expect(prepared.metadata.symbol).toBe("NAVT");
+    expect(prepared.review.signaturesRequired).toBe(2);
+    expect(prepared.serializedTransaction).toEqual(expect.any(String));
+  });
+
+  it("submits only a signed pool transaction matching the prepared message", async () => {
+    const client = new MeteoraDbcClient({
+      cluster: "devnet",
+      endpoint: "http://127.0.0.1:8899",
+    });
+    const baseMint = Keypair.generate();
+    const payer = Keypair.generate();
+    const transaction = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: baseMint.publicKey, isSigner: true, isWritable: true },
+        ],
+        data: Buffer.alloc(0),
+      }),
+    );
+    transaction.feePayer = payer.publicKey;
+    transaction.recentBlockhash = Keypair.generate().publicKey.toBase58();
+    transaction.partialSign(payer, baseMint);
+    const messageSha256 = createHash("sha256")
+      .update(transaction.serializeMessage())
+      .digest("hex");
+    const signature = Keypair.generate().publicKey.toBase58();
+
+    vi.spyOn(client.connection, "sendRawTransaction").mockResolvedValue(signature);
+
+    const submitted = await client.submitSignedPoolTransaction({
+      serializedTransaction: transaction.serialize().toString("base64"),
+      expectedMessageSha256: messageSha256,
+      expectedPayer: payer.publicKey.toBase58(),
+    });
+
+    expect(submitted.kind).toBe("meteora.submitPool");
+    expect(submitted.transactionSignature).toBe(signature);
+    expect(submitted.signatureCount).toBe(2);
+    expect(client.connection.sendRawTransaction).toHaveBeenCalledOnce();
+  });
+});
