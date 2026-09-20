@@ -126,5 +126,5 @@ Result: 19 production advisories, comprising 6 high and 13 moderate findings wit
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
 - Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump has no funded-launch code, and Meteora broadcast is hard-blocked until retested on a real cluster.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
-- The public demo runs in demo mode on devnet with no database, RPC, ClawPump, or Meteora configuration. Fresh decision runs are simulations kept in server memory; the demo must not be presented as live-funds, persistent, or wallet-ready.
+- The public demo runs in demo mode on devnet with a read-only public devnet RPC (slot probe only) and no database, ClawPump or execution configuration. Fresh decision runs are simulations kept in server memory; the demo must not be presented as live-funds, persistent, or wallet-ready.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`.

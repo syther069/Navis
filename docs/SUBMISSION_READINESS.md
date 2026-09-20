@@ -1,6 +1,6 @@
 # Navis submission readiness
 
-Updated: 2026-09-20 (evening IST), current `main`. Public site: https://navis-gilt.vercel.app at GitHub `main` commit `a335681`.
+Updated: 2026-09-20 (evening IST), current `main`. Public site: https://navis-gilt.vercel.app at GitHub `main` commit `085e779`.
 
 ## Official rules verified
 
@@ -28,8 +28,8 @@ Track selection is not evidence of sponsor eligibility.
 
 | Item                               | Status                                                                                                      |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Public application URL             | Live: https://navis-gilt.vercel.app, Vercel production READY at `a335681`                                   |
-| Live site matches GitHub `main`    | Yes at `a335681`. Later local commits (first-screen intro, doc refresh) are not pushed or deployed yet.     |
+| Public application URL             | Live: https://navis-gilt.vercel.app, Vercel production READY at `085e779`                                   |
+| Live site matches GitHub `main`    | Yes at `085e779`: first-screen intro, live devnet slot probe, doc refresh and lockfile fix are deployed.    |
 | Original deterministic demo        | Verified by the 11-route smoke against production                                                           |
 | Fresh decision generation          | Live on the public site: Balanced approved, Oversized rejected, receipt verified (real browser, 2026-09-20) |
 | Fresh decision detail link         | Unreliable on Vercel (memory store per serverless instance). Tracked as an open task.                       |
@@ -64,4 +64,5 @@ Ready to submit as an honest demo once the owner completes the form items (regis
 
 - Morning of 2026-09-20 (commit `ac26e54`): 24 files / 113 tests; no public URL yet; fresh proposal generation deferred; release decision was "not ready to submit".
 - Remediation pass, same day: 26 files / 143 tests; Vercel demo published at `ac26e54`; hardening not yet pushed.
-- Current: hardening, fresh decision flow, intent binding and origin fix pushed and deployed at `a335681`.
+- Hardening, fresh decision flow, intent binding and origin fix pushed and deployed at `a335681`.
+- Current: first-screen intro plus read-only devnet slot probe live at `085e779`; production `SOLANA_RPC_URL` points at the public devnet endpoint, execution flags unchanged.

@@ -50,16 +50,17 @@ Fresh runs for persistent agents are currently disabled with a 409 response.
 Persisted snapshots do not yet contain all facts needed to evaluate reserve,
 turnover, freshness, and liquidity without fabrication.
 
-| Item                | Value                                                                     |
-| ------------------- | ------------------------------------------------------------------------- |
-| Demo agent          | Atlas                                                                     |
-| Demo route          | `/agents/atlas`                                                           |
-| Demo decision route | `/agents/atlas/decisions/demo-decision`                                   |
-| Demo proof route    | `/proofs/demo-proof`                                                      |
-| Disclosure route    | `/disclosures`                                                            |
-| Receipt type        | Deterministic simulation; no onchain signature                            |
-| Hash anchoring      | Offchain-only decision hash; no memo instruction or transaction signature |
-| Interaction status  | Prepared walkthrough plus fresh balanced and oversized demo decision runs |
+| Item                | Value                                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Demo agent          | Atlas                                                                                                                                                                                                                                                   |
+| Demo route          | `/agents/atlas`                                                                                                                                                                                                                                         |
+| Demo decision route | `/agents/atlas/decisions/demo-decision`                                                                                                                                                                                                                 |
+| Demo proof route    | `/proofs/demo-proof`                                                                                                                                                                                                                                    |
+| Disclosure route    | `/disclosures`                                                                                                                                                                                                                                          |
+| Receipt type        | Deterministic simulation; no onchain signature                                                                                                                                                                                                          |
+| Hash anchoring      | Offchain-only decision hash; no memo instruction or transaction signature                                                                                                                                                                               |
+| Interaction status  | Prepared walkthrough plus fresh balanced and oversized demo decision runs                                                                                                                                                                               |
+| Devnet slot probe   | `GET /api/solana/slot` live on production since 2026-09-20 evening (commit `085e779`, `SOLANA_RPC_URL` = public devnet endpoint); Atlas intro shows "DEVNET RPC live read: slot N" (`docs/evidence/v2-devnet-slot-live.png`). Read only; no transaction |
 
 ## ClawPump evidence
 
@@ -113,18 +114,18 @@ turnover, freshness, and liquidity without fabrication.
 
 ## Restoration and database evidence
 
-| Item                 | Verified value                                                                                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active application   | Canonical npm and Next.js application at repository root                                                                                                                 |
-| Dependency restore   | Existing dependency versions retained; lock peer metadata normalized with 157 peer/optional path additions and 4 optional removals; no core version upgrade or downgrade |
-| Preservation archive | `.restoration/navis-pre-root-20260920.tar.gz`                                                                                                                            |
-| Preservation SHA-256 | `11090837a18cce61c4310d995cb218f21745b20a216314165a39890ea638ea65`                                                                                                       |
-| Other preserved work | Root scaffold and in-progress application changes saved separately under `.restoration`                                                                                  |
-| Development database | Migrations `0000` through `0005` applied in order with journal SHA tracking                                                                                              |
-| Production database  | None; the public Vercel demo has no database, so fresh runs are non-persistent                                                                                           |
-| Preview health       | Dev health: HTTP 200; `tablesReady=true`, `immutabilityGuardsReady=true`, origin and wallet session configured, no RPC/ClawPump; no secrets exposed                      |
-| Public health        | HTTP 200; demo/devnet; database, authentication origin, wallet sessions, Solana RPC, ClawPump, and Meteora not configured; PreStocks and demo AI configured              |
-| Deployment lookup    | Navis is deployed on Vercel (READY at `a335681`); it is not published through Replit                                                                                     |
+| Item                 | Verified value                                                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Active application   | Canonical npm and Next.js application at repository root                                                                                                                                                               |
+| Dependency restore   | Existing dependency versions retained; lock peer metadata normalized with 157 peer/optional path additions and 4 optional removals; no core version upgrade or downgrade                                               |
+| Preservation archive | `.restoration/navis-pre-root-20260920.tar.gz`                                                                                                                                                                          |
+| Preservation SHA-256 | `11090837a18cce61c4310d995cb218f21745b20a216314165a39890ea638ea65`                                                                                                                                                     |
+| Other preserved work | Root scaffold and in-progress application changes saved separately under `.restoration`                                                                                                                                |
+| Development database | Migrations `0000` through `0005` applied in order with journal SHA tracking                                                                                                                                            |
+| Production database  | None; the public Vercel demo has no database, so fresh runs are non-persistent                                                                                                                                         |
+| Preview health       | Dev health: HTTP 200; `tablesReady=true`, `immutabilityGuardsReady=true`, origin and wallet session configured, no RPC/ClawPump; no secrets exposed                                                                    |
+| Public health        | HTTP 200; demo/devnet; database, authentication origin, wallet sessions and ClawPump not configured; Solana RPC (public devnet, read-only), Meteora reads, PreStocks and demo AI configured; all execution flags false |
+| Deployment lookup    | Navis is deployed on Vercel (READY at `a335681`); it is not published through Replit                                                                                                                                   |
 
 A real wallet extension and signing remain unverified. See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the full round 2 audit and its evidence list.
 
