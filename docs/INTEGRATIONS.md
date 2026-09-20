@@ -26,19 +26,19 @@ confirmed onchain result.
 
 ## Meteora DBC
 
-| Capability                      | Status                       | Evidence                                                                                                                                                                           |
-| ------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Official SDK adapter            | Implemented                  | The package lock resolves `@meteora-ag/dynamic-bonding-curve-sdk` version `1.5.12`; the fresh baseline tests passed.                                                               |
-| Config preview                  | Implemented, preview-only    | UI renders the exact SDK `1.5.12` generated configuration and labels the profile as not deployed.                                                                                  |
-| Pool read                       | Implemented, RPC-configured  | `/api/integrations/meteora/pools/[baseMint]` reads DBC pool state from the configured Solana RPC.                                                                                  |
-| Config transaction preparation  | Implemented, execution-gated | `/api/integrations/meteora/config/prepare` returns an unsigned create-config transaction after wallet auth, trusted origin, live-mode flags, and RPC blockhash.                    |
-| Config transaction simulation   | Implemented, execution-gated | `/api/integrations/meteora/config/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                  |
-| Config transaction submission   | Pre-live security gate open  | The older incomplete protocol was not ported or enabled. Server-prepared/simulation binding and the broadcast-error path remain unresolved.                                        |
-| Config transaction confirmation | Implemented, RPC-configured  | `/api/integrations/meteora/config/confirm` reconciles submitted records to `confirmed`, `unknown_pending`, or `failed` from Solana RPC status.                                     |
-| Pool transaction preparation    | Implemented, execution-gated | `/api/integrations/meteora/pool/prepare` requires owned confirmed config evidence, creates an unsigned transaction, and returns the derived pool address as preview evidence only. |
-| Pool transaction simulation     | Implemented, execution-gated | `/api/integrations/meteora/pool/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                    |
-| Pool transaction submission     | Pre-live security gate open  | No live submission is allowed until the server binds signed input to a previously prepared proposal and the full protocol is retested.                                             |
-| Live pool proof                 | External blocker             | Requires configured RPC, authenticated wallet, funded devnet/mainnet account, and successful onchain execution.                                                                    |
+| Capability                      | Status                       | Evidence                                                                                                                                                                                                                                                                                                                |
+| ------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Official SDK adapter            | Implemented                  | The package lock resolves `@meteora-ag/dynamic-bonding-curve-sdk` version `1.5.12`; the fresh baseline tests passed.                                                                                                                                                                                                    |
+| Config preview                  | Implemented, preview-only    | UI renders the exact SDK `1.5.12` generated configuration and labels the profile as not deployed.                                                                                                                                                                                                                       |
+| Pool read                       | Implemented, RPC-configured  | `/api/integrations/meteora/pools/[baseMint]` reads DBC pool state from the configured Solana RPC.                                                                                                                                                                                                                       |
+| Config transaction preparation  | Implemented, execution-gated | `/api/integrations/meteora/config/prepare` returns an unsigned create-config transaction after wallet auth, trusted origin, live-mode flags, and RPC blockhash.                                                                                                                                                         |
+| Config transaction simulation   | Implemented, execution-gated | `/api/integrations/meteora/config/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                       |
+| Config transaction submission   | Intent-bound, hard-blocked   | `/api/integrations/meteora/config/submit` accepts only a server-prepared intent ID plus signed bytes, checks owner, cluster, expiry, message hash and simulation, persists `broadcasting` before send. Broadcast itself is hard-blocked in every mode pending review; no evidence migration `0006` is applied anywhere. |
+| Config transaction confirmation | Implemented, RPC-configured  | `/api/integrations/meteora/config/confirm` reconciles submitted records to `confirmed`, `unknown_pending`, or `failed` from Solana RPC status.                                                                                                                                                                          |
+| Pool transaction preparation    | Implemented, execution-gated | `/api/integrations/meteora/pool/prepare` requires owned confirmed config evidence, creates an unsigned transaction, and returns the derived pool address as preview evidence only.                                                                                                                                      |
+| Pool transaction simulation     | Implemented, execution-gated | `/api/integrations/meteora/pool/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                         |
+| Pool transaction submission     | Intent-bound, hard-blocked   | Same intent binding as config submission; a second pool intent is refused once the launch has moved. Broadcast is hard-blocked in every mode until the protocol is retested on a real cluster.                                                                                                                          |
+| Live pool proof                 | External blocker             | Requires configured RPC, authenticated wallet, funded devnet/mainnet account, and successful onchain execution.                                                                                                                                                                                                         |
 
 ### Navis equity-themed DBC profile
 
@@ -89,10 +89,10 @@ Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
 - Meteora read calls require `SOLANA_RPC_URL`; without it the API returns an
   explicit unavailable state.
 - Meteora config and pool transaction preparation, simulation, submission, and
-  confirmation remain disabled for live use. All live flags are false. The original
-  broadcast-error path does not guarantee that every transport timeout persists as
-  `unknown_pending`; server-prepared and simulation binding must also be completed
-  before live release.
+  confirmation remain disabled for live use. All live flags are false. Server-prepared
+  intent and simulation binding is implemented and tested. The broadcast-error path
+  still does not guarantee that every transport timeout persists as `unknown_pending`,
+  which is one reason broadcast stays hard-blocked before live release.
 - Local remediation now also hard-blocks both Meteora broadcast endpoints regardless
   of environment toggles. Configuration/simulation inspection remains available when
   its existing prerequisites are configured. New config confirmations require

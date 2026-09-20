@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Navis Stocklana Judge Audit v2</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: #f3f4f6;
+        color: #20252d;
+        font:
+          15px/1.65 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1120px;
+        margin: 36px auto;
+        padding: 40px 48px;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        font-size: 30px;
+        margin: 0 0 8px;
+      }
+      h2 {
+        margin-top: 40px;
+        padding-top: 14px;
+        border-top: 1px solid #e5e7eb;
+        font-size: 22px;
+      }
+      h3 {
+        font-size: 17px;
+        margin-top: 26px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 14px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border: 1px solid #e5e7eb;
+        padding: 8px 10px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f9fafb;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      a {
+        color: #0b57d0;
+      }
+      strong {
+        color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Navis: Stocklana judge audit, round 2</h1>
+      <p>
+        Audit date: 20 September 2026 (IST). Auditor role: independent hackathon judge
+        reading the public product and repository cold. Scope: the deployed site
+        <a href="https://navis-gilt.vercel.app,">https://navis-gilt.vercel.app,</a>
+        GitHub <code>main</code> at <code>a335681</code> (which Vercel production is
+        built from), the local checkout (application code identical to
+        <code>a335681</code>; only agent notes and attachments differ), the official
+        Stocklana rules, and the two earlier reports (the first internal audit at 72/100
+        and the external report at 68/100).
+      </p>
+      <p>
+        Nothing in this audit changed deployment settings, secrets, databases, wallets
+        or the submission. Evidence files written by this audit are listed in section 9.
+      </p>
+      <h2>1. Verdict</h2>
+      <p>
+        Navis is a well built, honest, simulation-first demonstrator of a governed
+        equity agent: the model proposes, deterministic policy code decides, the wallet
+        stays the authority, and every run produces a hash-verifiable receipt. Since the
+        last audits the biggest judge complaint has been fixed: a judge can now press
+        <strong>Run decision</strong> on the public site and get a fresh approved
+        (Balanced) or rejected (Oversized) result with a verified receipt in about a
+        second, on desktop and on a 375 px phone, with zero console errors.
+      </p>
+      <p>
+        What still holds it back is not code quality. It is that the product is still a
+        demo of a pattern rather than a thing people would use tomorrow: nothing touches
+        Solana on the public site, the tokenized-stock data (PreStocks) is displayed but
+        never used by the agent, the fresh decision's own link is unreliable on Vercel,
+        the first screen never explains what Navis is, and half the repository
+        documentation still describes an older state of the project. A judge who reads
+        the README first will be told the fixes they are looking at "are not yet pushed
+        or deployed".
+      </p>
+      <p>
+        <strong>Score: 72/100. Confidence: medium-high.</strong> Same headline number as
+        the first audit, but for different reasons: the demo score went up, the evidence
+        and polish score went down because the documentation drifted while the code
+        moved forward. This is an independent framework, not the official weighting.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Category (task framework)</th>
+            <th>Score</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Real user and problem</td>
+            <td>16/20</td>
+            <td>
+              Strong, specific wedge (safe agentic exposure with policy that can say
+              no). But the site never states who this is for or what problem it solves;
+              <code>/</code> redirects straight into the Atlas workspace with no
+              framing.
+            </td>
+          </tr>
+          <tr>
+            <td>Working end-to-end demo</td>
+            <td>17/25</td>
+            <td>
+              Fresh Balanced/Oversized runs work publicly; policy checks, eligibility
+              and receipt are all visible. Loses points because the decision detail link
+              is unreliable on Vercel, nothing persists, and no wallet flow is usable.
+            </td>
+          </tr>
+          <tr>
+            <td>Solana fit</td>
+            <td>11/20</td>
+            <td>
+              Real wallet auth, RPC adapters, Meteora DBC SDK, receipts designed for
+              signatures. Yet the public product performs zero Solana reads or writes
+              and the demo would work identically without Solana.
+            </td>
+          </tr>
+          <tr>
+            <td>Engineering quality</td>
+            <td>21/25</td>
+            <td>
+              164 tests in 31 files, eight-gate CI, strict types, server-bound execution
+              intents, persist-before-broadcast, fail-closed defaults. Deductions: 19
+              unresolved production advisories, <code>latest</code> pins, serverless
+              memory store.
+            </td>
+          </tr>
+          <tr>
+            <td>Evidence and polish</td>
+            <td>7/10</td>
+            <td>
+              Premium UI, disclosures, honest labels. Deductions: contradictory and
+              stale docs, no LICENSE, no video, evidence manifest still quotes the first
+              commit and 113 tests.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td><strong>72/100</strong></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Official judging question from the Stocklana page: "could this be a real app
+        that people will actually use?" Honest answer today: it could become one; right
+        now a judge sees a convincing safety architecture with a very thin product on
+        top.
+      </p>
+      <h2>2. What was actually checked</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Official rules, fetched 20 Sep 2026</td>
+            <td>
+              Submissions close Friday 25 September 4:00 pm ET (26 Sep 1:30 am IST).
+              Judging through 2 October. At least one link (GitHub, live demo or video).
+              One submission per team, original work, open-source components fine if
+              disclosed. Pitch video optional, 3 min max; technical video optional, 5
+              min. Sponsor tracks optional; sponsors pick their own winners. 714
+              registered, 126 submissions at fetch time.
+            </td>
+          </tr>
+          <tr>
+            <td>Sponsor requirements, same page</td>
+            <td>
+              ClawPump: "Launch your token with a stock-paired liquidity pool using
+              clawpump and Meteora." Meteora: originality of DBC configuration or use
+              case, technical soundness, life after the hackathon; "working code on
+              mainnet beats slides." PreStocks: build using PreStocks (API given). Pyth:
+              live financial data must do real work.
+            </td>
+          </tr>
+          <tr>
+            <td>GitHub <code>main</code> vs Vercel production</td>
+            <td>
+              Both at <code>a335681</code>; author and committer TANUJ CHANDA. Vercel
+              state READY.
+            </td>
+          </tr>
+          <tr>
+            <td>Public HTTP walk (17 routes)</td>
+            <td>
+              All navigation targets 200 in 0.12 to 0.32 s. <code>/agents</code> and
+              <code>/markets</code> are 404 but nothing links to them.
+              <code>/decisions/&lt;unknown-id&gt;</code> returns 200 with an
+              "unavailable" page rather than 404.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Public judge smoke (<code>npm run smoke:judge</code> against Vercel)
+            </td>
+            <td>
+              11 routes, PreStocks API and a fresh oversized decision passed. Report:
+              <code>docs/evidence/stocklana-v2-public-smoke.json</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>Real browser walk of production (Chromium, 1440x900 and 375x812)</td>
+            <td>
+              Balanced run: Approved, 12 checks passed, receipt verified. Oversized run:
+              Rejected on max trade bps (5000 vs limit 1000) and min reserve bps (250 vs
+              limit 2000). Console errors: none. No HTTP 4xx/5xx. Mobile: no horizontal
+              overflow (scrollWidth 360 at 375). Decision detail link after a run:
+              <strong>"Decision unavailable"</strong>.
+            </td>
+          </tr>
+          <tr>
+            <td><code>/proofs/demo-proof</code></td>
+            <td>
+              "Integrity checks valid, demo", hashes and references match, signature
+              None, offchain only.
+            </td>
+          </tr>
+          <tr>
+            <td><code>/markets/launch</code> without wallet</td>
+            <td>
+              ClawPump "Provider access is not configured"; Meteora "Not deployed";
+              Prepare control disabled; forced click does nothing. Correct fail-closed
+              behaviour.
+            </td>
+          </tr>
+          <tr>
+            <td><code>/api/health</code> (public)</td>
+            <td>
+              200, mode demo, cluster devnet; database, wallet sessions, RPC, ClawPump,
+              Meteora not configured; PreStocks and demo AI configured.
+            </td>
+          </tr>
+          <tr>
+            <td>Local full gate <code>npm run check</code> at <code>a335681</code></td>
+            <td>
+              Passed: format, zero-warning lint, strict typecheck, 31 files / 164 tests,
+              production build, judge smoke with fresh decision, Drizzle check,
+              submission audit (one expected TODO warning).
+            </td>
+          </tr>
+          <tr>
+            <td><code>npm audit --omit=dev</code></td>
+            <td>
+              19 advisories: 6 high, 13 moderate, 0 critical. High roots:
+              <code>bigint-buffer</code>, <code>toml</code> via
+              <code>@solana/spl-token</code>, <code>@coral-xyz/anchor</code>,
+              <code>@meteora-ag/dynamic-bonding-curve-sdk</code>. Unchanged since the
+              first audit. Report:
+              <code>docs/evidence/stocklana-v2-dependency-audit.json</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>Tests on the newest code paths</td>
+            <td>
+              Decision run service (3), decision run route (3), Meteora intents (6),
+              intent concurrency (3), trusted origin (6). Covered: owner mismatch,
+              expiry, hash mismatch, broadcasting-before-send, no double broadcast,
+              second pool intent refused, foreign origin refused.
+            </td>
+          </tr>
+          <tr>
+            <td>Not verified</td>
+            <td>
+              Any on-chain transaction, wallet extension signing, ClawPump credentialed
+              calls, Meteora broadcast (hard-blocked in code), production database (none
+              configured), migration 0006 (no evidence it is applied to any database).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2>3. Findings, ordered by judging impact</h2>
+      <p>Severity is about points lost with a judge, not exploitability.</p>
+      <h3>Must do before submission</h3>
+      <p>
+        <strong
+          >F1. The fresh decision's own link is unreliable on the public site.</strong
+        >
+        Severity: High. Evidence: after running Balanced in production in a real
+        browser, "Open decision detail" led to
+        <code>/decisions/9aba135a-...</code> which rendered "Decision unavailable. Demo
+        runs without a database are kept in memory for one server instance only." The
+        same happened when reopening the smoke run's ID later. Fresh runs live in a
+        process-global map of the last 50 runs, so the link works only when the
+        follow-up request lands on the same warm serverless instance; the scripted
+        smoke's immediate GET did succeed, the browser click did not. A judge who hits
+        the failure will assume the flow is fake. Fix options, cheapest first: (a) hide
+        the detail link when <code>persisted.store === "memory"</code> and render the
+        full detail inline, which the panel already does; (b) make the detail page
+        stateless by carrying the run in the URL as a compressed, HMAC-signed payload
+        that the server verifies and re-renders. Note that simply attaching a database
+        is not a fix: with <code>DATABASE_URL</code> set the run route requires a wallet
+        session and returns 409 for persistent agents, and the service deliberately
+        refuses a database for demo runs. Option (a) is under an hour; (b) is two to
+        three hours.
+      </p>
+      <p>
+        <strong>F2. Repository documentation contradicts the live product.</strong>
+        Severity: High for evidence and polish. A judge reads the README first.
+        Evidence: <code>README.md</code> line 7 says local hardening "is not yet pushed
+        or deployed"; line 119 to 121 quote 113 tests and commit <code>ac26e54</code>;
+        <code>docs/SUBMISSION_READINESS.md</code> says "Public application URL:
+        Missing", "Fresh proposal generation: Deferred", "Not ready to submit";
+        <code>docs/DEMO_SCRIPT.md</code> says fresh proposal generation "is deferred and
+        must not be narrated"; <code>docs/SUBMISSION_DRAFT.md</code> line 17 says "Fresh
+        proposal generation is deferred"; <code>docs/EVIDENCE.md</code> line 30 pins
+        GitHub main at <code>ac26e54</code>; <code>docs/SECURITY_REVIEW.md</code> and
+        <code>docs/INTEGRATIONS.md</code> still say the intent binding is "unresolved"
+        in one paragraph and "implemented" in the next. The fix is a single
+        documentation pass that rewrites each file to the state at
+        <code>a335681</code> and moves historical baselines into a clearly marked
+        history section. About two hours. Also add a short "What changed" section to the
+        README that links this report.
+      </p>
+      <p>
+        <strong>F3. No first-screen explanation of the product.</strong> Severity: High
+        for "real user and problem". Evidence: <code>/</code> redirects to
+        <code>/agents/atlas</code>; the first visible text is "Run new decision" and
+        Atlas's mandate. Nothing says what Navis is, who it is for, or why Solana. A
+        judge with 126 projects to review gives each one about two minutes. Fix: a
+        compact intro card above the run panel or a real <code>/</code> landing with
+        three lines (problem, what Navis does, what you can try right now) and two
+        buttons (Run a decision, Verify a receipt). Half a day including copy.
+      </p>
+      <p>
+        <strong>F4. Submission package is incomplete.</strong> Severity: High for
+        eligibility hygiene. Missing: <code>LICENSE</code> file (the rules require
+        disclosure of open-source components; a licence is not strictly mandatory but
+        every serious entry has one), pitch video, technical video, final track
+        selection, team declaration. Evidence: no <code>LICENSE*</code> in the
+        repository root; <code>docs/SUBMISSION_DRAFT.md</code> still has TODO video
+        rows. Owner decisions, not code; one evening.
+      </p>
+      <h3>Should do if time allows</h3>
+      <p>
+        <strong>F5. PreStocks is displayed but never used by the agent.</strong>
+        Severity: Medium for the main track, High for the PreStocks bounty. Evidence:
+        the PreStocks catalogue is a read-only table on <code>/markets/launch</code>;
+        the Atlas universe, portfolio and market inputs come from
+        <code>fixtures/demo-agent</code> and the decision code never reads PreStocks
+        data. The sponsor text is "build your project using PreStocks". Fix: let the
+        demo universe be built from live PreStocks contract addresses (already validated
+        by the adapter), and feed the PreStocks price and valuation into the policy
+        facts for freshness and concentration checks, clearly labelled as research data
+        and not execution quotes. Roughly one day; it also makes the run panel feel live
+        because the numbers change.
+      </p>
+      <p>
+        <strong>F6. Nothing on the public site touches Solana.</strong> Severity: Medium
+        for Solana fit. Evidence: health shows RPC not configured; receipts are offchain
+        only; the demo would be identical on any chain. Two safe, cheap options that do
+        not move funds: (a) configure a public devnet RPC in production and show a live
+        read (current slot, the demo owner's devnet balance, or the DBC program account)
+        on the Atlas page and in the receipt; (b) show a live read of the Meteora DBC
+        program account and the PreStocks token mints from devnet or mainnet RPC in the
+        markets page, proving the addresses Navis validates exist on chain. Option (a)
+        is two hours plus one env var; (b) is half a day. Do not try to anchor demo
+        receipts on chain this week: the receipt schema anchors the decision hash to the
+        execution transaction signature and explicitly forbids demo receipts from
+        claiming anchoring, so that would need a schema and service redesign.
+      </p>
+      <p>
+        <strong>F7. Decision detail returns 200 for unknown IDs.</strong> Severity: Low.
+        Evidence: <code>/decisions/does-not-exist</code> renders the "unavailable" page
+        with HTTP 200. Return 404 so crawlers and judges' tools see the truth. Fifteen
+        minutes.
+      </p>
+      <p>
+        <strong
+          >F8. Initial paint shows skeleton panels while the accessibility tree is
+          already complete.</strong
+        >
+        Severity: Low. Evidence: tester's first desktop screenshot showed loading
+        placeholders that resolved after interaction. Likely a client hydration gap on
+        the run panel. One hour to inspect.
+      </p>
+      <p>
+        <strong>F9. Dependency advisories unchanged.</strong> Severity: Low to Medium. 6
+        high, 13 moderate, all transitive through the Solana and Meteora chains with no
+        non-forced fix. Do not force upgrades before the deadline; instead add one
+        paragraph to the security review with the reachability argument (<code
+          >bigint-buffer</code
+        >
+        and <code>toml</code> are not on any request path the public demo executes).
+        Thirty minutes.
+      </p>
+      <h3>Nice to have</h3>
+      <ul>
+        <li>
+          Add a "Verify this receipt" input on <code>/proofs</code> so a judge can paste
+          a fresh receipt JSON and hash rather than only viewing the fixture receipt.
+        </li>
+        <li>
+          Persist fresh runs when a database is present (currently authenticated
+          persistent-agent runs return 409 by design, unauthenticated ones 401). Keep
+          the honest 409 until the facts problem is solved.
+        </li>
+        <li>
+          Pin <code>latest</code> dependencies in <code>package.json</code> to the
+          versions in the lockfile so a fork with <code>npm install</code> gets the
+          tested build.
+        </li>
+        <li>
+          Replace the second-person "Return to Atlas" dead-end with a "Run again" button
+          that carries the scenario.
+        </li>
+        <li>
+          Record a 90-second silent screen capture of the Balanced and Oversized runs
+          and embed it in the README; judges who cannot load the site still see it
+          working.
+        </li>
+      </ul>
+      <h2>4. What changed since the previous audits</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Earlier finding</th>
+            <th>Source</th>
+            <th>Status now</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fresh end-to-end "run new decision" journey missing</td>
+            <td>Internal R9, ext. 1</td>
+            <td>
+              <strong>Closed</strong> for the demo agent. Live in production with both
+              scenarios; smoke-tested and browser-tested. Persistent agents still return
+              409 by design (partly open).
+            </td>
+          </tr>
+          <tr>
+            <td>Meteora submit not bound to a server-prepared intent</td>
+            <td>Internal S2, ext. 2</td>
+            <td>
+              <strong>Closed in code</strong>: <code>execution_intents</code> table,
+              owner, cluster, expiry, message hash, simulation and account binding;
+              submit takes only intent ID plus signed bytes. Not live-tested; no
+              evidence that migration 0006 has been applied to any database; broadcast
+              remains hard-blocked by a constant gate that returns 503 before execution.
+            </td>
+          </tr>
+          <tr>
+            <td>Broadcast before durable persistence</td>
+            <td>Internal S3, ext. 3</td>
+            <td>
+              <strong>Closed in code</strong>: launch and intent written as broadcasting
+              inside a transaction before <code>sendRawTransaction</code>; retries
+              cannot rebroadcast; second pool intent refused. Not live-tested.
+            </td>
+          </tr>
+          <tr>
+            <td>Confirmation accepts incomplete RPC evidence</td>
+            <td>Internal S1</td>
+            <td>Closed in the remediation round; unchanged.</td>
+          </tr>
+          <tr>
+            <td>Receipt cross-reference verification</td>
+            <td>Internal S4</td>
+            <td>Closed in the remediation round; unchanged.</td>
+          </tr>
+          <tr>
+            <td>Unknown liquidity only warns</td>
+            <td>Internal S5</td>
+            <td>Closed for live modes; demo keeps the warning.</td>
+          </tr>
+          <tr>
+            <td>Dependency advisories</td>
+            <td>Internal S6</td>
+            <td><strong>Open</strong>, unchanged at 19.</td>
+          </tr>
+          <tr>
+            <td>Production mutations rejected as untrusted origin</td>
+            <td>New this round</td>
+            <td>
+              <strong>Closed</strong>: same-origin requests are now accepted behind the
+              proxy; foreign origins still get 403 (verified live). The underlying
+              <code>NEXT_PUBLIC_APP_URL</code> mismatch on Vercel is still an owner
+              setting to correct.
+            </td>
+          </tr>
+          <tr>
+            <td>Stale deployment claims in docs</td>
+            <td>Internal R7</td>
+            <td>
+              <strong>Regressed</strong>. Fixed once, then the code moved twice more and
+              the docs did not. See F2.
+            </td>
+          </tr>
+          <tr>
+            <td>Production persistence and wallet auth</td>
+            <td>Internal R10</td>
+            <td>
+              <strong>Open</strong>. Public site has no database; wallet login is now
+              reachable (origin fix) but has nowhere to store a session.
+            </td>
+          </tr>
+          <tr>
+            <td>ClawPump launch evidence</td>
+            <td>Both</td>
+            <td>
+              <strong>Open</strong>; not bounty-qualified and cannot be safely done from
+              demo posture.
+            </td>
+          </tr>
+          <tr>
+            <td>LICENSE, videos, registration, declarations</td>
+            <td>Both</td>
+            <td><strong>Open</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Net: the two audits' engineering findings are essentially all closed; the
+        product, evidence and submission findings are mostly still open.
+      </p>
+      <h2>5. Sponsor track view</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Track</th>
+            <th>Honest status</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main</td>
+            <td>
+              Eligible, plausible mid-field. Would move up with F1 to F3 and one of
+              F5/F6.
+            </td>
+            <td>Enter.</td>
+          </tr>
+          <tr>
+            <td>PreStocks</td>
+            <td>
+              Uses the API read-only; agent does not consume it. Weak but
+              scope-compatible.
+            </td>
+            <td>Enter only if F5 is done; otherwise expect no placing.</td>
+          </tr>
+          <tr>
+            <td>Meteora</td>
+            <td>
+              Original governed-launch angle, real SDK 1.5.12 configuration,
+              server-bound intents. No config or pool has ever been created on any
+              cluster; "working code on mainnet beats slides".
+            </td>
+            <td>
+              Enter with the honest claim. A devnet config transaction would change the
+              picture, but it needs a reviewed removal of the constant broadcast gate
+              plus database, RPC, execution flags, wallet signing and migration 0006;
+              that is not a safe one-day change and should not be attempted before the
+              deadline without a review.
+            </td>
+          </tr>
+          <tr>
+            <td>ClawPump</td>
+            <td>
+              Requirement is a real stock-paired launch. Not met and not safely
+              achievable this week.
+            </td>
+            <td>Do not select.</td>
+          </tr>
+          <tr>
+            <td>Pyth</td>
+            <td>Not used.</td>
+            <td>Do not select.</td>
+          </tr>
+        </tbody>
+      </table>
+      <h2>6. Submission readiness checklist</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Registered on hackathons.solana.com</td>
+            <td>Unknown to the auditor; owner to confirm.</td>
+          </tr>
+          <tr>
+            <td>At least one link</td>
+            <td>Ready: GitHub and live demo both work.</td>
+          </tr>
+          <tr>
+            <td>Live demo matches repository</td>
+            <td>Ready: both at <code>a335681</code>.</td>
+          </tr>
+          <tr>
+            <td>README accurate for the live commit</td>
+            <td><strong>Not ready</strong> (F2).</td>
+          </tr>
+          <tr>
+            <td>Original work and open-source disclosure</td>
+            <td><code>docs/ATTRIBUTIONS.md</code> exists; no LICENSE file (F4).</td>
+          </tr>
+          <tr>
+            <td>Team members invited on the form</td>
+            <td>Owner action.</td>
+          </tr>
+          <tr>
+            <td>Sponsor tracks selected</td>
+            <td>Decide per section 5; at most those with real evidence.</td>
+          </tr>
+          <tr>
+            <td>Pitch video, 3 min max (optional)</td>
+            <td>Not recorded.</td>
+          </tr>
+          <tr>
+            <td>Technical video, 5 min (optional)</td>
+            <td>Not recorded.</td>
+          </tr>
+          <tr>
+            <td>Claims that must not appear</td>
+            <td>
+              Live Meteora/ClawPump execution, on-chain anchoring, production
+              persistence, "all audits clean".
+            </td>
+          </tr>
+          <tr>
+            <td>Deadline</td>
+            <td>
+              26 September 2026, 1:30 am IST. Submit on the 25th evening IST; edits are
+              allowed until close.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2>7. What to build in the remaining days</h2>
+      <p>Ordered by points per hour, all achievable before the deadline:</p>
+      <ol>
+        <li>
+          F1 unreliable detail link (under 1 h for option a). 2. F2 documentation truth
+          pass (2 h). 3. F3 first-screen framing (half day). 4. F7 404 for unknown
+          decisions (15 min). 5. F6a live devnet read on the Atlas page (2 h plus one
+          env var). 6. F5 PreStocks-driven demo universe (1 day). 7. F4 licence, videos,
+          form (owner, one evening).
+        </li>
+      </ol>
+      <p>
+        Skip before the deadline: forced dependency upgrades, ClawPump launch, mainnet
+        anything, persistent-agent fresh runs.
+      </p>
+      <h2>8. Score reconciliation with the earlier reports</h2>
+      <ul>
+        <li>
+          First internal audit, 72/100: used a six-category frame. Demo 17/25 then;
+          would be 20/25 now on that frame. Safety 10/15 then; 13/15 now. Evidence and
+          UX would drop by roughly the same amount because of F2 and F1. Net roughly
+          flat.
+        </li>
+        <li>
+          External report, 68/100: its three high-priority findings are closed in code;
+          on its own frame Navis would now sit around 74 to 76 if the documentation
+          matched the code, and around 72 as things stand.
+        </li>
+      </ul>
+      <h2>9. Evidence written by this audit</h2>
+      <ul>
+        <li>
+          <code>docs/evidence/stocklana-v2-public-smoke.json</code>: public judge smoke
+          including a fresh oversized decision.
+        </li>
+        <li>
+          <code>docs/evidence/stocklana-v2-dependency-audit.json</code>:
+          <code>npm audit --omit=dev</code> at <code>a335681</code>.
+        </li>
+        <li>
+          <code>docs/evidence/v2-home.png</code>,
+          <code>v2-fresh-decision-detail.png</code>, <code>v2-markets-launch.png</code>:
+          production screenshots.
+        </li>
+        <li>
+          Browser walk (desktop and mobile) performed by an automated Chromium session
+          against production; results summarised in section 2 and finding F1.
+        </li>
+        <li>
+          <code>reports/navis-stocklana-audit-v2.html</code>: this report as a
+          single-file HTML.
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

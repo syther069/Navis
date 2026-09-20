@@ -2,7 +2,9 @@
 
 This walkthrough is the technical-video source and must remain within five minutes. Prepare a separate pitch edit no longer than three minutes.
 
-The verified baseline is the recorded deterministic Atlas walkthrough. Fresh proposal generation is deferred and must not be narrated as implemented.
+Two things are verified on the public site: the recorded deterministic Atlas walkthrough and the fresh **Run new decision** panel (Balanced approved, Oversized rejected, receipt verified in the browser). Narrate both. Do not narrate persistence, on-chain activity or sponsor transactions; none exist.
+
+History: until the 20 September 2026 hardening push, fresh proposal generation was deferred and this script said so.
 
 ## 0:00–0:30 — Problem and wedge
 
@@ -19,13 +21,15 @@ Show:
 
 ## 0:30–1:30 — Decision and policy proof
 
-Click “Inspect decision.”
+In the **Run new decision** panel choose **Balanced** and press **Run decision**, then switch to **Oversized** and run again.
 
 Show:
 
-- The deterministic rebalance proposal.
-- Policy checks and hash.
-- No explorer link for the simulated receipt.
+- Balanced: Approved, every policy check passed, fresh receipt hash, "Receipt verified" after pressing **Verify receipt**.
+- Oversized: Rejected on max trade bps (5000 vs limit 1000) and min reserve bps (250 vs limit 2000); still a valid receipt.
+- The persistence note: kept in memory for this server instance only. Do not click "Open decision detail" on the public site during the recording; it can show "Decision unavailable" on Vercel.
+
+Then click **Inspect decision** on the recorded example and show the deterministic proposal, policy checks and hash, with no explorer link for the simulated receipt.
 
 Say: The AI/provider can propose, but deterministic Navis code decides whether a transition is allowed. Demo mode cannot become a real-looking onchain claim.
 
@@ -76,5 +80,6 @@ Say: The app is deliberately conservative: external credentials, funding, RPC, d
 - Do not call PreStocks tokens shares.
 - Do not imply mainnet execution unless mainnet evidence exists.
 - Do not imply that ClawPump funded launch is available in demo or devnet; the current product supports preflight only.
-- Do not present Meteora submission as live-ready while prepared-proposal binding remains unresolved.
-- The focused agent create/read and sponsor safety tests pass, but do not claim browser-based real-wallet authentication was verified.
+- Do not present Meteora submission as live-ready. Signed input is bound to a server-prepared intent, but broadcast is hard-blocked in every mode.
+- Do not claim browser-based real-wallet authentication was verified; only the origin and nonce checks were tested.
+- Do not claim the fresh decision persists or can be shared by link on the public site.

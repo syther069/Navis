@@ -39,7 +39,7 @@ export function AgentOverview({
             <span>Strategy v1.0</span>
             <span>Demo fixture</span>
           </div>
-          <h1 id="agent-title">Atlas</h1>
+          <h2 id="agent-title">Atlas</h2>
           <p>
             Preserve capital while rotating into a bounded basket of tokenized equities.
           </p>

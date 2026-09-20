@@ -14,7 +14,7 @@ Navis is a governed Solana equity-agent workspace that turns AI trade proposals 
 
 ## Short description
 
-Navis demonstrates a safer pattern for agentic equity exposure on Solana: the agent can propose, but deterministic policy code decides whether an action is allowed, and the wallet still authorizes value movement. The verified demo is the recorded deterministic Atlas walkthrough. Fresh proposal generation is deferred. The product includes a proof-terminal UI, decision and proof timelines, a transaction ledger, ClawPump launch preflight, Meteora DBC builder surfaces, and a read-only PreStocks catalogue disclosure.
+Navis demonstrates a safer pattern for agentic equity exposure on Solana: the agent can propose, but deterministic policy code decides whether an action is allowed, and the wallet still authorizes value movement. On the public site a judge can press Run decision and get a fresh proposal, policy evaluation and hash-verified receipt (Balanced is approved, Oversized is rejected). The product also includes a proof-terminal UI, decision and proof timelines, a transaction ledger, ClawPump launch preflight, Meteora DBC builder surfaces, and a read-only PreStocks catalogue disclosure.
 
 Demo receipts are explicitly labelled simulations. Real explorer links, mints, pool addresses, and signatures should appear only after Navis has stored confirmed external evidence.
 
@@ -31,8 +31,8 @@ Demo receipts are explicitly labelled simulations. Real explorer links, mints, p
 ## Suggested demo flow
 
 1. Open the deployed URL and show the mode/cluster banner.
-2. Visit `/agents/atlas` and explain the mandate, treasury snapshot, and risk rails.
-3. Open `/decisions` and then `/agents/atlas/decisions/demo-decision`.
+2. On `/agents/atlas` run **Balanced** (approved) and then **Oversized** (rejected on max trade bps and min reserve bps); press **Verify receipt**.
+3. Open `/decisions` and then `/agents/atlas/decisions/demo-decision` for the recorded example.
 4. Show that the policy engine, not model prose, controls execution eligibility.
 5. Open `/proofs/demo-proof` and point out the deterministic receipt hash and simulation labelling.
 6. Visit `/markets/launch` and show the ClawPump preflight, Meteora DBC builder, and PreStocks read-only disclosure.
@@ -59,7 +59,7 @@ If a live launch is completed, add:
 
 Current safe claim:
 
-> Navis integrates the official Meteora Dynamic Bonding Curve SDK for equity-like DBC configuration preview and guarded builder surfaces. Live submission is not ready because signed caller input is not yet server-bound to the exact previously prepared proposal. No live pool is claimed.
+> Navis integrates the official Meteora Dynamic Bonding Curve SDK for equity-like DBC configuration preview and guarded builder surfaces. Submission is bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result) and the launch record is persisted before any send, but broadcast is hard-blocked in every mode pending a review on a real cluster. No config, pool or transaction is claimed on any cluster.
 
 If a live config/pool is completed, add:
 
@@ -93,15 +93,15 @@ Latest automated local gate:
 npm run check
 ```
 
-Result: final local remediation pass on 2026-09-20 across all eight gates, 26 test files / 143 tests, production Next.js 16.3.5 build, 11-route deterministic demo smoke including `/agents/new`, Drizzle schema validation, and submission audit. These local changes have not been pushed or deployed; public verification applies to the separately recorded baseline commit.
+Result at current `main` on 2026-09-20: all eight gates passed, 32 test files / 166 tests, production Next.js build, judge smoke (11 routes, PreStocks API, fresh oversized decision), Drizzle schema validation, and submission audit. Vercel production is built from GitHub `main` commit `a335681`.
 
 Latest deployed smoke gate:
 
 ```bash
-NAVIS_SMOKE_BASE_URL=https://navis-gilt.vercel.app NAVIS_SMOKE_REPORT=docs/evidence/stocklana-public-smoke.json npm run smoke:judge
+NAVIS_SMOKE_BASE_URL=https://navis-gilt.vercel.app NAVIS_SMOKE_REPORT=docs/evidence/stocklana-v2-public-smoke.json npm run smoke:judge
 ```
 
-Result: Public Vercel deployment READY at https://navis-gilt.vercel.app; all 11 judge-flow routes and `/api/health` passed. Replit remains NOT published. Sanitized generated report: `docs/evidence/stocklana-public-smoke.json`. This report verifies the pre-remediation production commit; subsequent local fixes have not been pushed or deployed.
+Result: Vercel production READY at `a335681`; all 11 judge-flow routes, `/api/health`, the PreStocks API and a fresh oversized decision passed. Report: `docs/evidence/stocklana-v2-public-smoke.json`. A real Chromium walk on the same day confirmed Balanced approved, Oversized rejected, receipt verified, no console errors at 1440 px and 375 px. Known gap: the `/decisions/<id>` link after a run is unreliable on Vercel because demo runs are held in one serverless instance's memory.
 
 Known audit status:
 
@@ -109,12 +109,12 @@ Known audit status:
 npm audit --omit=dev
 ```
 
-Result: 19 production advisories, comprising 6 high and 13 moderate findings with no critical findings. Machine-readable evidence is in `docs/dependency-audit.json`. The findings remain unresolved and do not constitute security certification.
+Result: 19 production advisories, comprising 6 high and 13 moderate findings with no critical findings. Machine-readable evidence is in `docs/evidence/stocklana-v2-dependency-audit.json`. The findings remain unresolved and do not constitute security certification.
 
 ## Track and timing plan
 
 - Enter the main Stocklana track.
-- Select at most three sponsor tracks: ClawPump, Meteora DBC, and PreStocks, only where final evidence supports the claim.
+- Sponsor tracks are optional. PreStocks and Meteora DBC are candidates with honest claims; ClawPump should not be selected because its requirement is a real stock-paired launch that Navis has not done.
 - Submit before Friday, September 25, 2026 at 4:00 p.m. ET.
 - Formal entry still requires one public demo link and registration; the final authenticated form and registration remain external requirements. Optional video URLs are genuinely missing and are not mandatory for eligibility.
 
@@ -124,7 +124,7 @@ Result: 19 production advisories, comprising 6 high and 13 moderate findings wit
 - PreStocks tokens are presented as economic exposure, not legal shares.
 - Demo receipts are simulations.
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
-- Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump and Meteora also require their unresolved protocol and security gates to be completed and retested.
+- Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump has no funded-launch code, and Meteora broadcast is hard-blocked until retested on a real cluster.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
-- The public demo is read-only deterministic demo mode on devnet; it has no persistence, wallet sessions, RPC, ClawPump, or Meteora configuration and must not be presented as live-funds or wallet-ready.
+- The public demo runs in demo mode on devnet with no database, RPC, ClawPump, or Meteora configuration. Fresh decision runs are simulations kept in server memory; the demo must not be presented as live-funds, persistent, or wallet-ready.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`.

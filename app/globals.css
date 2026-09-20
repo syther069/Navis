@@ -775,7 +775,8 @@ button:active:not(:disabled) {
   color: var(--destructive);
 }
 
-.agent-heading h1 {
+.agent-heading h1,
+.agent-heading h2 {
   margin: 9px 0 7px;
   font-size: clamp(2.4rem, 5vw, 3.3rem);
   font-weight: 620;
@@ -2968,7 +2969,8 @@ button:active:not(:disabled) {
     margin-bottom: 26px;
   }
 
-  .agent-heading h1 {
+  .agent-heading h1,
+  .agent-heading h2 {
     font-size: 2.45rem;
   }
 
@@ -3094,6 +3096,124 @@ button:active:not(:disabled) {
 
 .prepared-example-label {
   margin: var(--space-8) 0 var(--space-3);
+}
+
+.navis-intro {
+  margin-bottom: var(--space-6);
+  background:
+    radial-gradient(80% 60% at 100% 0%, rgb(245 185 66 / 9%), transparent 65%),
+    var(--surface);
+}
+
+.navis-intro h1 {
+  max-width: 720px;
+  margin: 10px 0 20px;
+  font-size: clamp(1.55rem, 3vw, 2.15rem);
+  font-weight: 620;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.navis-intro-lines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin: 0;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+
+.navis-intro-lines dt {
+  margin-bottom: 6px;
+  color: var(--brand);
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.navis-intro-lines dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.navis-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.navis-intro-actions .secondary-button {
+  margin-top: 0;
+}
+
+.navis-intro-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-4);
+}
+
+.navis-intro-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navis-intro-stamps li {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.navis-intro-pulse {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.navis-intro-pulse span {
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.navis-intro-pulse[data-state="ok"] span {
+  color: var(--success);
+}
+
+.navis-intro-pulse[data-state="error"] span {
+  color: var(--warning);
+}
+
+@media (max-width: 860px) {
+  .navis-intro-lines {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .navis-intro-actions .primary-button,
+  .navis-intro-actions .secondary-button {
+    flex: 1 1 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

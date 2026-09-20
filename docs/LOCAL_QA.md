@@ -2,7 +2,16 @@
 
 Verified: 2026-09-20.
 
-After the separate local remediation pass, `npm run check` passed with 143 tests in 26 files, production build and eleven-route judge smoke. The restarted preview renders the revised receipt explanation. The broader public-browser checks below are baseline observations of the deployed commit, not a claim that local fixes are already live.
+At current `main`, `npm run check` passes with 166 tests in 32 files, production build and the judge smoke (11 routes, PreStocks API, fresh oversized decision). The hardening, fresh decision flow, Meteora intent binding and origin fix are deployed at GitHub `main` commit `a335681`.
+
+## Public browser walk, 20 September 2026 (production, `a335681`)
+
+- Real Chromium at 1440 px: Balanced run Approved with all policy checks passed and "Receipt verified"; Oversized run Rejected on max trade bps and min reserve bps. No console errors, no HTTP 4xx/5xx.
+- Real Chromium at 375 px: navigation drawer opens, Balanced run readable, no horizontal overflow.
+- `/proofs/demo-proof` shows integrity valid, signature None, offchain only. `/markets/launch` shows ClawPump unavailable and Meteora not deployed; the disabled Prepare control does nothing without a wallet.
+- Known defect: "Open decision detail" after a run showed "Decision unavailable" because demo runs are kept in one serverless instance's memory.
+
+## Earlier baseline walk (commit `ac26e54`)
 
 ## Browser walkthrough
 
@@ -16,7 +25,7 @@ After the separate local remediation pass, `npm run check` passed with 143 tests
 
 ![Local Navis preview](evidence/navis-root-preview.jpg)
 
-Public and local machine-readable evidence is expected in `evidence/stocklana-public-smoke.json` and `evidence/stocklana-browser-audit.json` after the main release pass copies sanitized generated reports.
+Machine-readable evidence: `evidence/stocklana-v2-public-smoke.json` (public smoke against production) and `evidence/stocklana-v2-dependency-audit.json`.
 
 ## Runtime nonce checks
 
@@ -28,6 +37,6 @@ Public and local machine-readable evidence is expected in `evidence/stocklana-pu
 ## Limitations
 
 - No real wallet extension, wallet signature, live transaction, or full screen-reader audit was tested. The public Vercel deployment and its health endpoint were tested.
-- Fresh interactive proposal generation remains deferred and archived. The verified flow uses deterministic demo evidence.
-- Replit `getDeploymentInfo` reports NOT published; this does not describe the separate READY Vercel deployment.
+- Fresh decision runs are simulations and, without a database, live only in server memory.
+- The public deployment is Vercel; Navis is not published through Replit.
 - `npm audit --omit=dev` still reports 19 unresolved production advisories: 6 high, 13 moderate, and 0 critical.

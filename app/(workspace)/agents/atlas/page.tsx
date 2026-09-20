@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 
 import { AgentOverview } from "@/components/agent-overview";
+import { NavisIntro } from "@/components/agent/navis-intro";
 import { RunDecisionPanel } from "@/components/decisions/run-decision-panel";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 import { demoProof } from "@/fixtures/demo-proof";
+import { getPublicCapabilities } from "@/lib/env";
 import { formatBaseUnits } from "@/lib/presentation";
 
 export const metadata: Metadata = { title: "Atlas" };
 
 export default function AtlasPage() {
+  const capabilities = getPublicCapabilities();
   const { portfolio, policyEvaluation } = demoProof.document;
   const valuations = new Map(
     portfolio.document.valuations.map((valuation) => [valuation.mint, valuation]),
@@ -57,6 +60,10 @@ export default function AtlasPage() {
 
   return (
     <>
+      <NavisIntro
+        solanaRpcConfigured={capabilities.solanaRpcConfigured}
+        cluster={capabilities.cluster}
+      />
       <RunDecisionPanel />
       <div className="prepared-example-label">
         <span className="route-eyebrow">Prepared example</span>

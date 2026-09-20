@@ -16,7 +16,15 @@ const checks = [
   },
   {
     path: "/agents/atlas",
-    includes: ["Atlas", "Constraint ledger", "Demo portfolio snapshot"],
+    includes: [
+      "What Navis is",
+      "Run a decision",
+      "Verify a receipt",
+      "No live execution",
+      "Atlas",
+      "Constraint ledger",
+      "Demo portfolio snapshot",
+    ],
   },
   {
     path: "/decisions",

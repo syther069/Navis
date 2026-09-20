@@ -16,8 +16,8 @@ npm audit --omit=dev
 
 Expected local state as of this runbook:
 
-- Baseline fresh `npm run check` passed on 2026-09-20 across all eight gates, 24 test files / 113 tests, production Next.js 16.3.5 build, and the 11-route smoke including `/agents/new`; final counts are pending the main release pass.
-- `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and 0 critical. The unresolved machine-readable result is `docs/dependency-audit.json`.
+- `npm run check` passes on 2026-09-20 at current `main` across all eight gates, 32 test files / 166 tests, production Next.js build, and the judge smoke (11 routes, PreStocks API, fresh oversized decision). History: 24 files / 113 tests at the first baseline `ac26e54`, 26 files / 143 tests after remediation.
+- `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and 0 critical. The unresolved machine-readable result is `docs/evidence/stocklana-v2-dependency-audit.json`.
 - Local browser QA passed the clean unauthenticated flow, responsive/accessibility review, and runtime nonce-origin checks. Real wallet extension/signing remains unverified.
 - Do not use `npm audit fix --force` without a compatibility pass because it can change core chain dependencies.
 
@@ -75,7 +75,7 @@ Then open `/api/health` on the published origin and verify database readiness wi
 
 ## 6. Exact Replit Publish sequence
 
-Replit `getDeploymentInfo` returns NOT published, while the separately verified Vercel deployment is READY at https://navis-gilt.vercel.app. Do not conflate these deployment targets.
+The public demo is the Vercel deployment, READY at https://navis-gilt.vercel.app from GitHub `main` commit `a335681`. Navis is not published through Replit. Do not conflate these deployment targets.
 
 1. Click **Publish** in Replit only if a Replit deployment is required; the current public demo is Vercel, not Replit.
 2. Keep the safe posture: `NAVIS_EXECUTION_MODE=demo`, `ENABLE_DEMO_MODE=true`, `ENABLE_DEVNET_EXECUTION=false`, `ENABLE_MAINNET_EXECUTION=false`, `MAINNET_RELEASE_APPROVED=false`, and `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`.

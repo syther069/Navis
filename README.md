@@ -4,18 +4,27 @@ Navis is a governed Solana equity-agent workspace for the Stocklana hackathon. I
 
 Navis is not a brokerage UI and does not claim that demo assets or PreStocks tokens are legal shares. Demo receipts are simulations. Explorer links and signatures appear only when Navis has stored real submitted transaction evidence.
 
-Independent review: [judge audit](docs/STOCKLANA_JUDGE_AUDIT.md) and [separate remediation report](docs/REMEDIATION_REPORT.md). Final local checks pass with 143 tests in 26 files. Local hardening is not yet pushed or deployed; the public demo remains the separately verified baseline commit.
+Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub `main` commit `a335681`). Independent reviews, newest first: [judge audit round 2](docs/STOCKLANA_JUDGE_AUDIT_V2.md) (72/100, 20 September 2026), [remediation report](docs/REMEDIATION_REPORT.md), [first judge audit](docs/STOCKLANA_JUDGE_AUDIT.md). The full local gate (`npm run check`) passes at the current commit with 166 tests in 32 files.
+
+## What changed since the first audit
+
+- The fresh decision journey is live on the public site: `POST /api/decisions/run` with a **Balanced** or **Oversized** scenario returns a fresh proposal, policy evaluation, execution eligibility and a newly hashed receipt; the Atlas page has a **Run new decision** panel that shows the full result inline. `/decisions/<id>` re-renders it, but on the public site that link is unreliable because demo runs live in one serverless instance's memory.
+- Meteora config and pool submission are bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result). The submit routes accept only an intent ID plus signed bytes, and the launch record is persisted as `broadcasting` before any send. Broadcast itself remains hard-blocked in every mode until a separate security review.
+- Same-origin mutation requests are trusted behind the deployment proxy (`x-forwarded-host`), so public decision runs work on Vercel; foreign origins still receive 403. Wallet authentication remains unavailable in production because it needs a database, session secret and configured app origin, none of which the public demo has.
+- The Atlas page now opens with a short intro (problem, what Navis does, what to try) and an optional read-only devnet slot probe gated on `SOLANA_RPC_URL`. This is in the local `main` and reaches the public site once the owner pushes and Vercel rebuilds.
+- Repository documentation was refreshed so every claim matches the deployed commit. Historical baselines are kept in clearly labelled history sections.
+- Still open (see the round 2 audit): fresh decision detail links are unreliable on Vercel because demo runs live in one server instance's memory; nothing on the public site touches Solana; PreStocks data is displayed but not consumed by the agent; no LICENSE file, no videos.
 
 ## What is implemented
 
 - Premium dark “Proof Terminal” product shell with demo Atlas agent.
 - Deterministic demo decision, policy ledger, treasury snapshot, proof timeline, and public receipt verifier.
 - Fresh Atlas decision runs with balanced and deliberately oversized scenarios, policy evaluation, and a newly hashed receipt on every run.
-- Wallet Standard connection and nonce-based wallet authentication with environment-specific origin enforcement.
+- Wallet Standard connection and nonce-based wallet authentication with environment-specific origin enforcement; same-origin requests are trusted behind the deployment proxy, foreign origins get 403.
 - PostgreSQL/Drizzle schema for agents, strategies, policies, decisions, execution attempts, events, proofs, market launches, and external calls.
 - AI provider abstraction with deterministic demo provider and OpenAI-compatible provider guards.
 - ClawPump integration for server-side agent linking, live pair discovery, and exact self-funded launch preflight.
-- Meteora DBC integration with official SDK config preview, config transaction prepare/simulate/submit/confirm, pool creation prepare/simulate/submit, and pool monitor.
+- Meteora DBC integration with official SDK config preview, config transaction prepare/simulate/submit/confirm, pool creation prepare/simulate/submit, and pool monitor. Submit routes are bound to server-prepared execution intents; broadcast is hard-blocked in every mode pending review.
 - PreStocks read-only catalogue adapter with schema validation and explicit economic-exposure/eligibility disclosure.
 - Transaction ledger route for persisted execution attempts and sponsor launch records.
 
@@ -26,8 +35,9 @@ Independent review: [judge audit](docs/STOCKLANA_JUDGE_AUDIT.md) and [separate r
 - No live ClawPump launch has been submitted from this checkout. `INT-04` requires configured `CLAWPUMP_API_KEY`, authenticated wallet, funding, provider acceptance, and chain confirmation.
 - ClawPump funded launch is unsupported in the current demo/devnet posture. The documented self-funded route has no devnet selector, and Navis currently implements preflight only.
 - No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
-- Meteora live submission remains disabled until signed caller input is server-bound to the exact previously prepared proposal and the protocol is retested.
-- The Vercel demo is publicly available at https://navis-gilt.vercel.app and is read-only deterministic demo mode. Replit `getDeploymentInfo` still reports NOT published; this is distinct from the Vercel deployment. No demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
+- Meteora signed input is now server-bound to the exact prepared intent, but broadcast stays hard-blocked (the submit routes return 503 before any send) until the protocol is retested against a real cluster.
+- The Vercel demo at https://navis-gilt.vercel.app runs in demo mode without a database. Fresh decision runs work there, but a run is kept in the memory of the serverless instance that produced it, so `/decisions/<id>` may show "Decision unavailable" when a later request lands elsewhere. The inline result panel always shows the full run. No demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
+- There is no evidence that migration `0006` (execution intents) has been applied to any database. The development database has `0000` through `0005`; the public site has no database at all.
 - PreStocks is read-only. Navis does not expose buy/sell or launch actions for PreStocks assets.
 - The public health mode is `demo` on `devnet`: PreStocks and the demo AI provider are configured, while database, authentication origin, wallet sessions, Solana RPC, ClawPump, and Meteora are not configured. The public app is read-only and deterministic; it is not persistent or wallet-ready.
 
@@ -114,16 +124,23 @@ To inspect the submission package for missing evidence rows, TODO markers, and u
 npm run submission:audit
 ```
 
-Baseline result on 2026-09-20 (final counts may be updated by the main release pass):
+Current result (20 September 2026, current `main`):
 
-- Fresh `npm run check` passed all eight baseline gates: format verification, ESLint, strict TypeScript, 24 test files / 113 tests, production Next.js 16.3.5 build, 11-route judge smoke including `/agents/new`, Drizzle schema validation, and submission audit.
-- Independently verified real-Chromium QA passed the public Atlas → Inspect decision → public verifier journey and 10 UI routes at 375/768/1440 px with no overflow or missing input labels. Valid new-agent review created no write, auth-create remained disabled, Escape/focus return passed, contrast checks had no failures, reduced motion was effective, and Atlas at 200% CSS zoom had no overflow. Full screen-reader testing and actual wallet signing remain unverified.
-- The Vercel deployment is READY at the same GitHub main commit (`ac26e54089154c872f117a54cc73af2a8fc6ff2b`). Public `/api/health` reports demo/devnet and the read-only deterministic posture described above.
-- `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and no critical. The machine-readable result is `docs/dependency-audit.json`; this is not a claim that warnings are resolved or that the application is security-certified.
+- `npm run check` passes all eight gates: format verification, zero-warning ESLint, strict TypeScript, 32 test files / 166 tests, production Next.js build, judge smoke (11 routes, PreStocks API and a fresh oversized decision), Drizzle schema validation, and submission audit (one expected warning for the missing video rows).
+- The public site was walked in a real Chromium session on 20 September 2026 at 1440 px and 375 px: Balanced run approved, Oversized run rejected on max trade bps and min reserve bps, receipt verified, no console errors, no horizontal overflow. Evidence: `docs/evidence/stocklana-v2-public-smoke.json` and the round 2 audit. Actual wallet extension signing remains unverified.
+- Vercel production is READY at GitHub `main` commit `a335681`. Public `/api/health` reports demo/devnet with PreStocks and the demo AI provider configured and everything else not configured.
+- `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, no critical, all transitive through the Solana and Meteora dependency chains. Machine-readable result: `docs/evidence/stocklana-v2-dependency-audit.json`. This is not a claim that the warnings are resolved.
+
+### History
+
+- First baseline, 20 September 2026 morning: 24 test files / 113 tests at commit `ac26e54`, the commit the Vercel demo was first published from. Real-Chromium QA at that commit covered the Atlas to public-verifier journey and 10 UI routes at 375/768/1440 px with no overflow, no missing labels, working focus return and no contrast failures.
+- Remediation pass, same day: 26 test files / 143 tests after the receipt, confirmation and liquidity fixes described in `docs/REMEDIATION_REPORT.md`.
 
 ## Demo route map
 
-- `/agents/atlas` — public demo workspace.
+- `/agents/atlas` — public demo workspace with the **Run new decision** panel (Balanced approves, Oversized is rejected).
+- `/decisions/<id>` and `/api/decisions/<id>` — fresh decision result; in memory only when no database is configured.
+- `/api/decisions/run` — `POST { agentSlug: "atlas", scenario: "balanced" | "oversized" }`; same-origin only.
 - `/agents/new` — focused agent creation route covered by the 11-route smoke and create/read ownership tests.
 - `/decisions` — demo decision ledger.
 - `/agents/atlas/decisions/demo-decision` — decision detail and proof link.
