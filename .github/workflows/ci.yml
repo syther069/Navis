@@ -47,6 +47,11 @@ jobs:
       - name: Lockfile registry gate
         run: node scripts/check-lockfile-registry.mjs
 
+      # The lockfile was written by npm 11.19; older npm bundled with Node 22
+      # resolves optional wasm/peer packages differently and rejects it.
+      - name: Use the npm version that wrote the lockfile
+        run: npm install -g npm@11.19.1
+
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
 
