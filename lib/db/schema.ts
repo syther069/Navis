@@ -397,6 +397,39 @@ export const marketLaunches = pgTable("market_launches", {
   ...timestamps,
 });
 
+export const executionIntents = pgTable(
+  "execution_intents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: text("kind").notNull(),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "restrict" }),
+    launchId: uuid("launch_id").references(() => marketLaunches.id, {
+      onDelete: "restrict",
+    }),
+    ownerWallet: text("owner_wallet").notNull(),
+    cluster: clusterEnum("cluster").notNull(),
+    feePayer: text("fee_payer").notNull(),
+    messageSha256: text("message_sha256").notNull().unique(),
+    requiredSigners: jsonb("required_signers").notNull(),
+    accountsSummary: jsonb("accounts_summary").notNull(),
+    instructionSummary: jsonb("instruction_summary").notNull(),
+    blockhash: text("blockhash").notNull(),
+    lastValidBlockHeight: integer("last_valid_block_height").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    simulation: jsonb("simulation"),
+    status: text("status").notNull(),
+    transactionSignature: text("transaction_signature"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("execution_intents_active_pool_launch_unique")
+      .on(table.launchId)
+      .where(
+        sql`${table.kind} = 'meteora.pool' and ${table.status} in ('prepared', 'simulating', 'simulated', 'broadcasting')`,
+      ),
+  ],
+);
+
 export const externalCalls = pgTable(
   "external_calls",
   {

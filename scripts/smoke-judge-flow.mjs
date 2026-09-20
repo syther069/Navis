@@ -143,6 +143,31 @@ async function readJsonRoute(path, allowedStatuses) {
   return response.text();
 }
 
+async function exerciseFreshDecision() {
+  const response = await fetch(`${baseUrl}/api/decisions/run`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      origin: baseUrl,
+      "user-agent": "Navis judge-flow smoke test",
+    },
+    body: JSON.stringify({ agentSlug: "atlas", scenario: "oversized" }),
+  });
+  if (!response.ok) {
+    throw new Error(`/api/decisions/run returned HTTP ${response.status}`);
+  }
+  const run = await response.json();
+  if (!run.decisionId || run.policyEvaluation?.approved !== false) {
+    throw new Error("Fresh oversized decision did not produce a policy rejection");
+  }
+  const stored = await fetch(`${baseUrl}/api/decisions/${run.decisionId}`);
+  if (!stored.ok) {
+    throw new Error(`Fresh decision GET returned HTTP ${stored.status}`);
+  }
+  return run.decisionId;
+}
+
 async function run() {
   const server = configuredBaseUrl
     ? undefined
@@ -161,6 +186,7 @@ async function run() {
             MAINNET_RELEASE_APPROVED: process.env.MAINNET_RELEASE_APPROVED ?? "false",
             NEXT_PUBLIC_SOLANA_CLUSTER:
               process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet",
+            NEXT_PUBLIC_APP_URL: baseUrl,
           },
           stdio: ["ignore", "pipe", "pipe"],
         },
@@ -216,6 +242,18 @@ async function run() {
         includes: check.includes,
         excludes: check.excludes ?? [],
       });
+    }
+
+    if (health.services?.database?.status === "not_configured") {
+      const freshDecisionId = await exerciseFreshDecision();
+      console.log(`✓ fresh decision ${freshDecisionId}`);
+      results.push({
+        path: "/api/decisions/run",
+        followUp: `/api/decisions/${freshDecisionId}`,
+        scenario: "oversized",
+      });
+    } else {
+      console.log("○ fresh decision skipped because persistent runs require a session");
     }
 
     if (reportPath) {

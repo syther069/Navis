@@ -398,7 +398,7 @@ export class MeteoraDbcClient {
     });
   }
 
-  private parseVerifiedSignedTransaction(input: {
+  parseVerifiedSignedTransaction(input: {
     serializedTransaction: string;
     expectedMessageSha256: string;
     expectedPayer: string;

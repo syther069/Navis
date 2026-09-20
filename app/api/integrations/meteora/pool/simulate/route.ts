@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
+import { getDatabase } from "@/lib/db/client";
+import { executionIntents } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
+  intentId: z.uuid(),
   serializedTransaction: z.string().trim().min(120).max(30_000),
-  messageSha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
 function executionSimulationAvailable() {
@@ -35,6 +38,12 @@ export async function POST(request: NextRequest) {
       { status: 409 },
     );
   }
+  if (!env.databaseUrl) {
+    return NextResponse.json(
+      { error: "Meteora execution requires a configured database." },
+      { status: 503 },
+    );
+  }
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
@@ -54,12 +63,95 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const simulation =
-      await createServerMeteoraDbcClient().simulateSignedPoolTransaction({
+    const database = getDatabase();
+    const [intent] = await database
+      .select()
+      .from(executionIntents)
+      .where(
+        and(
+          eq(executionIntents.id, parsed.data.intentId),
+          eq(executionIntents.kind, "meteora.pool"),
+        ),
+      )
+      .limit(1);
+    if (!intent) {
+      return NextResponse.json(
+        { error: "Execution intent was not found." },
+        { status: 404 },
+      );
+    }
+    if (intent.ownerWallet !== session.wallet) {
+      return NextResponse.json(
+        { error: "Execution intent belongs to another wallet." },
+        { status: 403 },
+      );
+    }
+    if (intent.expiresAt <= new Date()) {
+      await database
+        .update(executionIntents)
+        .set({ status: "expired", updatedAt: new Date() })
+        .where(
+          and(
+            eq(executionIntents.id, intent.id),
+            inArray(executionIntents.status, ["prepared", "simulated"]),
+          ),
+        );
+      return NextResponse.json(
+        { error: "Execution intent has expired." },
+        { status: 410 },
+      );
+    }
+    const [claimed] = await database
+      .update(executionIntents)
+      .set({ status: "simulating", updatedAt: new Date() })
+      .where(
+        and(
+          eq(executionIntents.id, intent.id),
+          inArray(executionIntents.status, ["prepared", "simulated"]),
+        ),
+      )
+      .returning();
+    if (!claimed) {
+      return NextResponse.json(
+        { error: "Execution intent cannot be simulated in its current state." },
+        { status: 409 },
+      );
+    }
+    let simulation;
+    try {
+      simulation = await createServerMeteoraDbcClient().simulateSignedPoolTransaction({
         serializedTransaction: parsed.data.serializedTransaction,
-        expectedMessageSha256: parsed.data.messageSha256,
-        expectedPayer: session.wallet,
+        expectedMessageSha256: intent.messageSha256,
+        expectedPayer: intent.feePayer,
       });
+    } catch (error) {
+      await database
+        .update(executionIntents)
+        .set({ status: "prepared", updatedAt: new Date() })
+        .where(
+          and(
+            eq(executionIntents.id, intent.id),
+            eq(executionIntents.status, "simulating"),
+          ),
+        );
+      throw error;
+    }
+    const [updated] = await database
+      .update(executionIntents)
+      .set({ simulation, status: "simulated", updatedAt: new Date() })
+      .where(
+        and(
+          eq(executionIntents.id, intent.id),
+          eq(executionIntents.status, "simulating"),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Execution intent state changed during simulation." },
+        { status: 409 },
+      );
+    }
 
     return NextResponse.json(simulation, {
       status: 200,

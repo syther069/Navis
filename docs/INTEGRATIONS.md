@@ -98,6 +98,11 @@ Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
   its existing prerequisites are configured. New config confirmations require
   complete, consistent successful RPC transaction evidence and real block time.
   This safety block is not completion of the missing live transaction protocol.
+- Meteora prepare now stores a 90-second execution intent containing the owner,
+  cluster, blockhash, signer set, accounts, and message hash. Simulation and submit
+  accept that intent id instead of trusting client-supplied launch details or hashes.
+  Submit locks the intent and persists `broadcasting` state before an RPC broadcast,
+  so retries do not broadcast the same intent twice. No live broadcast was tested.
 - ClawPump `/launch/self-funded` has no documented devnet or cluster selector.
   Current Navis posture supports preflight only. A funded launch requires an
   owner-approved mainnet release plus safe paid-retry, signature, and persistence

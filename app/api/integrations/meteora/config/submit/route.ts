@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
-import { agents, marketLaunches } from "@/lib/db/schema";
+import { executionIntents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import {
   isMeteoraBroadcastAvailable,
@@ -14,11 +14,18 @@ import {
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
-  agentId: z.uuid(),
-  config: z.string().trim().min(32).max(60),
+  intentId: z.uuid(),
   serializedTransaction: z.string().trim().min(120).max(30_000),
-  messageSha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
+
+function simulationSucceeded(value: unknown) {
+  return (
+    Boolean(value) &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (value as { error?: unknown }).error === null
+  );
+}
 
 function executionSubmissionAvailable() {
   if (env.executionMode === "devnet") {
@@ -34,27 +41,22 @@ export async function POST(request: NextRequest) {
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
   }
-
+  // This hard block remains intentionally ahead of all execution code.
   if (!isMeteoraBroadcastAvailable()) {
     return NextResponse.json(
       { error: METEORA_BROADCAST_UNAVAILABLE_REASON },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
-
   if (!executionSubmissionAvailable()) {
     return NextResponse.json(
-      {
-        error:
-          "Meteora transaction submission requires devnet or mainnet execution mode with SOLANA_RPC_URL configured.",
-      },
+      { error: "Meteora transaction submission is not enabled." },
       { status: 409 },
     );
   }
-
   if (!env.databaseUrl) {
     return NextResponse.json(
-      { error: "Persistent storage is required before submission." },
+      { error: "Meteora execution requires a configured database." },
       { status: 503 },
     );
   }
@@ -63,14 +65,10 @@ export async function POST(request: NextRequest) {
   const session = token ? await readSessionToken(token) : null;
   if (!session) {
     return NextResponse.json(
-      {
-        error:
-          "Authenticate a connected wallet before submitting a Meteora transaction.",
-      },
+      { error: "Authenticate a connected wallet before submitting." },
       { status: 401 },
     );
   }
-
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
@@ -80,107 +78,170 @@ export async function POST(request: NextRequest) {
   }
 
   const database = getDatabase();
-  const idempotencyKey = `meteora-config:${parsed.data.messageSha256}`;
-
+  const client = createServerMeteoraDbcClient();
   try {
-    const [agent] = await database
-      .select({
-        id: agents.id,
-        mode: agents.mode,
-        cluster: agents.cluster,
-        ownerId: agents.ownerId,
-      })
-      .from(agents)
-      .where(
-        and(eq(agents.id, parsed.data.agentId), eq(agents.ownerId, session.userId)),
-      )
-      .limit(1);
-
-    if (!agent) {
-      return NextResponse.json(
-        { error: "Meteora submission agent was not found for this wallet." },
-        { status: 404 },
-      );
-    }
-    if (agent.mode !== env.executionMode || agent.cluster !== env.cluster) {
-      return NextResponse.json(
-        {
-          error: "Meteora submission agent does not match the active mode and cluster.",
-        },
-        { status: 409 },
-      );
-    }
-
-    const [existing] = await database
-      .select()
-      .from(marketLaunches)
-      .where(eq(marketLaunches.idempotencyKey, idempotencyKey))
-      .limit(1);
-    if (existing) {
-      return NextResponse.json(
-        {
-          launch: {
-            id: existing.id,
-            status: existing.status,
-            transactionSignature: existing.transactionSignature,
-            config: existing.metadata,
+    const prepared = await database.transaction(async (transaction) => {
+      const [intent] = await transaction
+        .select()
+        .from(executionIntents)
+        .where(eq(executionIntents.id, parsed.data.intentId))
+        .limit(1)
+        .for("update");
+      if (!intent || intent.kind !== "meteora.config") {
+        return { error: "Execution intent was not found.", status: 404 } as const;
+      }
+      if (intent.ownerWallet !== session.wallet) {
+        return {
+          error: "Execution intent belongs to another wallet.",
+          status: 403,
+        } as const;
+      }
+      if (intent.status === "submitted" || intent.status === "consumed") {
+        const [launch] = await transaction
+          .select()
+          .from(marketLaunches)
+          .where(eq(marketLaunches.idempotencyKey, `meteora-intent:${intent.id}`))
+          .limit(1);
+        return { existing: launch } as const;
+      }
+      if (intent.expiresAt <= new Date()) {
+        await transaction
+          .update(executionIntents)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(executionIntents.id, intent.id));
+        return { error: "Execution intent has expired.", status: 410 } as const;
+      }
+      if (intent.cluster !== env.cluster) {
+        return {
+          error: "Execution intent cluster does not match.",
+          status: 409,
+        } as const;
+      }
+      if (intent.status !== "simulated" || !simulationSucceeded(intent.simulation)) {
+        return {
+          error: "Execution intent requires a successful simulation.",
+          status: 409,
+        } as const;
+      }
+      const currentHeight = await client.connection.getBlockHeight("confirmed");
+      if (currentHeight > intent.lastValidBlockHeight) {
+        await transaction
+          .update(executionIntents)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(executionIntents.id, intent.id));
+        return {
+          error: "Execution intent blockhash has expired.",
+          status: 410,
+        } as const;
+      }
+      try {
+        client.parseVerifiedSignedTransaction({
+          serializedTransaction: parsed.data.serializedTransaction,
+          expectedMessageSha256: intent.messageSha256,
+          expectedPayer: intent.feePayer,
+        });
+      } catch {
+        return {
+          error: "Signed transaction does not match the prepared execution intent.",
+          status: 400,
+        } as const;
+      }
+      await transaction
+        .update(executionIntents)
+        .set({ status: "broadcasting", updatedAt: new Date() })
+        .where(eq(executionIntents.id, intent.id));
+      const accounts = intent.accountsSummary as {
+        accounts?: { config?: string };
+      };
+      const [launch] = await transaction
+        .insert(marketLaunches)
+        .values({
+          agentId: intent.agentId!,
+          provider: "meteora",
+          idempotencyKey: `meteora-intent:${intent.id}`,
+          cluster: intent.cluster,
+          status: "broadcasting",
+          quoteMint: "So11111111111111111111111111111111111111112",
+          payoutWallet: intent.ownerWallet,
+          metadata: {
+            kind: "meteora.createConfig",
+            config: accounts.accounts?.config,
+            intentId: intent.id,
+            messageSha256: intent.messageSha256,
           },
-        },
+        })
+        .returning();
+      return { intent, launch } as const;
+    });
+
+    if ("error" in prepared) {
+      return NextResponse.json(
+        { error: prepared.error },
+        { status: prepared.status, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if ("existing" in prepared) {
+      if (!prepared.existing) {
+        return NextResponse.json(
+          { error: "Execution intent was consumed without a launch record." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(
+        { launch: prepared.existing },
         { status: 200, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const submitted =
-      await createServerMeteoraDbcClient().submitSignedConfigTransaction({
+    try {
+      const submitted = await client.submitSignedConfigTransaction({
         serializedTransaction: parsed.data.serializedTransaction,
-        expectedMessageSha256: parsed.data.messageSha256,
-        expectedPayer: session.wallet,
+        expectedMessageSha256: prepared.intent.messageSha256,
+        expectedPayer: prepared.intent.feePayer,
       });
-
-    const [launch] = await database
-      .insert(marketLaunches)
-      .values({
-        agentId: agent.id,
-        provider: "meteora",
-        idempotencyKey,
-        cluster: env.cluster,
-        status: "submitted",
-        quoteMint: "So11111111111111111111111111111111111111112",
-        poolAddress: null,
-        baseMint: null,
-        payoutWallet: session.wallet,
-        transactionSignature: submitted.transactionSignature,
-        metadata: {
-          kind: submitted.kind,
-          config: parsed.data.config,
-          feePayer: submitted.feePayer,
-          messageSha256: submitted.messageSha256,
-          signatureCount: submitted.signatureCount,
-          submittedAt: submitted.submittedAt,
-        },
-      })
-      .returning();
-
+      const [launch] = await database
+        .update(marketLaunches)
+        .set({
+          status: "submitted",
+          transactionSignature: submitted.transactionSignature,
+          updatedAt: new Date(),
+        })
+        .where(eq(marketLaunches.id, prepared.launch.id))
+        .returning();
+      await database
+        .update(executionIntents)
+        .set({
+          status: "submitted",
+          transactionSignature: submitted.transactionSignature,
+          updatedAt: new Date(),
+        })
+        .where(eq(executionIntents.id, prepared.intent.id));
+      return NextResponse.json(
+        { launch },
+        { status: 201, headers: { "Cache-Control": "no-store" } },
+      );
+    } catch {
+      await database
+        .update(marketLaunches)
+        .set({ status: "broadcast_failed", updatedAt: new Date() })
+        .where(eq(marketLaunches.id, prepared.launch.id));
+      await database
+        .update(executionIntents)
+        .set({
+          status: "failed",
+          simulation: { error: "Broadcast failed." },
+          updatedAt: new Date(),
+        })
+        .where(eq(executionIntents.id, prepared.intent.id));
+      return NextResponse.json(
+        { error: "Meteora broadcast failed. The attempt was recorded." },
+        { status: 502, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  } catch {
     return NextResponse.json(
-      {
-        launch: {
-          id: launch?.id,
-          status: launch?.status,
-          transactionSignature: launch?.transactionSignature,
-          config: parsed.data.config,
-        },
-      },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
-    );
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Meteora config transaction could not be submitted.",
-      },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { error: "Meteora submission could not be processed." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

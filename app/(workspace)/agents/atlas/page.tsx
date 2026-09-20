@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AgentOverview } from "@/components/agent-overview";
+import { RunDecisionPanel } from "@/components/decisions/run-decision-panel";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 import { demoProof } from "@/fixtures/demo-proof";
 import { formatBaseUnits } from "@/lib/presentation";
@@ -55,13 +56,19 @@ export default function AtlasPage() {
   });
 
   return (
-    <AgentOverview
-      treasury={{
-        capturedAt: portfolio.document.capturedAt,
-        pricedSubtotalMicros: pricedSubtotalMicros.toString(),
-        positions,
-      }}
-      policyChecks={policyChecks}
-    />
+    <>
+      <RunDecisionPanel />
+      <div className="prepared-example-label">
+        <span className="route-eyebrow">Prepared example</span>
+      </div>
+      <AgentOverview
+        treasury={{
+          capturedAt: portfolio.document.capturedAt,
+          pricedSubtotalMicros: pricedSubtotalMicros.toString(),
+          positions,
+        }}
+        policyChecks={policyChecks}
+      />
+    </>
   );
 }

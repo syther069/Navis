@@ -34,6 +34,20 @@ Final local remediation verification: `npm run check` passed all eight gates wit
 
 ## Demo evidence
 
+### Fresh decision evidence
+
+`POST /api/decisions/run` creates a fresh Atlas proposal for the `balanced` or
+`oversized` scenario. The response includes every policy check, execution
+eligibility, and a receipt that can be checked with the local verifier. The
+oversized scenario deterministically fails the trade-size and reserve controls.
+`GET /api/decisions/{decisionId}` retrieves the run. In demo deployments without
+a database, runs are retained only in bounded process memory for that server
+instance. No onchain execution occurs in demo mode.
+
+Fresh runs for persistent agents are currently disabled with a 409 response.
+Persisted snapshots do not yet contain all facts needed to evaluate reserve,
+turnover, freshness, and liquidity without fabrication.
+
 | Item                | Value                                                                     |
 | ------------------- | ------------------------------------------------------------------------- |
 | Demo agent          | Atlas                                                                     |
@@ -43,7 +57,7 @@ Final local remediation verification: `npm run check` passed all eight gates wit
 | Disclosure route    | `/disclosures`                                                            |
 | Receipt type        | Deterministic simulation; no onchain signature                            |
 | Hash anchoring      | Offchain-only decision hash; no memo instruction or transaction signature |
-| Interaction status  | Public deterministic walkthrough verified; fresh proposal wiring deferred |
+| Interaction status  | Prepared walkthrough plus fresh balanced and oversized demo decision runs |
 
 ## ClawPump evidence
 

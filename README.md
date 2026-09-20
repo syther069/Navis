@@ -10,6 +10,7 @@ Independent review: [judge audit](docs/STOCKLANA_JUDGE_AUDIT.md) and [separate r
 
 - Premium dark “Proof Terminal” product shell with demo Atlas agent.
 - Deterministic demo decision, policy ledger, treasury snapshot, proof timeline, and public receipt verifier.
+- Fresh Atlas decision runs with balanced and deliberately oversized scenarios, policy evaluation, and a newly hashed receipt on every run.
 - Wallet Standard connection and nonce-based wallet authentication with environment-specific origin enforcement.
 - PostgreSQL/Drizzle schema for agents, strategies, policies, decisions, execution attempts, events, proofs, market launches, and external calls.
 - AI provider abstraction with deterministic demo provider and OpenAI-compatible provider guards.
@@ -20,7 +21,8 @@ Independent review: [judge audit](docs/STOCKLANA_JUDGE_AUDIT.md) and [separate r
 
 ## Honest limitations
 
-- The verified judge walkthrough uses the recorded deterministic Atlas fixtures. Fresh proposal generation is deferred; unfinished restoration experiments are archived and are not part of the active product.
+- Fresh demo decisions do not execute onchain. Without `DATABASE_URL`, the latest 50 runs are kept in process memory and disappear when the server instance restarts.
+- Fresh decisions for persistent agents are not enabled yet because persisted snapshots do not contain every market fact required for an honest policy evaluation. The API returns 409 rather than inventing missing values.
 - No live ClawPump launch has been submitted from this checkout. `INT-04` requires configured `CLAWPUMP_API_KEY`, authenticated wallet, funding, provider acceptance, and chain confirmation.
 - ClawPump funded launch is unsupported in the current demo/devnet posture. The documented self-funded route has no devnet selector, and Navis currently implements preflight only.
 - No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
@@ -38,6 +40,13 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+### Fresh decision path
+
+Open `/agents/atlas`, choose **Balanced** or **Oversized**, and select **Run
+decision**. Balanced demonstrates approval while Oversized demonstrates a policy
+rejection. Both produce a fresh ID, timestamp, and locally verifiable receipt.
+Demo mode is simulation only and never submits an onchain transaction.
 
 Navis is the root npm application. Replit development, build, and start use `npm run dev`, `npm run build`, and `npm run start` from the repository root. The Next.js server binds to `0.0.0.0` and uses the platform-provided `PORT`.
 

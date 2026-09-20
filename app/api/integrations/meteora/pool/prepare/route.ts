@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
-import { agents, marketLaunches } from "@/lib/db/schema";
+import { agents, executionIntents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
@@ -26,6 +26,15 @@ function metadataRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isUniqueViolation(error: unknown) {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }
 
 function executionPreparationAvailable() {
@@ -52,6 +61,12 @@ export async function POST(request: NextRequest) {
       { status: 409 },
     );
   }
+  if (!env.databaseUrl) {
+    return NextResponse.json(
+      { error: "Meteora execution requires a configured database." },
+      { status: 503 },
+    );
+  }
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
@@ -76,6 +91,7 @@ export async function POST(request: NextRequest) {
     const [launch] = await database
       .select({
         id: marketLaunches.id,
+        agentId: marketLaunches.agentId,
         status: marketLaunches.status,
         cluster: marketLaunches.cluster,
         baseMint: marketLaunches.baseMint,
@@ -127,6 +143,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await database
+      .update(executionIntents)
+      .set({ status: "expired", updatedAt: new Date() })
+      .where(
+        and(
+          eq(executionIntents.launchId, launch.id),
+          inArray(executionIntents.status, ["prepared", "simulating", "simulated"]),
+          lt(executionIntents.expiresAt, new Date()),
+        ),
+      );
+
     const prepared = await createServerMeteoraDbcClient().prepareCreatePoolTransaction({
       config,
       baseMint: parsed.data.baseMint,
@@ -136,12 +163,43 @@ export async function POST(request: NextRequest) {
       symbol: parsed.data.symbol,
       uri: parsed.data.uri,
     });
+    const [intent] = await database
+      .insert(executionIntents)
+      .values({
+        kind: "meteora.pool",
+        agentId: launch.agentId,
+        launchId: launch.id,
+        ownerWallet: session.wallet,
+        cluster: env.cluster,
+        feePayer: prepared.feePayer,
+        messageSha256: prepared.messageSha256,
+        requiredSigners: prepared.requiredSigners,
+        accountsSummary: { accounts: prepared.accounts, review: prepared.review },
+        instructionSummary: prepared.review,
+        blockhash: prepared.recentBlockhash,
+        lastValidBlockHeight: prepared.lastValidBlockHeight,
+        expiresAt: new Date(Date.now() + 90_000),
+        status: "prepared",
+      })
+      .returning({ id: executionIntents.id });
 
-    return NextResponse.json(prepared, {
-      status: 200,
-      headers: { "Cache-Control": "no-store" },
-    });
+    return NextResponse.json(
+      { ...prepared, intentId: intent?.id },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json(
+        {
+          error:
+            "This launch already has an active pool execution intent. Complete it or wait for it to expire.",
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json(
       {
         error:

@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/domain-primitives";
 import { METEORA_BROADCAST_UNAVAILABLE_REASON } from "@/lib/integrations/meteora/broadcast-safety";
 
 type PreparedConfigTransaction = Readonly<{
+  intentId: string;
   kind: "meteora.createConfig";
   profileId: "navis-equity-v1";
   cluster: string;
@@ -41,6 +42,7 @@ type PreparedConfigTransaction = Readonly<{
 }>;
 
 type PreparedPoolTransaction = Readonly<{
+  intentId: string;
   kind: "meteora.createPool";
   cluster: string;
   programId: string;
@@ -162,7 +164,7 @@ export function MeteoraConfigPrepare({
   const [state, setState] = useState<PrepareState>({ status: "idle" });
 
   async function prepareTransaction() {
-    if (!executionEnabled || !connected || !publicKey) return;
+    if (!executionEnabled || !connected || !publicKey || !selectedAgentId) return;
 
     configKeypairRef.current ??= Keypair.generate();
     setState({ status: "loading" });
@@ -172,6 +174,7 @@ export function MeteoraConfigPrepare({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          agentId: selectedAgentId,
           config: configKeypairRef.current.publicKey.toBase58(),
         }),
       });
@@ -223,8 +226,8 @@ export function MeteoraConfigPrepare({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          intentId: state.prepared.intentId,
           serializedTransaction,
-          messageSha256: state.prepared.messageSha256,
         }),
       });
       const payload = await readJson(response);
@@ -271,10 +274,8 @@ export function MeteoraConfigPrepare({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentId: selectedAgentId,
-          config: state.prepared.accounts.config,
+          intentId: state.prepared.intentId,
           serializedTransaction: state.signedSerializedTransaction,
-          messageSha256: state.prepared.messageSha256,
         }),
       });
       const payload = await readJson(response);
@@ -410,8 +411,8 @@ export function MeteoraConfigPrepare({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          intentId: state.poolPrepared.intentId,
           serializedTransaction,
-          messageSha256: state.poolPrepared.messageSha256,
         }),
       });
       const payload = await readJson(response);
@@ -457,11 +458,8 @@ export function MeteoraConfigPrepare({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          launchId: state.submitted.launch.id,
-          baseMint: state.poolPrepared.accounts.baseMint,
-          poolAddress: state.poolPrepared.accounts.poolAddress,
+          intentId: state.poolPrepared.intentId,
           serializedTransaction: state.poolSignedSerializedTransaction,
-          messageSha256: state.poolPrepared.messageSha256,
         }),
       });
       const payload = await readJson(response);
