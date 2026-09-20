@@ -3,12 +3,16 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PersistentRunsNotice } from "@/components/decisions/persistent-runs-notice";
+import { RunDecisionPanel } from "@/components/decisions/run-decision-panel";
 import { FieldRow, RouteHeader } from "@/components/route-primitives";
+import { StatusBadge } from "@/components/shared/domain-primitives";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import type { RiskConstraint } from "@/lib/domain";
 import { getPersistentAgentForOwner } from "@/lib/services/agents";
+import { listDecisionsForOwner } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Persistent agent" };
 export const dynamic = "force-dynamic";
@@ -46,8 +50,8 @@ export default async function PersistentAgentPage({
           <p className="route-copy">
             Persistent agents are ownership-scoped and are never exposed by slug alone.
           </p>
-          <Link className="secondary-button" href="/agents/new">
-            Return to agent setup
+          <Link className="secondary-button" href="/agents">
+            Return to agent list
           </Link>
         </section>
       </>
@@ -66,17 +70,28 @@ export default async function PersistentAgentPage({
     );
   }
 
-  const bundle = await getPersistentAgentForOwner(slug, session.wallet, getDatabase());
+  const database = getDatabase();
+  const bundle = await getPersistentAgentForOwner(slug, session.wallet, database);
   if (!bundle) notFound();
+  const storedDecisions = (
+    await listDecisionsForOwner(session.wallet, database)
+  ).filter((decision) => decision.agent.id === bundle.agent.id);
 
   return (
     <>
       <RouteHeader
         eyebrow="Persistent draft"
         title={bundle.agent.name}
-        description="Read-only record of the mandate, policy, and asset universe committed at creation."
+        description="Immutable mandate, policy and asset universe committed at creation, plus the decisions this wallet has generated against them."
         meta={`${bundle.agent.mode} · ${bundle.agent.status}`}
       />
+      {bundle.agent.mode === "demo" ? (
+        <RunDecisionPanel
+          agentSlug={bundle.agent.slug}
+          agentName={bundle.agent.name}
+          persisted
+        />
+      ) : null}
       <div className="route-grid agent-profile-grid">
         <section className="route-panel">
           <span className="route-eyebrow">
@@ -100,12 +115,41 @@ export default async function PersistentAgentPage({
             <FieldRow label="Strategy hash" value={bundle.strategy.hash} />
           </div>
         </section>
+        {bundle.agent.mode === "demo" ? (
+          <section className="route-panel" data-testid="stored-decisions">
+            <span className="route-eyebrow">Stored decisions</span>
+            {storedDecisions.length > 0 ? (
+              <div className="owned-agent-links">
+                {storedDecisions.map((decision) => (
+                  <Link
+                    key={decision.decisionId}
+                    href={`/decisions/${decision.decisionId}`}
+                  >
+                    {decision.action} ·{" "}
+                    {decision.createdAt.slice(0, 19).replace("T", " ")}{" "}
+                    <StatusBadge tone={decision.approved ? "pass" : "block"}>
+                      {decision.approved ? "Approved" : "Rejected"}
+                    </StatusBadge>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p>
+                No decisions stored yet. Generate one above to create the first
+                decision, policy evaluation and receipt for this agent.
+              </p>
+            )}
+          </section>
+        ) : (
+          <PersistentRunsNotice />
+        )}
         <section className="route-panel route-panel-muted">
           <span className="route-eyebrow">Treasury</span>
-          <h2>Unavailable</h2>
+          <h2>No real treasury</h2>
           <p>
-            No treasury account, balance snapshot, funding event, or onchain transaction
-            was created with this draft.
+            No funded treasury, funding event, or onchain transaction exists for this
+            draft. Each generated decision records a labelled demo fixture snapshot so
+            the policy has every fact it needs; those balances are fictional.
           </p>
         </section>
         <section className="route-panel">
@@ -135,8 +179,8 @@ export default async function PersistentAgentPage({
               />
             ))}
           </div>
-          <Link className="secondary-button" href="/agents/new">
-            Back to agent setup
+          <Link className="secondary-button" href="/agents">
+            Back to agent list
           </Link>
         </section>
       </div>

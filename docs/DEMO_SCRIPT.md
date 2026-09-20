@@ -8,7 +8,17 @@ History: until the 20 September 2026 hardening push, fresh proposal generation w
 
 ## 0:00–0:30 — Problem and wedge
 
-Open `/agents/atlas`.
+Open `/` (the landing screen).
+
+Read the one sentence on screen: "Navis lets an AI equity agent propose Solana actions, but only deterministic policy checks and wallet approval can turn those proposals into verifiable receipts."
+
+Show:
+
+- Mode and cluster banner (demo, devnet).
+- The three proof points: the agent cannot bypass policy; demo and live evidence are labelled differently; wallet approval remains required for value movement.
+- The assurance model: offchain integrity, wallet authorization, onchain settlement. Say that the demo never leaves the first level.
+
+Click **Open the Atlas demo** (`/agents/atlas`).
 
 Say: Navis is a governed Solana equity-agent workspace. The point is not an AI stock-tip chatbot; it is a capital-bearing mandate with visible rules, wallet authority, and proof.
 
@@ -25,8 +35,8 @@ In the **Run new decision** panel choose **Balanced** and press **Run decision**
 
 Show:
 
-- Balanced: Approved, every policy check passed, fresh receipt hash, "Receipt verified" after pressing **Verify receipt**.
-- Oversized: Rejected on max trade bps (5000 vs limit 1000) and min reserve bps (250 vs limit 2000); still a valid receipt.
+- Balanced: Approved, every policy check passed, fresh receipt hash, "Receipt verified" after pressing **Verify receipt**. The assurance badge reads "Offchain integrity" and "Demo simulation".
+- Oversized: Rejected on max trade bps (5000 vs limit 1000) and min reserve bps (250 vs limit 2000); still a valid receipt. The "Why this failed" panel names the two checks that exceeded their limits.
 - The persistence note: kept in memory for this server instance only. Do not click "Open decision detail" on the public site during the recording; it can show "Decision unavailable" on Vercel.
 
 Then click **Inspect decision** on the recorded example and show the deterministic proposal, policy checks and hash, with no explorer link for the simulated receipt.
@@ -43,6 +53,8 @@ Show:
 - Strategy hash.
 - Risk-policy hash.
 - Receipt hash verification.
+- Assurance badge: offchain integrity, demo simulation.
+- "Why this passed" panel with every policy check, observed value and limit.
 - Copyable evidence fields.
 
 Say: A judge can verify the receipt from a clean browser. If a real signature existed, it would appear here with cluster and explorer evidence; this demo receipt intentionally has none.
@@ -53,11 +65,11 @@ Open `/markets/launch`.
 
 Show:
 
-- ClawPump pair source state. If the key is missing, point out the explicit unavailable state.
+- ClawPump pair source state. If the key is missing, point out the explicit "Not configured" state card; a failed provider call shows "Unavailable".
 - Meteora DBC profile: program, quote mint, initial and migration market caps, threshold, fees, LP distribution.
 - Transaction builder copy: prepare before sign, simulate before submit, submit before confirm.
 - Pool monitor unavailable state when RPC is missing.
-- PreStocks read-only catalogue or unavailable state; emphasize economic-exposure disclosure and no trading path.
+- PreStocks read-only catalogue or its explicit unavailable state; emphasize economic-exposure disclosure and no trading path.
 
 Say: Navis separates ClawPump and Meteora evidence so one sponsor claim cannot be confused for another.
 

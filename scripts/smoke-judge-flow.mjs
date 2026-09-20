@@ -11,6 +11,25 @@ const reportPath = process.env.NAVIS_SMOKE_REPORT;
 
 const checks = [
   {
+    path: "/",
+    includes: [
+      "Navis lets an AI equity agent propose Solana actions, but only deterministic policy checks and wallet approval can turn those proposals into verifiable receipts.",
+      "The agent cannot bypass policy",
+      "Demo and live evidence are labelled differently",
+      "Wallet approval remains required for value movement",
+      "Atlas demo",
+      "Create an agent",
+      "Markets Launch",
+      "Offchain integrity",
+      "Wallet authorization",
+      "Onchain settlement",
+    ],
+  },
+  {
+    path: "/agents",
+    includes: ["Agents", "Atlas", "Create an agent"],
+  },
+  {
     path: "/agents/new",
     includes: ["Define a mandate", "Review mandate"],
   },
@@ -36,7 +55,13 @@ const checks = [
   },
   {
     path: "/proofs",
-    includes: ["Proofs", "DEMO RECEIPT", "Simulation"],
+    includes: [
+      "Proofs",
+      "DEMO RECEIPT",
+      "Simulation",
+      "Offchain integrity",
+      "Demo simulation",
+    ],
   },
   {
     path: "/proofs/demo-proof",
@@ -46,6 +71,9 @@ const checks = [
       "None",
       "Offchain only",
       "deterministic demo receipt",
+      "Why this passed",
+      "Offchain integrity",
+      "Demo simulation",
     ],
     // The public baseline and locally hardened verifier use different labels.
     includesAny: ["Hashes and references match", "All published hashes match"],
@@ -251,6 +279,30 @@ async function run() {
         excludes: check.excludes ?? [],
       });
     }
+
+    const unknownDecision = await fetch(`${baseUrl}/decisions/unknown-decision-id`, {
+      headers: { accept: "text/html", "user-agent": "Navis judge-flow smoke test" },
+      redirect: "manual",
+    });
+    if (unknownDecision.status !== 404) {
+      throw new Error(
+        `/decisions/unknown-decision-id returned HTTP ${unknownDecision.status}, expected 404`,
+      );
+    }
+    console.log("✓ /decisions/unknown-decision-id -> 404");
+    results.push({ path: "/decisions/unknown-decision-id", status: 404 });
+
+    const unknownProof = await fetch(`${baseUrl}/proofs/unknown-proof-id`, {
+      headers: { accept: "text/html", "user-agent": "Navis judge-flow smoke test" },
+      redirect: "manual",
+    });
+    if (unknownProof.status !== 404) {
+      throw new Error(
+        `/proofs/unknown-proof-id returned HTTP ${unknownProof.status}, expected 404`,
+      );
+    }
+    console.log("✓ /proofs/unknown-proof-id -> 404");
+    results.push({ path: "/proofs/unknown-proof-id", status: 404 });
 
     if (health.services?.database?.status === "not_configured") {
       const freshDecisionId = await exerciseFreshDecision();

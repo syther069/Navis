@@ -1,0 +1,2 @@
+DROP INDEX "execution_intents_active_pool_launch_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "execution_intents_active_pool_launch_unique" ON "execution_intents" USING btree ("launch_id") WHERE "execution_intents"."kind" = 'meteora.pool' and "execution_intents"."status" in ('prepared', 'simulating', 'simulated', 'broadcasting', 'submitting');

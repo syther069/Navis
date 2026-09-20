@@ -1,5 +1,7 @@
 # Navis
 
+[![CI](https://github.com/syther069/Navis/actions/workflows/ci.yml/badge.svg)](https://github.com/syther069/Navis/actions/workflows/ci.yml)
+
 Navis is a governed Solana equity-agent workspace for the Stocklana hackathon. It shows one constrained agent lifecycle: a mandate, token universe, deterministic risk checks, explicit wallet authority boundaries, sponsor launch surfaces, and hash-verifiable proof receipts.
 
 Navis is not a brokerage UI and does not claim that demo assets or PreStocks tokens are legal shares. Demo receipts are simulations. Explorer links and signatures appear only when Navis has stored real submitted transaction evidence.
@@ -9,7 +11,7 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 ## What changed since the first audit
 
 - The fresh decision journey is live on the public site: `POST /api/decisions/run` with a **Balanced** or **Oversized** scenario returns a fresh proposal, policy evaluation, execution eligibility and a newly hashed receipt; the Atlas page has a **Run new decision** panel that shows the full result inline. `/decisions/<id>` re-renders it, but on the public site that link is unreliable because demo runs live in one serverless instance's memory.
-- Meteora config and pool submission are bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result). The submit routes accept only an intent ID plus signed bytes, and the launch record is persisted as `broadcasting` before any send. Broadcast itself remains hard-blocked in every mode until a separate security review.
+- Meteora config and pool submission are bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result). The submit routes accept only an intent ID plus signed bytes, and the launch record is persisted as `submitting` with the derived transaction signature before any send, so a repeated submit replays the record instead of sending twice and a timeout after send stays `unknown_pending` until reconciled. Confirmation then decodes the onchain config or pool account and labels the launch `protocol_verified`, `signature_confirmed` or `evidence_incomplete`. Broadcast itself remains hard-blocked in every mode until a separate security review.
 - Same-origin mutation requests are trusted behind the deployment proxy (`x-forwarded-host`), so public decision runs work on Vercel; foreign origins still receive 403. Wallet authentication remains unavailable in production because it needs a database, session secret and configured app origin, none of which the public demo has.
 - The Atlas page now opens with a short intro (problem, what Navis does, what to try) and an optional read-only devnet slot probe gated on `SOLANA_RPC_URL`. Both are live on the public site as of the 20 September 2026 evening push (`085e779`); production has `SOLANA_RPC_URL` set to the public devnet endpoint, execution flags stay false, and the probe only reads the current slot.
 - Repository documentation was refreshed so every claim matches the deployed commit. Historical baselines are kept in clearly labelled history sections.
@@ -110,6 +112,8 @@ The baseline local validation set is:
 npm run check
 ```
 
+The same gate runs on GitHub for every push and every pull request (`.github/workflows/ci.yml`): lockfile registry check, format, lint, typecheck, tests, production build, judge smoke against the built app in the locked demo posture, Drizzle schema check, submission audit, and a report-only `npm audit --omit=dev`. It needs no secrets. The smoke report is uploaded as a workflow artifact.
+
 To run the judge-flow smoke against a deployed origin instead of local `next start`:
 
 ```bash
@@ -138,6 +142,7 @@ Current result (20 September 2026, current `main`):
 
 ## Demo route map
 
+- `/` — landing screen: the one-sentence pitch, three proof points, mode and cluster banner, the assurance model (offchain integrity, wallet authorization, onchain settlement) and entry links to the Atlas demo, agent creation and Markets Launch.
 - `/agents/atlas` — public demo workspace with the **Run new decision** panel (Balanced approves, Oversized is rejected).
 - `/decisions/<id>` and `/api/decisions/<id>` — fresh decision result; in memory only when no database is configured.
 - `/api/decisions/run` — `POST { agentSlug: "atlas", scenario: "balanced" | "oversized" }`; same-origin only.

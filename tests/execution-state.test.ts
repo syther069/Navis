@@ -110,6 +110,63 @@ describe("execution attempt state machine", () => {
     ).toThrow("active execution");
   });
 
+  it("refuses a second execution attempt for the same decision", () => {
+    // A replayed open-attempt request sees the first attempt still active.
+    expect(() =>
+      assertExecutionGate({ ...validGate(), hasActiveAttempt: true }),
+    ).toThrow("already has an active execution attempt");
+    // After the first attempt claims the decision, its status is no longer
+    // "approved", so a replay that raced past the active-attempt read still fails.
+    expect(() =>
+      assertExecutionGate({ ...validGate(), decisionStatus: "executing" }),
+    ).toThrow("not approved");
+    expect(() =>
+      assertExecutionGate({ ...validGate(), decisionStatus: "executed" }),
+    ).toThrow("not approved");
+  });
+
+  it("refuses execution by a session that does not own the agent", () => {
+    expect(() =>
+      assertExecutionGate({
+        ...validGate(),
+        ownerId: "22222222-2222-4222-8222-222222222222",
+      }),
+    ).toThrow("not owned by the authenticated session");
+    expect(() => assertExecutionGate({ ...validGate(), ownerId: null })).toThrow(
+      "not owned by the authenticated session",
+    );
+  });
+
+  it("refuses a policy evaluation computed from other facts", () => {
+    expect(() =>
+      assertExecutionGate({
+        ...validGate(),
+        policyEvaluation: { approved: true, inputHash: "d".repeat(64) },
+      }),
+    ).toThrow("matching approved policy evaluation");
+    expect(() =>
+      assertExecutionGate({ ...validGate(), policyEvaluation: null }),
+    ).toThrow("matching approved policy evaluation");
+    expect(() =>
+      assertExecutionGate({
+        ...validGate(),
+        policyEvaluation: { approved: false, inputHash: "b".repeat(64) },
+      }),
+    ).toThrow("matching approved policy evaluation");
+  });
+
+  it("never lets HOLD or an expired decision open a value-moving attempt", () => {
+    expect(() =>
+      assertExecutionGate({ ...validGate(), proposalAction: "HOLD" }),
+    ).toThrow("HOLD decisions");
+    expect(() =>
+      assertExecutionGate({
+        ...validGate(),
+        decisionExpiresAt: new Date("2026-09-17T08:00:00.000Z"),
+      }),
+    ).toThrow("expired");
+  });
+
   it("blocks demo wallet execution and disabled live modes", () => {
     expect(() =>
       assertExecutionGate({

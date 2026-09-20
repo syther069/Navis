@@ -235,6 +235,15 @@ function policyEvidenceMatches(document: ProofReceiptDocument) {
     },
   } as const;
 
+  const holdLiquidity = checksByRule.get("min_liquidity_usd_micros");
+  if (
+    proposal.action === "HOLD" &&
+    (holdLiquidity?.status !== "pass" ||
+      holdLiquidity.observed !== "not required (HOLD)")
+  ) {
+    return false;
+  }
+
   return Object.entries(expected).every(([rule, values]) => {
     const actual = checksByRule.get(rule);
     return (

@@ -1,0 +1,90 @@
+name: CI
+
+# Runs the same gate as `npm run check` locally, step by step so a failure
+# names the gate that broke. No secrets: the judge smoke boots the production
+# build in the locked demo posture and only reads public routes.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+  # Safe demo environment, identical to scripts/smoke-judge-flow.mjs defaults.
+  NAVIS_EXECUTION_MODE: demo
+  ENABLE_DEMO_MODE: "true"
+  ENABLE_DEVNET_EXECUTION: "false"
+  ENABLE_MAINNET_EXECUTION: "false"
+  MAINNET_RELEASE_APPROVED: "false"
+  NEXT_PUBLIC_SOLANA_CLUSTER: devnet
+  AI_PROVIDER: demo
+
+jobs:
+  check:
+    name: check, smoke and submission audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Dependency-free, and deliberately before npm ci: a lockfile pointing at
+      # a foreign registry must fail before anything is downloaded or run.
+      # Same script as the pre-commit/pre-push hooks and lockfile-registry.yml.
+      - name: Lockfile registry gate
+        run: node scripts/check-lockfile-registry.mjs
+
+      - name: Install from lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and route tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Judge-flow smoke (local next start, demo posture)
+        run: npm run smoke:judge
+        env:
+          NAVIS_SMOKE_REPORT: ci-artifacts/smoke-report.json
+
+      - name: Drizzle schema check
+        run: npm run db:check
+
+      - name: Submission audit
+        run: npm run submission:audit
+
+      # Report only: the advisories are transitive through the Solana and
+      # Meteora chains and tracked in docs/SECURITY_REVIEW.md.
+      - name: Production dependency audit (report only)
+        run: npm audit --omit=dev || true
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-smoke-report
+          path: ci-artifacts/smoke-report.json
+          if-no-files-found: ignore

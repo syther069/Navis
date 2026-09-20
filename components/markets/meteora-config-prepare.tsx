@@ -12,11 +12,45 @@ import { useRef, useState } from "react";
 import { AddressValue } from "@/components/shared/address-value";
 import { StatusBadge } from "@/components/shared/domain-primitives";
 import { METEORA_BROADCAST_UNAVAILABLE_REASON } from "@/lib/integrations/meteora/broadcast-safety";
+import type {
+  MeteoraQuoteProfileAvailability,
+  MeteoraQuoteProfileId,
+} from "@/lib/integrations/meteora/quote-profiles";
+
+export type MeteoraPrepareProps = Readonly<{
+  executionEnabled: boolean;
+  agents: readonly {
+    id: string;
+    name: string;
+    mode: string;
+    cluster: string;
+  }[];
+  /** Server-approved quote profiles with availability for the active cluster. */
+  profiles: readonly MeteoraQuoteProfileAvailability[];
+  /** Live PreStocks symbols the stock-paired profile may quote against. */
+  prestocksSymbols: readonly { symbol: string; name: string }[];
+}>;
 
 type PreparedConfigTransaction = Readonly<{
   intentId: string;
   kind: "meteora.createConfig";
-  profileId: "navis-equity-v1";
+  profileId: MeteoraQuoteProfileId;
+  quote: {
+    profileId: MeteoraQuoteProfileId;
+    source: "wrapped_sol" | "prestocks";
+    mint: string;
+    decimals: number;
+    symbol: string;
+    name: string;
+    provenance: string;
+    onchain: {
+      tokenProgram: string;
+      decimals: number;
+      extensions: string[];
+      tokenBadge: string | null;
+      verifiedAtSlot: number;
+    } | null;
+  };
   cluster: string;
   programId: string;
   sdkVersion: string;
@@ -93,7 +127,14 @@ type SubmitResult = Readonly<{
 }>;
 
 type ConfirmationResult = Readonly<{
-  confirmation: "confirmed" | "unknown_pending" | "failed";
+  /** Label or pending state: protocol_verified, signature_confirmed, evidence_incomplete, or a pending reason. */
+  confirmation: string;
+  evidence?: {
+    label: string | null;
+    state: string;
+    signature?: { slot: number; feeLamports: number; confirmedAt: string } | null;
+    protocol?: { address: string | null; reason: string } | null;
+  } | null;
   launch?: {
     id?: string;
     status?: string;
@@ -145,19 +186,23 @@ function bytesToBase64(bytes: Uint8Array) {
 export function MeteoraConfigPrepare({
   executionEnabled,
   agents,
-}: {
-  executionEnabled: boolean;
-  agents: readonly {
-    id: string;
-    name: string;
-    mode: string;
-    cluster: string;
-  }[];
-}) {
+  profiles,
+  prestocksSymbols,
+}: MeteoraPrepareProps) {
   const { connected, publicKey, signTransaction } = useWallet();
   const configKeypairRef = useRef<Keypair | null>(null);
   const poolBaseMintKeypairRef = useRef<Keypair | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState(agents[0]?.id ?? "");
+  const [selectedProfileId, setSelectedProfileId] = useState<MeteoraQuoteProfileId>(
+    profiles.find((profile) => profile.available)?.id ?? "navis-equity-v1",
+  );
+  const [selectedQuoteSymbol, setSelectedQuoteSymbol] = useState(
+    prestocksSymbols[0]?.symbol ?? "",
+  );
+  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId);
+  const needsQuoteSymbol = Boolean(selectedProfile?.requiresQuoteSymbol);
+  const profileReady =
+    Boolean(selectedProfile?.available) && (!needsQuoteSymbol || selectedQuoteSymbol);
   const [poolName, setPoolName] = useState("Navis Market");
   const [poolSymbol, setPoolSymbol] = useState("NAVIS");
   const [poolUri, setPoolUri] = useState("https://example.com/navis-token.json");
@@ -165,6 +210,7 @@ export function MeteoraConfigPrepare({
 
   async function prepareTransaction() {
     if (!executionEnabled || !connected || !publicKey || !selectedAgentId) return;
+    if (!profileReady) return;
 
     configKeypairRef.current ??= Keypair.generate();
     setState({ status: "loading" });
@@ -176,6 +222,8 @@ export function MeteoraConfigPrepare({
         body: JSON.stringify({
           agentId: selectedAgentId,
           config: configKeypairRef.current.publicKey.toBase58(),
+          profileId: selectedProfileId,
+          quoteSymbol: needsQuoteSymbol ? selectedQuoteSymbol : undefined,
         }),
       });
       const payload = await readJson(response);
@@ -340,7 +388,10 @@ export function MeteoraConfigPrepare({
   }
 
   async function preparePool() {
-    if (state.status !== "ready" || state.confirmation?.confirmation !== "confirmed") {
+    if (
+      state.status !== "ready" ||
+      state.confirmation?.launch?.status !== "confirmed"
+    ) {
       return;
     }
 
@@ -523,10 +574,59 @@ export function MeteoraConfigPrepare({
     }
   }
 
-  const disabled = !executionEnabled || !connected || state.status === "loading";
+  const disabled =
+    !executionEnabled || !connected || state.status === "loading" || !profileReady;
 
   return (
     <div className="meteora-prepare">
+      <div className="meteora-profile-picker">
+        <label className="form-field">
+          <span>Quote profile</span>
+          <select
+            value={selectedProfileId}
+            disabled={state.status === "loading"}
+            onChange={(event) =>
+              setSelectedProfileId(event.target.value as MeteoraQuoteProfileId)
+            }
+          >
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.label} · {profile.id}
+                {profile.status === "gated"
+                  ? " · gated (token badge required)"
+                  : profile.available
+                    ? ""
+                    : " · unavailable here"}
+              </option>
+            ))}
+          </select>
+        </label>
+        {needsQuoteSymbol && selectedProfile?.available ? (
+          <label className="form-field">
+            <span>PreStocks quote token</span>
+            <select
+              value={selectedQuoteSymbol}
+              disabled={prestocksSymbols.length === 0 || state.status === "loading"}
+              onChange={(event) => setSelectedQuoteSymbol(event.target.value)}
+            >
+              {prestocksSymbols.length === 0 ? (
+                <option value="">PreStocks catalogue unavailable</option>
+              ) : (
+                prestocksSymbols.map((asset) => (
+                  <option key={asset.symbol} value={asset.symbol}>
+                    {asset.symbol} · {asset.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        ) : null}
+        {selectedProfile ? (
+          <p className="form-note" role="status">
+            {selectedProfile.reason}
+          </p>
+        ) : null}
+      </div>
       <button
         className="primary-button"
         type="button"
@@ -668,7 +768,8 @@ function PreparedTransactionReview({
   onSubmitPool: () => void;
   onConfirmPool: () => void;
 }) {
-  const configConfirmed = confirmation?.confirmation === "confirmed";
+  // Pool creation needs the protocol-verified config, not just a confirmed signature.
+  const configConfirmed = confirmation?.launch?.status === "confirmed";
 
   return (
     <div className="meteora-prepared-review">
@@ -718,7 +819,31 @@ function PreparedTransactionReview({
         </div>
         <div>
           <dt>Migration threshold</dt>
-          <dd>{prepared.review.migrationQuoteThresholdSol} SOL</dd>
+          <dd>
+            {prepared.review.migrationQuoteThresholdSol} {prepared.quote.symbol}
+          </dd>
+        </div>
+        <div>
+          <dt>Quote profile</dt>
+          <dd>
+            <code>{prepared.quote.profileId}</code> · {prepared.quote.name} (
+            {prepared.quote.symbol}, {prepared.quote.decimals} decimals)
+          </dd>
+        </div>
+        <div>
+          <dt>Quote mint</dt>
+          <dd>
+            <AddressValue value={prepared.quote.mint} label="quote mint" />
+          </dd>
+        </div>
+        <div>
+          <dt>Quote provenance</dt>
+          <dd>
+            {prepared.quote.provenance}
+            {prepared.quote.onchain
+              ? ` Verified ${prepared.quote.onchain.tokenProgram} mint with ${prepared.quote.onchain.decimals} decimals at slot ${prepared.quote.onchain.verifiedAtSlot}${prepared.quote.onchain.tokenBadge ? `; Meteora token badge ${prepared.quote.onchain.tokenBadge}` : ""}.`
+              : ""}
+          </dd>
         </div>
       </dl>
       <div className="meteora-simulation-actions">
@@ -1010,8 +1135,14 @@ function SubmitReview({
         </button>
         {confirmation ? (
           <p className="form-note">
-            Confirmation state: {confirmation.confirmation}. Real pool creation remains
-            separate from this config transaction.
+            Confirmation: {confirmation.confirmation.replaceAll("_", " ")}
+            {confirmation.evidence?.signature
+              ? ` at slot ${confirmation.evidence.signature.slot}, fee ${confirmation.evidence.signature.feeLamports} lamports`
+              : ""}
+            {confirmation.evidence?.protocol?.address
+              ? `, account ${confirmation.evidence.protocol.address.slice(0, 6)}…`
+              : ""}
+            . Real pool creation remains separate from this config transaction.
           </p>
         ) : null}
       </div>

@@ -3,11 +3,23 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { PolicyResult, StatusBadge } from "@/components/shared/domain-primitives";
+import { AssuranceBadge } from "@/components/shared/assurance-badge";
+import { StatusBadge } from "@/components/shared/domain-primitives";
+import { PolicyExplanationPanel } from "@/components/shared/policy-explanation-panel";
+import { assuranceForReceipt } from "@/lib/assurance";
+import { describeDecisionDetailAccess } from "@/lib/decisions/detail-link";
 import { verifyProofReceipt } from "@/lib/proofs/receipt";
-import type { DecisionRunResult, DecisionScenario } from "@/lib/services/run-decision";
+import { decisionScenarios, type DecisionScenario } from "@/lib/decisions/scenarios";
+import type { DecisionRunResult } from "@/lib/services/run-decision";
 
-export function DecisionRunResultView({ run }: { run: DecisionRunResult }) {
+export function DecisionRunResultView({
+  run,
+  showDetailLink = true,
+}: {
+  run: DecisionRunResult;
+  showDetailLink?: boolean;
+}) {
+  const access = describeDecisionDetailAccess(run.persisted);
   const [verified, setVerified] = useState<boolean | null>(() => {
     try {
       return verifyProofReceipt(run.receipt, run.receiptHash).valid;
@@ -24,11 +36,23 @@ export function DecisionRunResultView({ run }: { run: DecisionRunResult }) {
     }
   }
 
+  const failedRules = run.policyEvaluation.checks.filter(
+    (check) => check.status === "fail",
+  );
+  const whyLine = run.policyEvaluation.approved
+    ? `Policy approved: all ${run.policyEvaluation.checks.length} checks passed. Demo mode records a simulated execution only.`
+    : `Policy rejected: ${failedRules
+        .map((check) => check.rule.replaceAll("_", " "))
+        .join(", ")} failed. Nothing was executed.`;
+  const assurance = assuranceForReceipt(run.receipt);
+
   return (
-    <div className="decision-run-result">
+    <div className="decision-run-result" data-testid="decision-run-result">
       <div className="proof-verification-heading">
         <div>
-          <span className="route-eyebrow">Fresh proposal</span>
+          <span className="route-eyebrow">
+            Fresh proposal{run.scenario ? ` · ${run.scenario} scenario` : ""}
+          </span>
           <h2>{run.proposal.action}</h2>
           <p>{run.proposal.thesis}</p>
         </div>
@@ -36,18 +60,15 @@ export function DecisionRunResultView({ run }: { run: DecisionRunResult }) {
           {run.policyEvaluation.approved ? "Approved" : "Rejected"}
         </StatusBadge>
       </div>
-      <div className="decision-run-checks">
-        {run.policyEvaluation.checks.map((check) => (
-          <PolicyResult
-            key={check.rule}
-            label={check.rule.replaceAll("_", " ")}
-            observed={check.observed}
-            threshold={check.threshold}
-            detail={check.explanation}
-            status={check.status === "fail" ? "block" : check.status}
-          />
-        ))}
-      </div>
+      <p className="decision-run-why" data-testid="decision-run-why">
+        {whyLine}
+      </p>
+      <AssuranceBadge assurance={assurance} />
+      <PolicyExplanationPanel
+        approved={run.policyEvaluation.approved}
+        checks={run.policyEvaluation.checks}
+        headingId={`policy-explanation-${run.decisionId}`}
+      />
       <dl className="decision-run-facts">
         <div>
           <dt>Execution eligibility</dt>
@@ -75,19 +96,33 @@ export function DecisionRunResultView({ run }: { run: DecisionRunResult }) {
         <StatusBadge tone={verified ? "pass" : "block"}>
           {verified ? "Receipt verified" : "Receipt invalid"}
         </StatusBadge>
-        <Link className="secondary-button" href={`/decisions/${run.decisionId}`}>
-          Open decision detail
-        </Link>
-        <small>
-          Demo runs without a database are kept in memory for one server instance only.
-        </small>
+        {showDetailLink && access.linkable ? (
+          <Link className="secondary-button" href={`/decisions/${run.decisionId}`}>
+            Open decision detail
+          </Link>
+        ) : null}
+        {access.linkable && run.proofId ? (
+          <Link className="secondary-button" href={`/proofs/${run.proofId}`}>
+            Open proof receipt
+          </Link>
+        ) : null}
+        <small>{access.note}</small>
       </div>
     </div>
   );
 }
 
-export function RunDecisionPanel() {
+export function RunDecisionPanel({
+  agentSlug = "atlas",
+  agentName,
+  persisted = false,
+}: {
+  agentSlug?: string;
+  agentName?: string;
+  persisted?: boolean;
+}) {
   const [scenario, setScenario] = useState<DecisionScenario>("balanced");
+  const selectedScenario = decisionScenarios.find((item) => item.value === scenario);
   const [run, setRun] = useState<DecisionRunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -100,7 +135,7 @@ export function RunDecisionPanel() {
       const response = await fetch("/api/decisions/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentSlug: "atlas", scenario }),
+        body: JSON.stringify({ agentSlug, scenario }),
       });
       const body = (await response.json()) as DecisionRunResult & { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Decision run failed.");
@@ -117,10 +152,14 @@ export function RunDecisionPanel() {
       <div className="panel-heading">
         <div>
           <span>Live service path</span>
-          <h2 id="run-title">Run new decision</h2>
+          <h2 id="run-title">
+            {persisted ? "Generate decision" : "Run new decision"}
+            {agentName ? ` for ${agentName}` : ""}
+          </h2>
           <p>
-            Generate a fresh proposal and receipt. Demo mode never submits an onchain
-            transaction.
+            {persisted
+              ? "Generate a fresh proposal, let the policy code approve or reject it, and store the decision, evaluation and receipt for this wallet. Demo mode never submits an onchain transaction."
+              : "Generate a fresh proposal and receipt. Demo mode never submits an onchain transaction."}
           </p>
         </div>
       </div>
@@ -131,12 +170,24 @@ export function RunDecisionPanel() {
             value={scenario}
             onChange={(event) => setScenario(event.target.value as DecisionScenario)}
           >
-            <option value="balanced">Balanced</option>
-            <option value="oversized">Oversized</option>
+            {decisionScenarios.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
           </select>
         </label>
+        {selectedScenario ? (
+          <small className="decision-run-scenario-note">
+            {selectedScenario.description}
+          </small>
+        ) : null}
         <button className="primary-button" type="submit" disabled={pending}>
-          {pending ? "Running decision..." : "Run decision"}
+          {pending
+            ? "Running decision..."
+            : persisted
+              ? "Generate decision"
+              : "Run decision"}
         </button>
       </form>
       {error ? <p role="alert">{error}</p> : null}

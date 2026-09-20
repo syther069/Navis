@@ -44,7 +44,19 @@ export async function createDecision(
 ): Promise<DecisionRecord> {
   const prepared = await prepareDecision(contextCandidate, provider);
   const db = database ?? (await import("../db/client")).getDatabase();
+  return persistPreparedDecision(prepared, db);
+}
 
+/**
+ * Writes an already prepared decision after re-checking every referenced
+ * input (agent, strategy, policy, portfolio) still exists with the same hash.
+ * Accepts a database or an open transaction so callers can bind the decision
+ * to its policy evaluation and receipt atomically.
+ */
+export async function persistPreparedDecision(
+  prepared: PreparedDecision,
+  db: NavisDatabase,
+): Promise<DecisionRecord> {
   return db.transaction(async (transaction) => {
     const [agent] = await transaction
       .select()

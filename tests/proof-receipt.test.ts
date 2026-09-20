@@ -164,6 +164,130 @@ describe("public proof receipt", () => {
     expect(verifyRehashed(agentMismatch).checks.agentCoherence).toBe(false);
   });
 
+  describe("semantically mismatched documents with correct individual hashes", () => {
+    it("rejects a substituted strategy whose universe excludes the decision assets", () => {
+      // A different, internally consistent strategy document replaces the
+      // original in both places. Every hash checks out; the relationship does not.
+      const swapped = structuredClone(demoProof.document);
+      swapped.strategy.document = {
+        ...swapped.strategy.document,
+        universe: [swapped.strategy.document.universe[0]],
+      };
+      swapped.strategy.hash = hashCanonical(swapped.strategy.document);
+      swapped.decision.context.strategy.hash = swapped.strategy.hash;
+      rehashDecision(swapped);
+
+      const result = verifyRehashed(swapped);
+      expect(result.checks.strategy).toBe(true);
+      expect(result.checks.decision).toBe(true);
+      expect(result.checks.strategyReference).toBe(false);
+      expect(result.valid).toBe(false);
+    });
+
+    it("rejects a substituted strategy that no longer permits the proposed action", () => {
+      const swapped = structuredClone(demoProof.document);
+      swapped.strategy.document = {
+        ...swapped.strategy.document,
+        allowedActions: ["HOLD"],
+      };
+      swapped.strategy.hash = hashCanonical(swapped.strategy.document);
+      swapped.decision.context.strategy.hash = swapped.strategy.hash;
+      rehashDecision(swapped);
+
+      const result = verifyRehashed(swapped);
+      expect(result.checks.strategy).toBe(true);
+      expect(result.checks.strategyReference).toBe(false);
+      expect(result.valid).toBe(false);
+    });
+
+    it("rejects a portfolio snapshot taken from another agent even when both copies agree", () => {
+      const swapped = structuredClone(demoProof.document);
+      const foreign = structuredClone(swapped.portfolio.document);
+      foreign.agentId = "another_agent";
+      const foreignHash = hashCanonical(foreign);
+      swapped.portfolio = { document: foreign, hash: foreignHash };
+      swapped.decision.context.portfolio.document = structuredClone(foreign);
+      swapped.decision.context.portfolio.contentHash = foreignHash;
+      rehashDecision(swapped);
+
+      // The decision context schema refuses the foreign snapshot before any
+      // hash comparison runs.
+      expect(() => verifyRehashed(swapped)).toThrow(
+        "Portfolio snapshot must belong to the decision agent",
+      );
+
+      // The top-level portfolio alone pointing at another agent is caught by
+      // the agent coherence check.
+      const topLevelOnly = structuredClone(demoProof.document);
+      topLevelOnly.portfolio = { document: foreign, hash: foreignHash };
+      const result = verifyRehashed(topLevelOnly);
+      expect(result.checks.portfolio).toBe(true);
+      expect(result.checks.agentCoherence).toBe(false);
+      expect(result.checks.portfolioReference).toBe(false);
+      expect(result.valid).toBe(false);
+    });
+
+    it("documents the limit: a foreign policy input hash is caught by the receipt hash, not recomputed", () => {
+      // The receipt does not carry the facts object, so the verifier cannot
+      // recompute inputHash. A swapped hash breaks the published receipt hash;
+      // a fully rehashed receipt passes local verification. The binding to the
+      // real facts lives in the immutable stored evaluation row and the
+      // execution gate (tests/persisted-decision-run.test.ts,
+      // tests/execution-state.test.ts). This test pins that boundary so a
+      // future change to the verifier cannot silently overclaim.
+      const swapped = structuredClone(demoProof.document);
+      swapped.policyEvaluation.inputHash = "f".repeat(64);
+      const published = verifyProofReceipt(swapped, demoProof.receiptHash);
+      expect(published.checks.receipt).toBe(false);
+      expect(published.valid).toBe(false);
+
+      const rehashed = verifyRehashed(swapped);
+      expect(rehashed.checks.receipt).toBe(true);
+      expect(rehashed.valid).toBe(true);
+    });
+
+    it("rejects a HOLD receipt whose liquidity check claims a measured value", () => {
+      const hold = structuredClone(demoProof.document);
+      const narrative = hold.decision.proposal;
+      hold.decision.proposal = {
+        action: "HOLD",
+        maxSlippageBps: 0,
+        thesis: narrative.thesis,
+        evidence: narrative.evidence,
+        confidenceBps: narrative.confidenceBps,
+        invalidationConditions: narrative.invalidationConditions,
+        dataTimestamp: narrative.dataTimestamp,
+        expiresAt: narrative.expiresAt,
+      };
+      for (const check of hold.policyEvaluation.checks) {
+        if (check.rule === "allowed_mints") check.observed = "none (HOLD)";
+        if (check.rule === "max_slippage_bps") check.observed = "0";
+        if (check.rule === "verified_assets") check.observed = "all verified";
+      }
+      rehashDecision(hold);
+      // Claimed liquidity figure for a HOLD is not what the runner produces.
+      expect(verifyRehashed(hold).checks.policyEvidence).toBe(false);
+
+      const liquidity = hold.policyEvaluation.checks.find(
+        (check) => check.rule === "min_liquidity_usd_micros",
+      )!;
+      liquidity.status = "pass";
+      liquidity.observed = "not required (HOLD)";
+      expect(verifyRehashed(hold).checks.policyEvidence).toBe(true);
+    });
+
+    it("rejects an approval flag that disagrees with a failing check", () => {
+      const forged = structuredClone(demoProof.document);
+      const check = forged.policyEvaluation.checks.find(
+        (item) => item.rule === "max_trade_bps",
+      )!;
+      check.status = "fail";
+      const result = verifyRehashed(forged);
+      expect(result.checks.policyApproval).toBe(false);
+      expect(result.valid).toBe(false);
+    });
+  });
+
   it("rejects rehashed mode and cluster mismatches", () => {
     const modeMismatch = structuredClone(demoProof.document);
     modeMismatch.decision.context.mode = "devnet";

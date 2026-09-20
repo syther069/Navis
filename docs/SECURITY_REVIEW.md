@@ -4,7 +4,7 @@ Updated: 2026-09-20.
 
 ## Review summary
 
-Current `main` passes all eight automated gates, including 32 test files / 166 tests and the judge smoke with a fresh decision. The hardening below is deployed on the public Vercel demo at GitHub `main` commit `a335681`. The public demo has no database, sessions or RPC configured. Real wallet signing and production secret review remain open. See `REMEDIATION_REPORT.md` for the remediation pass and `STOCKLANA_JUDGE_AUDIT_V2.md` for the latest independent audit.
+Current `main` passes all nine automated gates, including 40 test files / 300 tests and the judge smoke with a fresh decision. The hardening below is deployed on the public Vercel demo at GitHub `main` commit `a335681`. The public demo has no database, sessions or RPC configured. Real wallet signing and production secret review remain open. See `REMEDIATION_REPORT.md` for the remediation pass and `STOCKLANA_JUDGE_AUDIT_V2.md` for the latest independent audit.
 
 ## Hardening after the judge audit (deployed at `a335681`)
 
@@ -38,9 +38,35 @@ Current `main` passes all eight automated gates, including 32 test files / 166 t
 | Database bounds        | The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout.                                                                                                                                                                       |
 | Dependency audit       | `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and 0 critical. `docs/evidence/stocklana-v2-dependency-audit.json` contains the machine-readable result. No forced override is approved.                                                       |
 
+## Adversarial claim-to-test map
+
+Every safety claim below is backed by a named automated test in the local gate. A green run proves the local behaviour only; it is not onchain evidence.
+
+| Claim                                                                                                            | Test file                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Signed Meteora bytes altered after signing (message byte, signature byte, unsigned, wrong payer, substituted tx) | `tests/meteora-signed-transaction.test.ts` (real `parseVerifiedSignedTransaction`, keypair-signed transactions)            |
+| Submit route rejects wrong owner, expired, unsimulated or hash-mismatched intents                                | `tests/meteora-intent.test.ts`                                                                                             |
+| Replayed Meteora submit does not rebroadcast; status-specific idempotent replies                                 | `tests/meteora-intent.test.ts`, `tests/meteora-intent-concurrency.test.ts`                                                 |
+| Receipt with a substituted strategy (hashes correct, universe or allowed actions no longer cover the decision)   | `tests/proof-receipt.test.ts` ("semantically mismatched documents")                                                        |
+| Receipt with a portfolio snapshot from another agent                                                             | `tests/proof-receipt.test.ts` (schema rejects the context copy; `agentCoherence` rejects the top-level copy)               |
+| Receipt with a policy input hash from other facts                                                                | `tests/proof-receipt.test.ts` (breaks the published receipt hash), `tests/execution-state.test.ts` (gate refuses mismatch) |
+| Demo receipts cannot be relabelled live or carry signatures, explorer links or anchoring claims                  | `tests/proof-receipt.test.ts`                                                                                              |
+| Confirmed receipts need a valid signature and canonical explorer URL for the right cluster                       | `tests/proof-receipt.test.ts`                                                                                              |
+| Stale, future-dated market data and expired quotes fail closed in devnet and mainnet                             | `tests/policy-runner.test.ts` ("adversarial live-mode inputs")                                                             |
+| Missing, undated, stale or insufficient liquidity blocks BUY, SELL and REBALANCE in live modes; HOLD allowed     | `tests/policy-runner.test.ts` ("liquidity in devnet/mainnet")                                                              |
+| Demo mode only warns on missing or stale liquidity                                                               | `tests/policy-runner.test.ts`                                                                                              |
+| Replayed decision run request yields a fresh decision, never a reused or executed one                            | `tests/decisions-run-route.test.ts`, `tests/run-decision.test.ts`                                                          |
+| Duplicate execution attempt for one decision (same key returns the same row; new key is refused)                 | `tests/persisted-decision-run.test.ts` (database), `tests/execution-state.test.ts` (gate)                                  |
+| Persisted-agent run or execution by a non-owner session                                                          | `tests/decisions-run-route.test.ts`, `tests/persisted-decision-run.test.ts`, `tests/execution-state.test.ts`               |
+| RPC timeout, network, invalid response, unseen signature, processed-only or missing transaction evidence         | `tests/reconciliation-outcomes.test.ts` (all map to `unknown_pending`, never `failed` or `confirmed`)                      |
+| Meteora confirmation refuses inconsistent RPC evidence and sanitizes provider failures                           | `tests/meteora-route-safety.test.ts`, `tests/meteora-reconciliation.test.ts`                                               |
+| Execution state machine refuses skipped, repeated or post-terminal transitions and evidence-free confirmations   | `tests/execution-state.test.ts`                                                                                            |
+
+Behaviour changed by this sweep (2026-09-20): the policy runner now requires a dated liquidity measurement (`liquidityObservedAt`) for value-moving proposals in devnet and mainnet; an undated or stale (older than `max_data_age_seconds`) figure fails closed there and only warns in demo, where the figure is a labelled fixture. A HOLD proposal no longer needs a liquidity figure in any mode because it moves no value, and the receipt verifier now reconstructs that HOLD outcome. Known limit, stated rather than hidden: the public receipt does not include the policy facts, so a fully rehashed receipt with a foreign `policyEvaluation.inputHash` passes local verification; the binding to the real facts is the immutable stored evaluation row plus the execution gate.
+
 ## Latest automated local gate
 
-- `npm run check`: pass on 2026-09-20 at current `main` across format, lint, typecheck, 32 test files / 166 tests, production Next.js build, judge smoke (11 routes, PreStocks API, fresh oversized decision), Drizzle schema validation, and submission audit.
+- `npm run check`: pass on 2026-09-20 at current `main` across format, lint, typecheck, 40 test files / 300 tests (database-backed cases included; they skip without `DATABASE_URL`), production Next.js build, judge smoke (11 routes, PreStocks API, fresh oversized decision), Drizzle schema validation, and submission audit.
 - History: the pre-remediation baseline at `ac26e54` passed with 24 files / 113 tests; the remediation pass with 26 files / 143 tests.
 - `npm run submission:audit`: passed required file/disclosure checks with one expected warning for TODO markers that require external deployment/repository/video/live-evidence inputs.
 - `npm audit --omit=dev`: 19 production advisories, comprising 6 high and 13 moderate findings with no critical findings. Core advisory roots are `bigint-buffer` (GHSA-3gc7-fjrx-p6mg), `toml` (GHSA-82x6-q7mm-w9cf and GHSA-v5mp-jgw5-2x6j), `stream-json` (GHSA-528h-pc64-c93x), and `uuid` (GHSA-w5hq-g745-h8pq), inherited through Solana/Meteora dependency chains. These findings remain unresolved and are not a security certification.

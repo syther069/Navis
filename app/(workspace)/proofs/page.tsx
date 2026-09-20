@@ -1,23 +1,79 @@
 import { ArrowRight, Fingerprint } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { RouteHeader } from "@/components/route-primitives";
+import { AssuranceBadge } from "@/components/shared/assurance-badge";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
+import { assuranceForReceipt } from "@/lib/assurance";
 import { demoProof } from "@/fixtures/demo-proof";
+import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
+import { getDatabase } from "@/lib/db/client";
+import { env } from "@/lib/env";
+import { listProofsForOwner } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Proofs" };
+export const dynamic = "force-dynamic";
 
-export default function ProofsPage() {
+export default async function ProofsPage() {
+  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const session = token ? await readSessionToken(token) : null;
+  const stored =
+    session && env.databaseUrl
+      ? await listProofsForOwner(session.wallet, getDatabase())
+      : [];
+  const note = !env.databaseUrl
+    ? "This instance has no database, so only the prepared Atlas receipt is listed."
+    : !session
+      ? "Authenticate a connected wallet to list the receipts stored for it."
+      : stored.length === 0
+        ? "No stored receipts for this wallet yet. Generate a decision on one of your agents to create the first one."
+        : `${stored.length} stored receipt${stored.length === 1 ? "" : "s"} for the connected wallet, newest first, plus the prepared Atlas receipt. Every stored receipt is a demo simulation with no signature or onchain evidence.`;
+
   return (
     <>
       <RouteHeader
         eyebrow="Evidence registry"
         title="Proofs"
         description="Read-only records bind agent intent to policy checks, authorization, and execution evidence without upgrading simulations into chain claims."
-        meta="1 demo receipt"
+        meta={
+          stored.length > 0
+            ? `${stored.length} stored · 1 demo receipt`
+            : "1 demo receipt"
+        }
       />
       <section className="route-panel proof-registry" aria-label="Proof receipts">
+        {stored.map((proof) => (
+          <article
+            key={proof.proofId}
+            className="proof-registry-row"
+            data-testid="stored-proof-row"
+          >
+            <span className="proof-registry-icon" aria-hidden="true">
+              <Fingerprint size={20} />
+            </span>
+            <div>
+              <span>
+                {proof.mode.toUpperCase()} RECEIPT · {proof.agent.name}
+              </span>
+              <h2>
+                {proof.approved
+                  ? "Approved proposal, simulated execution"
+                  : "Rejected proposal, no execution"}
+              </h2>
+              <SourceStamp source="database" timestamp={proof.finalizedAt} />
+              <AssuranceBadge assurance={assuranceForReceipt(proof.receipt)} compact />
+            </div>
+            <code>{proof.receiptHash.slice(0, 16)}…</code>
+            <StatusBadge tone={proof.approved ? "simulation" : "block"}>
+              {proof.executionState}
+            </StatusBadge>
+            <Link className="secondary-button" href={`/proofs/${proof.proofId}`}>
+              Verify <ArrowRight size={16} />
+            </Link>
+          </article>
+        ))}
         <article className="proof-registry-row">
           <span className="proof-registry-icon" aria-hidden="true">
             <Fingerprint size={20} />
@@ -29,6 +85,10 @@ export default function ProofsPage() {
               source="demo_fixture"
               timestamp={demoProof.document.generatedAt}
             />
+            <AssuranceBadge
+              assurance={assuranceForReceipt(demoProof.document)}
+              compact
+            />
           </div>
           <code>{demoProof.receiptHash.slice(0, 16)}…</code>
           <StatusBadge tone="simulation">Simulation</StatusBadge>
@@ -37,6 +97,9 @@ export default function ProofsPage() {
           </Link>
         </article>
       </section>
+      <p className="route-copy" data-testid="proof-registry-note">
+        {note}
+      </p>
     </>
   );
 }

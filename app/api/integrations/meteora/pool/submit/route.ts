@@ -11,6 +11,12 @@ import {
   isMeteoraBroadcastAvailable,
   METEORA_BROADCAST_UNAVAILABLE_REASON,
 } from "@/lib/integrations/meteora/broadcast-safety";
+import {
+  classifyMeteoraSendError,
+  deriveTransactionSignature,
+  isMeteoraIntentReplayable,
+} from "@/lib/integrations/meteora/submit-lifecycle";
+import { finalizeMeteoraSubmit } from "@/lib/services/meteora-submit";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
@@ -94,14 +100,13 @@ export async function POST(request: NextRequest) {
           status: 403,
         } as const;
       }
-      if (intent.status === "submitted" || intent.status === "consumed") {
-        return {
-          existing: {
-            id: intent.launchId,
-            status: "pool_submitted",
-            transactionSignature: intent.transactionSignature,
-          },
-        } as const;
+      if (isMeteoraIntentReplayable(intent.status)) {
+        const [launch] = await transaction
+          .select()
+          .from(marketLaunches)
+          .where(eq(marketLaunches.id, intent.launchId!))
+          .limit(1);
+        return { existing: launch ?? null } as const;
       }
       if (intent.expiresAt <= new Date()) {
         await transaction
@@ -129,12 +134,14 @@ export async function POST(request: NextRequest) {
           status: 410,
         } as const;
       }
+      let transactionSignature: string;
       try {
-        client.parseVerifiedSignedTransaction({
+        const verified = client.parseVerifiedSignedTransaction({
           serializedTransaction: parsed.data.serializedTransaction,
           expectedMessageSha256: intent.messageSha256,
           expectedPayer: intent.feePayer,
         });
+        transactionSignature = deriveTransactionSignature(verified.transaction);
       } catch {
         return {
           error: "Signed transaction does not match the prepared execution intent.",
@@ -144,6 +151,14 @@ export async function POST(request: NextRequest) {
       const accounts = intent.accountsSummary as {
         accounts?: { baseMint?: string; poolAddress?: string };
       };
+      const baseMint = accounts.accounts?.baseMint;
+      const poolAddress = accounts.accounts?.poolAddress;
+      if (!baseMint || !poolAddress) {
+        return {
+          error: "Execution intent has no pool accounts recorded; prepare it again.",
+          status: 409,
+        } as const;
+      }
       const [currentLaunch] = await transaction
         .select()
         .from(marketLaunches)
@@ -170,30 +185,35 @@ export async function POST(request: NextRequest) {
           status: 409,
         } as const;
       }
+      // Signature is recorded on both rows before anything is sent.
       await transaction
         .update(executionIntents)
-        .set({ status: "broadcasting", updatedAt: new Date() })
+        .set({ status: "submitting", transactionSignature, updatedAt: new Date() })
         .where(eq(executionIntents.id, intent.id));
       const [launch] = await transaction
         .update(marketLaunches)
         .set({
-          status: "pool_broadcasting",
-          baseMint: accounts.accounts?.baseMint,
-          poolAddress: accounts.accounts?.poolAddress,
+          status: "pool_submitting",
+          baseMint,
+          poolAddress,
+          // The launch row now carries the pool signature; the config signature
+          // is kept in metadata so both proofs stay addressable.
+          transactionSignature,
           metadata: {
             ...metadata,
             configTransactionSignature: currentLaunch.transactionSignature,
             pool: {
               intentId: intent.id,
               messageSha256: intent.messageSha256,
-              status: "broadcasting",
+              status: "submitting",
+              transactionSignature,
             },
           },
           updatedAt: new Date(),
         })
         .where(eq(marketLaunches.id, intent.launchId!))
         .returning();
-      return { intent, launch } as const;
+      return { intent, launch, transactionSignature } as const;
     });
     if ("error" in prepared) {
       return NextResponse.json(
@@ -213,70 +233,68 @@ export async function POST(request: NextRequest) {
         { status: 404 },
       );
     }
+    const preparedMetadata =
+      prepared.launch.metadata &&
+      typeof prepared.launch.metadata === "object" &&
+      !Array.isArray(prepared.launch.metadata)
+        ? (prepared.launch.metadata as Record<string, unknown>)
+        : {};
+    const preparedPool =
+      preparedMetadata.pool &&
+      typeof preparedMetadata.pool === "object" &&
+      !Array.isArray(preparedMetadata.pool)
+        ? (preparedMetadata.pool as Record<string, unknown>)
+        : {};
     try {
       const submitted = await client.submitSignedPoolTransaction({
         serializedTransaction: parsed.data.serializedTransaction,
         expectedMessageSha256: prepared.intent.messageSha256,
         expectedPayer: prepared.intent.feePayer,
       });
-      const preparedMetadata =
-        prepared.launch.metadata &&
-        typeof prepared.launch.metadata === "object" &&
-        !Array.isArray(prepared.launch.metadata)
-          ? prepared.launch.metadata
-          : {};
-      const preparedPool =
-        "pool" in preparedMetadata &&
-        preparedMetadata.pool &&
-        typeof preparedMetadata.pool === "object" &&
-        !Array.isArray(preparedMetadata.pool)
-          ? preparedMetadata.pool
-          : {};
-      const [launch] = await database
-        .update(marketLaunches)
-        .set({
-          status: "pool_submitted",
-          transactionSignature: submitted.transactionSignature,
-          metadata: {
-            ...preparedMetadata,
-            pool: {
-              ...preparedPool,
-              status: "submitted",
-              transactionSignature: submitted.transactionSignature,
-            },
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(marketLaunches.id, prepared.launch.id))
-        .returning();
-      await database
-        .update(executionIntents)
-        .set({
-          status: "submitted",
-          transactionSignature: submitted.transactionSignature,
-          updatedAt: new Date(),
-        })
-        .where(eq(executionIntents.id, prepared.intent.id));
+      if (submitted.transactionSignature !== prepared.transactionSignature) {
+        throw new Error("RPC returned a different signature than the recorded one.");
+      }
+      const launch = await finalizeMeteoraSubmit(database, {
+        launchId: prepared.launch.id,
+        intentId: prepared.intent.id,
+        fromLaunchStatus: "pool_submitting",
+        launchStatus: "pool_submitted",
+        intentStatus: "submitted",
+        metadata: {
+          ...preparedMetadata,
+          pool: { ...preparedPool, status: "submitted" },
+        },
+      });
       return NextResponse.json(
         { launch },
         { status: 201, headers: { "Cache-Control": "no-store" } },
       );
-    } catch {
-      await database
-        .update(marketLaunches)
-        .set({ status: "broadcast_failed", updatedAt: new Date() })
-        .where(eq(marketLaunches.id, prepared.launch.id));
-      await database
-        .update(executionIntents)
-        .set({
-          status: "failed",
-          simulation: { error: "Broadcast failed." },
-          updatedAt: new Date(),
-        })
-        .where(eq(executionIntents.id, prepared.intent.id));
+    } catch (error) {
+      const outcome = classifyMeteoraSendError(error);
+      const rejected = outcome.kind === "rejected_before_broadcast";
+      const launch = await finalizeMeteoraSubmit(database, {
+        launchId: prepared.launch.id,
+        intentId: prepared.intent.id,
+        fromLaunchStatus: "pool_submitting",
+        launchStatus: rejected ? "pool_broadcast_failed" : "pool_unknown_pending",
+        intentStatus: rejected ? "failed" : "unknown_pending",
+        metadata: {
+          ...preparedMetadata,
+          pool: {
+            ...preparedPool,
+            status: rejected ? "broadcast_failed" : "unknown_pending",
+            send: { outcome: outcome.kind, reason: outcome.reason },
+          },
+        },
+      });
       return NextResponse.json(
-        { error: "Meteora broadcast failed. The attempt was recorded." },
-        { status: 502, headers: { "Cache-Control": "no-store" } },
+        {
+          launch,
+          error: rejected
+            ? "The RPC rejected the Meteora pool transaction before broadcast. The attempt was recorded."
+            : "Meteora pool broadcast outcome is unknown; the signature was recorded and can be reconciled.",
+        },
+        { status: rejected ? 502 : 202, headers: { "Cache-Control": "no-store" } },
       );
     }
   } catch {

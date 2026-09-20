@@ -30,6 +30,8 @@ const factsSchema = z.object({
   dataObservedAt: timestampSchema,
   quoteExpiresAt: timestampSchema.optional(),
   availableLiquidityUsdMicros: z.string().regex(/^\d+$/).optional(),
+  /** When the liquidity figure was measured; older than the data-age limit counts as unavailable. */
+  liquidityObservedAt: timestampSchema.optional(),
   assetVerification: z.record(assetIdentifierSchema, assetVerificationStateSchema),
 });
 
@@ -208,19 +210,49 @@ export function evaluatePolicy(
     constraint(policy, "min_liquidity_usd_micros").value,
     "minimum liquidity",
   );
-  if (facts.availableLiquidityUsdMicros === undefined) {
+  const liquidityAge =
+    facts.liquidityObservedAt !== undefined
+      ? secondsBetween(facts.liquidityObservedAt, facts.now)
+      : null;
+  // Live modes need a dated measurement; demo accepts an undated figure only
+  // because demo liquidity is itself a labelled fixture value.
+  const liquidityUnusable =
+    facts.availableLiquidityUsdMicros === undefined ||
+    (liquidityAge === null && facts.mode !== "demo") ||
+    (liquidityAge !== null && (liquidityAge < 0 || liquidityAge > maxDataAge));
+  if (proposal.action === "HOLD") {
+    // HOLD moves no value, so a liquidity floor does not apply and a missing
+    // measurement must not block a live agent from choosing to do nothing.
+    checks.push(
+      check(
+        "min_liquidity_usd_micros",
+        true,
+        "not required (HOLD)",
+        minimumLiquidity.toString(),
+        "HOLD proposals move no value, so the liquidity floor does not apply.",
+      ),
+    );
+  } else if (liquidityUnusable) {
+    // Missing, undated (live) or stale measurements are all "no measurement":
+    // never a number the trade can lean on.
+    const observed =
+      facts.availableLiquidityUsdMicros === undefined
+        ? "unavailable"
+        : liquidityAge === null
+          ? "undated"
+          : `stale (${String(liquidityAge)}s old)`;
     checks.push({
       rule: "min_liquidity_usd_micros",
       status: facts.mode === "demo" ? "warn" : "fail",
-      observed: "unavailable",
-      threshold: minimumLiquidity.toString(),
+      observed,
+      threshold: `${minimumLiquidity.toString()} observed within ${String(maxDataAge)}s`,
       explanation:
         facts.mode === "demo"
-          ? "No reliable liquidity measurement was supplied; demo evaluation requires an execution-time recheck."
-          : "No reliable liquidity measurement was supplied; live-mode evaluation fails closed.",
+          ? "No reliable, fresh liquidity measurement was supplied; demo evaluation requires an execution-time recheck."
+          : "No reliable, fresh liquidity measurement was supplied; live-mode evaluation fails closed.",
     });
   } else {
-    const liquidity = parseUnsignedInteger(facts.availableLiquidityUsdMicros);
+    const liquidity = parseUnsignedInteger(facts.availableLiquidityUsdMicros ?? "");
     checks.push(
       check(
         "min_liquidity_usd_micros",

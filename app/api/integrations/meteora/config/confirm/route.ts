@@ -7,17 +7,16 @@ import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 import { createSolanaRpcClient } from "@/lib/integrations/solana/server";
+import {
+  MeteoraReconciliationError,
+  reconcileMeteoraLaunch,
+} from "@/lib/services/meteora-reconciliation";
 
 const requestSchema = z.object({
   launchId: z.uuid(),
 });
-
-function metadataRecord(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function json(body: unknown, status: number) {
   return NextResponse.json(body, {
@@ -53,16 +52,10 @@ export async function POST(request: NextRequest) {
   }
 
   const database = getDatabase();
-
   try {
-    const [launch] = await database
-      .select({
-        id: marketLaunches.id,
-        status: marketLaunches.status,
-        cluster: marketLaunches.cluster,
-        transactionSignature: marketLaunches.transactionSignature,
-        metadata: marketLaunches.metadata,
-      })
+    // Ownership check: the launch must belong to an agent owned by this session.
+    const [owned] = await database
+      .select({ id: marketLaunches.id })
       .from(marketLaunches)
       .innerJoin(agents, eq(agents.id, marketLaunches.agentId))
       .where(
@@ -73,183 +66,34 @@ export async function POST(request: NextRequest) {
         ),
       )
       .limit(1);
-
-    if (!launch) {
+    if (!owned) {
       return json({ error: "Meteora launch was not found for this wallet." }, 404);
     }
-    if (!launch.transactionSignature) {
-      return json(
-        { error: "Meteora launch has no transaction signature to confirm." },
-        409,
-      );
-    }
-    if (launch.cluster !== env.cluster) {
-      return json(
-        { error: "Meteora launch cluster does not match the active cluster." },
-        409,
-      );
-    }
 
-    const metadata = metadataRecord(launch.metadata);
-    if (launch.status === "confirmed" || launch.status === "failed") {
-      return json(
-        {
-          launch,
-          confirmation: launch.status,
-        },
-        200,
-      );
-    }
-    if (
-      !["submitted", "unknown_pending"].includes(launch.status) ||
-      metadata.pool !== undefined
-    ) {
-      return json(
-        {
-          error:
-            "This confirmation endpoint only checks a pending Meteora config transaction.",
-        },
-        409,
-      );
-    }
-
-    async function persistConfirmation(
-      status: "unknown_pending" | "failed" | "confirmed",
-      confirmation: Record<string, unknown>,
-      responseStatus: number,
-    ) {
-      const [updated] = await database
-        .update(marketLaunches)
-        .set({
-          status,
-          metadata: { ...metadata, confirmation },
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(marketLaunches.id, launch.id),
-            eq(marketLaunches.status, launch.status),
-          ),
-        )
-        .returning();
-
-      if (!updated) {
-        return json(
-          { error: "Meteora launch state changed during confirmation; retry safely." },
-          409,
-        );
-      }
-      return json({ launch: updated, confirmation: status }, responseStatus);
-    }
-
-    const client = createSolanaRpcClient();
-    const signature = await client.getSignatureStatus(launch.transactionSignature);
-
-    if (!signature.status) {
-      return persistConfirmation(
-        "unknown_pending",
-        {
-          state: "signature_not_found",
-          contextSlot: signature.contextSlot.toString(),
-          checkedAt: new Date().toISOString(),
-        },
-        202,
-      );
-    }
-
-    if (signature.status.err !== null) {
-      return persistConfirmation(
-        "failed",
-        {
-          state: "onchain_error",
-          slot: signature.status.slot,
-          checkedAt: new Date().toISOString(),
-        },
-        200,
-      );
-    }
-
-    if (
-      signature.status.confirmationStatus !== "confirmed" &&
-      signature.status.confirmationStatus !== "finalized"
-    ) {
-      return persistConfirmation(
-        "unknown_pending",
-        {
-          state: "not_yet_confirmed",
-          confirmationStatus: signature.status.confirmationStatus ?? "unknown",
-          slot: signature.status.slot,
-          checkedAt: new Date().toISOString(),
-        },
-        202,
-      );
-    }
-
-    const transaction = await client.getTransactionEvidence(
-      launch.transactionSignature,
-    );
-    if (!transaction?.meta || transaction.blockTime === null) {
-      return persistConfirmation(
-        "unknown_pending",
-        {
-          state: "confirmed_transaction_evidence_unavailable",
-          checkedAt: new Date().toISOString(),
-        },
-        202,
-      );
-    }
-    if (transaction.meta.err !== null) {
-      return persistConfirmation(
-        "failed",
-        {
-          state: "confirmed_transaction_error",
-          slot: transaction.slot,
-          checkedAt: new Date().toISOString(),
-        },
-        200,
-      );
-    }
-    if (
-      transaction.slot !== signature.status.slot ||
-      BigInt(signature.status.slot) > signature.contextSlot
-    ) {
-      return persistConfirmation(
-        "unknown_pending",
-        {
-          state: "inconsistent_chain_evidence",
-          signatureSlot: signature.status.slot,
-          transactionSlot: transaction.slot,
-          contextSlot: signature.contextSlot.toString(),
-          checkedAt: new Date().toISOString(),
-        },
-        202,
-      );
-    }
-
-    const confirmedAtDate = new Date(transaction.blockTime * 1_000);
-    if (!Number.isFinite(confirmedAtDate.getTime())) {
-      return persistConfirmation(
-        "unknown_pending",
-        {
-          state: "invalid_block_time_evidence",
-          checkedAt: new Date().toISOString(),
-        },
-        202,
-      );
-    }
-
-    return persistConfirmation(
-      "confirmed",
+    const rpc = createSolanaRpcClient();
+    const dbc = createServerMeteoraDbcClient();
+    const result = await reconcileMeteoraLaunch(
+      owned.id,
       {
-        state: "confirmed",
-        confirmationStatus: signature.status.confirmationStatus,
-        slot: transaction.slot,
-        feeLamports: transaction.meta.fee,
-        confirmedAt: confirmedAtDate.toISOString(),
+        rpc,
+        readConfig: (address) => dbc.readConfigAccount(address),
+        readPool: (address) => dbc.readPoolAccount(address),
       },
-      200,
+      database,
+      { cluster: env.cluster },
     );
-  } catch {
+    return json(
+      {
+        launch: result.launch,
+        confirmation: result.confirmation.label ?? result.confirmation.state,
+        evidence: result.confirmation,
+      },
+      result.httpStatus,
+    );
+  } catch (error) {
+    if (error instanceof MeteoraReconciliationError) {
+      return json({ error: error.message }, error.status);
+    }
     return json(
       { error: "Meteora confirmation evidence is temporarily unavailable." },
       502,

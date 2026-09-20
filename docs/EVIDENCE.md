@@ -11,11 +11,11 @@ This manifest records what can be proven from the current `main` and the public 
 | `npm run format:check`                        | Passed                                                                                                                                |
 | `npm run lint`                                | Passed                                                                                                                                |
 | `npm run typecheck`                           | Passed                                                                                                                                |
-| `npm test`                                    | Passed: 32 files / 166 tests                                                                                                          |
+| `npm test`                                    | Passed: 40 files / 300 tests on 2026-09-20 after the adversarial sweep (see `docs/SECURITY_REVIEW.md` claim-to-test map)              |
 | `npm run build`                               | Passed: production Next.js 16.3.5 build                                                                                               |
 | `npm run smoke:judge`                         | Passed: 11 routes including `/agents/new`, PreStocks API, and a fresh oversized decision                                              |
 | `node node_modules/drizzle-kit/bin.cjs check` | Passed                                                                                                                                |
-| `npm run check`                               | Passed at current `main`: all 8 gates, 32 test files / 166 tests                                                                      |
+| `npm run check`                               | Passed at current `main`: all 9 gates, 40 test files / 300 tests                                                                      |
 | `npm run submission:audit`                    | Passed with expected external-evidence TODO warning                                                                                   |
 | Deployed URL smoke verifier                   | Production passed all 11 routes, health, PreStocks API and a fresh oversized decision: `docs/evidence/stocklana-v2-public-smoke.json` |
 | Production browser QA                         | Real Chromium on 2026-09-20 at 1440/375 px: Balanced approved, Oversized rejected, receipt verified, no console errors, no overflow   |
@@ -46,7 +46,7 @@ show "Decision unavailable" when the request reaches another instance (observed
 in the production browser walk on 2026-09-20). No onchain execution occurs in
 demo mode.
 
-Fresh runs for persistent agents are currently disabled with a 409 response.
+The Atlas demo run never needs a wallet session, even when a database is configured, because it is always served from the fixture and never executes. Fresh runs for persistent agents require a session and are currently disabled with a 409 response.
 Persisted snapshots do not yet contain all facts needed to evaluate reserve,
 turnover, freshness, and liquidity without fabrication.
 
@@ -75,17 +75,18 @@ turnover, freshness, and liquidity without fabrication.
 
 ## Meteora DBC evidence
 
-| Item                   | Value                                                                                                                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SDK                    | `@meteora-ag/dynamic-bonding-curve-sdk`                                                                                                                                                |
-| Program                | `dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN`                                                                                                                                          |
-| Quote mint             | Wrapped SOL, `So11111111111111111111111111111111111111112`                                                                                                                             |
-| Config profile         | `navis-equity-v1`                                                                                                                                                                      |
-| Config transaction     | Builder implemented; no live signature in this workspace                                                                                                                               |
-| Pool transaction       | Builder implemented; no live signature in this workspace                                                                                                                               |
-| Pool address/base mint | Not available                                                                                                                                                                          |
-| Intent binding         | Submit routes accept only a server-prepared intent ID plus signed bytes; owner, cluster, expiry, message hash and simulation are checked; launch persisted as broadcasting before send |
-| Blocker                | Broadcast is hard-blocked in every mode pending a review on a real cluster; no evidence migration `0006` is applied anywhere; all live flags remain false                              |
+| Item                   | Value                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDK                    | `@meteora-ag/dynamic-bonding-curve-sdk`                                                                                                                                                                                                                                                                                                                             |
+| Program                | `dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN`                                                                                                                                                                                                                                                                                                                       |
+| Quote profiles         | Server allowlist: `navis-equity-v1` (wrapped SOL `So11111111111111111111111111111111111111112`, devnet and mainnet) and `navis-stock-exposure-v1` (PreStocks catalogue mint, mainnet only, gated on a Meteora DBC token badge that no live PreStocks mint has as of 2026-09-20; unavailable on devnet, no substitute mint). Clients send a profile id, never a mint |
+| Quote verification     | PreStocks quote mints are read from the live catalogue and checked onchain (token program, 9 decimals, Token-2022 extensions, Meteora token badge) at prepare time; result stored on the intent. Pool preparation re-reads the onchain config and refuses a quote mint mismatch. No such preparation has been run                                                   |
+| Persisted fields       | Intent `accounts_summary.quote` (profile id, mint, decimals, symbol, provenance, onchain check); launch `quote_mint` and `metadata.quoteProfileId`; pool derivation reads the launch quote mint                                                                                                                                                                     |
+| Config transaction     | Builder implemented; no live signature in this workspace                                                                                                                                                                                                                                                                                                            |
+| Pool transaction       | Builder implemented; no live signature in this workspace                                                                                                                                                                                                                                                                                                            |
+| Pool address/base mint | Not available                                                                                                                                                                                                                                                                                                                                                       |
+| Intent binding         | Submit routes accept only a server-prepared intent ID plus signed bytes; owner, cluster, expiry, message hash and simulation are checked; signature derived from the signed bytes and launch persisted as submitting with it before send; confirm labels protocol_verified, signature_confirmed or evidence_incomplete from the decoded account                     |
+| Blocker                | Broadcast is hard-blocked in every mode pending a review on a real cluster; no evidence migration `0006` is applied anywhere; all live flags remain false                                                                                                                                                                                                           |
 
 ## PreStocks evidence
 

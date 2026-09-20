@@ -6,7 +6,14 @@ import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, executionIntents } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import {
+  METEORA_QUOTE_PROFILE_IDS,
+  MeteoraQuoteProfileError,
+  getMeteoraQuoteProfile,
+  resolveMeteoraQuoteProfile,
+} from "@/lib/integrations/meteora/quote-profiles";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
+import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
 import { and, eq } from "drizzle-orm";
 
 const requestSchema = z.object({
@@ -14,6 +21,10 @@ const requestSchema = z.object({
   config: z.string().trim().min(32).max(60),
   feeClaimer: z.string().trim().min(32).max(60).optional(),
   leftoverReceiver: z.string().trim().min(32).max(60).optional(),
+  // Clients choose a server-approved profile id, never a raw quote mint.
+  profileId: z.enum(METEORA_QUOTE_PROFILE_IDS),
+  // Only meaningful for the PreStocks-quoted profile.
+  quoteSymbol: z.string().trim().min(1).max(24).optional(),
 });
 
 function executionPreparationAvailable() {
@@ -88,12 +99,24 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+    const needsCatalogue =
+      getMeteoraQuoteProfile(parsed.data.profileId).quoteSource === "prestocks";
+    const catalogue = needsCatalogue
+      ? await getPreStocksCatalogue().catch(() => null)
+      : null;
+    const quote = resolveMeteoraQuoteProfile({
+      profileId: parsed.data.profileId,
+      cluster: env.cluster,
+      quoteSymbol: parsed.data.quoteSymbol,
+      prestocksCatalogue: catalogue?.assets ?? null,
+    });
     const prepared =
       await createServerMeteoraDbcClient().prepareCreateConfigTransaction({
         config: parsed.data.config,
         payer: session.wallet,
         feeClaimer: parsed.data.feeClaimer,
         leftoverReceiver: parsed.data.leftoverReceiver,
+        quote,
       });
     const [intent] = await database
       .insert(executionIntents)
@@ -105,7 +128,11 @@ export async function POST(request: NextRequest) {
         feePayer: prepared.feePayer,
         messageSha256: prepared.messageSha256,
         requiredSigners: prepared.requiredSigners,
-        accountsSummary: { accounts: prepared.accounts, review: prepared.review },
+        accountsSummary: {
+          accounts: prepared.accounts,
+          review: prepared.review,
+          quote: prepared.quote,
+        },
         instructionSummary: prepared.review,
         blockhash: prepared.recentBlockhash,
         lastValidBlockHeight: prepared.lastValidBlockHeight,
@@ -129,7 +156,10 @@ export async function POST(request: NextRequest) {
             ? error.message
             : "Meteora config transaction could not be prepared.",
       },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      {
+        status: error instanceof MeteoraQuoteProfileError ? error.status : 400,
+        headers: { "Cache-Control": "no-store" },
+      },
     );
   }
 }

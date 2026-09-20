@@ -1,5 +1,6 @@
 import { Buildings, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 
+import { SponsorPanelState } from "@/components/markets/sponsor-panel-state";
 import { AddressValue } from "@/components/shared/address-value";
 import {
   AmountValue,
@@ -115,18 +116,13 @@ export function PreStocksCatalogue({ catalogue }: PreStocksCatalogueProps) {
 
 export function PreStocksUnavailable({ message }: { message: string }) {
   return (
-    <section className="route-panel route-panel-muted prestocks-panel">
-      <div className="panel-heading">
-        <Buildings aria-hidden="true" size={20} />
-        <div>
-          <span>PreStocks catalogue</span>
-          <h2>Catalogue unavailable</h2>
-        </div>
-      </div>
-      <p className="route-copy">
-        {message} Navis will not substitute tickers, stale addresses, or placeholder
-        mints for PreStocks assets.
-      </p>
-    </section>
+    <SponsorPanelState
+      provider="PreStocks catalogue"
+      icon={Buildings}
+      status="error"
+      title="Catalogue unavailable"
+      description={`${message} Navis will not substitute tickers, stale addresses, or placeholder mints for PreStocks assets.`}
+      headingId="prestocks-state-title"
+    />
   );
 }

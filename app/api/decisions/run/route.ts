@@ -4,7 +4,9 @@ import { z } from "zod";
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { allowMutationRequest } from "@/lib/auth/rate-limit";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
+import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
+import { getPersistentAgentForOwner } from "@/lib/services/agents";
 import {
   PersistentDecisionRunsNotEnabledError,
   runDecision,
@@ -35,10 +37,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (!env.databaseUrl) {
-      if (parsed.data.agentSlug !== "atlas") {
-        return NextResponse.json({ error: "Agent not found." }, { status: 404 });
-      }
+    // The Atlas fixture is the public demo. It is always served from the
+    // fixture (never from the database), runs in memory, and never executes,
+    // so it does not need a wallet session even when a database is configured.
+    // Persistent agents below still require an authenticated session.
+    if (parsed.data.agentSlug === demoAgentBundle.agent.slug) {
       const result = await runDecision({
         bundle: demoAgentBundle,
         scenario: parsed.data.scenario,
@@ -46,6 +49,9 @@ export async function POST(request: Request) {
       return NextResponse.json(result, {
         headers: { "Cache-Control": "no-store" },
       });
+    }
+    if (!env.databaseUrl) {
+      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     }
 
     const token = request.headers
@@ -58,7 +64,25 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
-    throw new PersistentDecisionRunsNotEnabledError();
+    const database = getDatabase();
+    const bundle = await getPersistentAgentForOwner(
+      parsed.data.agentSlug,
+      session.wallet,
+      database,
+    );
+    if (!bundle) {
+      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    }
+    // Demo-mode persisted agents store the full run. Devnet and mainnet
+    // agents still refuse until they have real snapshots and market data.
+    const result = await runDecision({
+      bundle,
+      scenario: parsed.data.scenario,
+      database,
+    });
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     return NextResponse.json(
       {

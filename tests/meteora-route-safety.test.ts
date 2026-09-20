@@ -6,8 +6,12 @@ const mocks = vi.hoisted(() => ({
   updatedValues: undefined as Record<string, unknown> | undefined,
   getSignatureStatus: vi.fn(),
   getTransactionEvidence: vi.fn(),
+  readConfigAccount: vi.fn(),
   update: vi.fn(),
 }));
+
+const QUOTE = "So11111111111111111111111111111111111111112";
+const CONFIG = "Config11111111111111111111111111111111111111";
 
 vi.mock("../lib/env", async () => {
   const { parseEnvironment, toPublicCapabilities } = await import("../lib/env-core");
@@ -32,24 +36,35 @@ vi.mock("../lib/auth/server", () => ({
 }));
 
 vi.mock("../lib/db/client", () => ({
-  getDatabase: () => ({
-    select: () => ({
-      from: () => ({
-        innerJoin: () => ({
-          where: () => ({
-            limit: async () => [mocks.launch],
+  getDatabase: () => {
+    const rows = () => (Object.keys(mocks.launch).length > 0 ? [mocks.launch] : []);
+    const database = {
+      select: () => ({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => ({ limit: async () => rows() }),
           }),
+          where: () => ({ limit: async () => rows() }),
         }),
       }),
-    }),
-    update: mocks.update,
-  }),
+      update: mocks.update,
+      transaction: (callback: (transaction: unknown) => unknown) => callback(database),
+    };
+    return database;
+  },
 }));
 
 vi.mock("../lib/integrations/solana/server", () => ({
   createSolanaRpcClient: () => ({
     getSignatureStatus: mocks.getSignatureStatus,
     getTransactionEvidence: mocks.getTransactionEvidence,
+  }),
+}));
+
+vi.mock("../lib/integrations/meteora/server", () => ({
+  createServerMeteoraDbcClient: () => ({
+    readConfigAccount: mocks.readConfigAccount,
+    readPoolAccount: vi.fn().mockResolvedValue(null),
   }),
 }));
 
@@ -93,9 +108,12 @@ describe("Meteora route safety", () => {
       id: launchId,
       status: "submitted",
       cluster: "devnet",
+      provider: "meteora",
       transactionSignature: "transaction-signature",
-      metadata: { kind: "meteora.submitConfig" },
+      quoteMint: QUOTE,
+      metadata: { kind: "meteora.submitConfig", config: CONFIG, intentId: null },
     };
+    mocks.readConfigAccount.mockResolvedValue({ quoteMint: QUOTE });
     mocks.updatedValues = undefined;
     mocks.update.mockImplementation(() => ({
       set: (values: Record<string, unknown>) => {
@@ -103,6 +121,7 @@ describe("Meteora route safety", () => {
         return {
           where: () => ({
             returning: async () => [{ ...mocks.launch, ...values }],
+            then: (resolve: (value: unknown) => void) => resolve(undefined),
           }),
         };
       },
@@ -143,7 +162,7 @@ describe("Meteora route safety", () => {
     );
 
     expect(response.status).toBe(202);
-    expect((await response.json()).confirmation).toBe("unknown_pending");
+    expect((await response.json()).confirmation).toBe("signature_not_found");
     expect(mocks.updatedValues?.status).toBe("unknown_pending");
   });
 
@@ -159,7 +178,7 @@ describe("Meteora route safety", () => {
     );
 
     expect(response.status).toBe(202);
-    expect((await response.json()).confirmation).toBe("unknown_pending");
+    expect(mocks.updatedValues?.status).toBe("unknown_pending");
   });
 
   it("marks trustworthy transaction metadata errors failed", async () => {
@@ -174,7 +193,8 @@ describe("Meteora route safety", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await response.json()).confirmation).toBe("failed");
+    expect((await response.json()).confirmation).toBe("confirmed_transaction_error");
+    expect(mocks.updatedValues?.status).toBe("failed");
     expect(JSON.stringify(mocks.updatedValues)).not.toContain("InstructionError");
   });
 
@@ -186,10 +206,11 @@ describe("Meteora route safety", () => {
     );
 
     expect(response.status).toBe(202);
-    expect((await response.json()).confirmation).toBe("unknown_pending");
+    expect((await response.json()).confirmation).toBe("inconsistent_chain_evidence");
+    expect(mocks.updatedValues?.status).toBe("unknown_pending");
   });
 
-  it("confirms only complete, consistent successful evidence", async () => {
+  it("confirms only complete, consistent successful evidence with a verified account", async () => {
     const response = await confirmConfig(
       request("/api/integrations/meteora/config/confirm", { launchId }),
     );
@@ -197,38 +218,88 @@ describe("Meteora route safety", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body.confirmation).toBe("confirmed");
+    expect(body.confirmation).toBe("protocol_verified");
     expect(mocks.updatedValues).toMatchObject({
       status: "confirmed",
       metadata: {
         confirmation: {
-          slot: 42,
-          feeLamports: 5_000,
-          confirmedAt: "2023-11-14T22:13:20.000Z",
+          label: "protocol_verified",
+          signature: {
+            slot: 42,
+            feeLamports: 5_000,
+            confirmedAt: "2023-11-14T22:13:20.000Z",
+          },
+          protocol: { address: CONFIG, reason: "account_verified" },
         },
       },
     });
   });
 
-  it("does not regress terminal or pool-phase launches", async () => {
-    mocks.launch = { ...mocks.launch, status: "confirmed" };
+  it("stops at signature_confirmed when the config account is not readable yet", async () => {
+    mocks.readConfigAccount.mockResolvedValue(null);
+
+    const response = await confirmConfig(
+      request("/api/integrations/meteora/config/confirm", { launchId }),
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).confirmation).toBe("signature_confirmed");
+    expect(mocks.updatedValues?.status).toBe("signature_confirmed");
+  });
+
+  it("reports evidence_incomplete when the onchain config disagrees with the launch", async () => {
+    mocks.readConfigAccount.mockResolvedValue({ quoteMint: CONFIG });
+
+    const response = await confirmConfig(
+      request("/api/integrations/meteora/config/confirm", { launchId }),
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).confirmation).toBe("evidence_incomplete");
+    expect(mocks.updatedValues?.status).toBe("signature_confirmed");
+  });
+
+  it("does not regress terminal launches or reconcile unsubmitted ones", async () => {
+    mocks.launch = {
+      ...mocks.launch,
+      status: "confirmed",
+      metadata: { confirmation: { state: "confirmed" } },
+    };
     const terminal = await confirmConfig(
       request("/api/integrations/meteora/config/confirm", { launchId }),
     );
+    expect(terminal.status).toBe(200);
     expect((await terminal.json()).confirmation).toBe("confirmed");
 
-    mocks.launch = {
-      ...mocks.launch,
-      status: "pool_submitted",
-      metadata: { pool: { messageSha256: "hash" } },
-    };
-    const pool = await confirmConfig(
+    mocks.launch = { ...mocks.launch, status: "prepared" };
+    const prepared = await confirmConfig(
       request("/api/integrations/meteora/config/confirm", { launchId }),
     );
 
-    expect(pool.status).toBe(409);
+    expect(prepared.status).toBe(409);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.getSignatureStatus).not.toHaveBeenCalled();
+  });
+
+  it("reconciles the pool phase against the pool signature", async () => {
+    mocks.launch = {
+      ...mocks.launch,
+      status: "pool_submitted",
+      baseMint: "Base111111111111111111111111111111111111111",
+      poolAddress: "Poo1111111111111111111111111111111111111111",
+      metadata: {
+        ...(mocks.launch.metadata as Record<string, unknown>),
+        pool: { intentId: null, transactionSignature: "pool-signature" },
+      },
+    };
+    const response = await confirmConfig(
+      request("/api/integrations/meteora/config/confirm", { launchId }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.getSignatureStatus).toHaveBeenCalledWith("pool-signature");
+    expect((await response.json()).confirmation).toBe("signature_confirmed");
+    expect(mocks.updatedValues?.status).toBe("pool_signature_confirmed");
   });
 
   it("sanitizes RPC provider failures", async () => {

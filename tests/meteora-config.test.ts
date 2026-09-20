@@ -1,5 +1,6 @@
 import {
   Keypair,
+  PublicKey,
   SystemProgram,
   Transaction,
   TransactionInstruction,
@@ -14,6 +15,12 @@ import {
   WRAPPED_SOL_MINT,
 } from "../lib/integrations/meteora/config";
 import { MeteoraDbcClient } from "../lib/integrations/meteora/client";
+import { resolveMeteoraQuoteProfile } from "../lib/integrations/meteora/quote-profiles";
+
+const solQuote = resolveMeteoraQuoteProfile({
+  profileId: "navis-equity-v1",
+  cluster: "devnet",
+});
 
 describe("Navis Meteora DBC configuration", () => {
   it("builds and validates the exact equity-like profile with the official SDK", () => {
@@ -31,7 +38,9 @@ describe("Navis Meteora DBC configuration", () => {
 
     expect(preview.programId).toBe(METEORA_DBC_PROGRAM_ID);
     expect(preview.quoteMint).toBe(WRAPPED_SOL_MINT);
-    expect(preview.pricing.migrationQuoteThresholdSol).toBe("4.82826156");
+    expect(preview.pricing.migrationQuoteThreshold).toBe("4.82826156");
+    expect(preview.availability.available).toBe(true);
+    expect(preview.rationale.lockedLiquidity).toContain("10%");
     expect(preview.sdkVersion).toBe("1.5.12");
     expect(preview.fees.baseTradingFeeBps).toBe(100);
     expect(preview.fees).toMatchObject({
@@ -83,9 +92,13 @@ describe("Navis Meteora DBC configuration", () => {
     const prepared = await client.prepareCreateConfigTransaction({
       config: config.publicKey.toBase58(),
       payer: payer.publicKey.toBase58(),
+      quote: solQuote,
     });
 
     expect(prepared.kind).toBe("meteora.createConfig");
+    expect(prepared.profileId).toBe("navis-equity-v1");
+    expect(prepared.quote.mint).toBe(WRAPPED_SOL_MINT);
+    expect(prepared.accounts.quoteMint).toBe(WRAPPED_SOL_MINT);
     expect(prepared.accounts.config).toBe(config.publicKey.toBase58());
     expect(prepared.accounts.payer).toBe(payer.publicKey.toBase58());
     expect(prepared.accounts.feeClaimer).toBe(payer.publicKey.toBase58());
@@ -214,10 +227,15 @@ describe("Navis Meteora DBC configuration", () => {
       lastValidBlockHeight: 4321,
     });
     vi.spyOn(client.sdk.creator, "createPool").mockResolvedValue(transaction);
+    vi.spyOn(client.sdk.state, "getPoolConfig").mockResolvedValue({
+      quoteMint: new PublicKey(WRAPPED_SOL_MINT),
+    } as never);
+    vi.spyOn(client.connection, "getAccountInfo").mockResolvedValue(null);
 
     const prepared = await client.prepareCreatePoolTransaction({
       config: config.publicKey.toBase58(),
       baseMint: baseMint.publicKey.toBase58(),
+      quoteMint: WRAPPED_SOL_MINT,
       payer: payer.publicKey.toBase58(),
       name: "Navis Test",
       symbol: "NAVT",

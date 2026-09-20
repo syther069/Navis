@@ -17,14 +17,28 @@ import { PublicKey } from "@solana/web3.js";
 
 import type { SolanaCluster } from "@/lib/env-core";
 
+import {
+  METEORA_QUOTE_PROFILES,
+  PRESTOCKS_QUOTE_GATE_REASON,
+  WRAPPED_SOL_MINT,
+  getMeteoraQuoteProfile,
+  getMeteoraQuoteProfileStatus,
+  type MeteoraCurveRationale,
+  type MeteoraQuoteProfileStatus,
+  type MeteoraQuoteProfileId,
+  type MeteoraQuoteSource,
+} from "./quote-profiles";
+
+export { WRAPPED_SOL_MINT };
+
 export const METEORA_DBC_SDK_VERSION = "1.5.12";
 export const METEORA_DBC_PROGRAM_ID = DYNAMIC_BONDING_CURVE_PROGRAM_ID.toBase58();
-export const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
 
 /**
- * A deliberately modest, SOL-quoted launch profile for a thinly traded,
- * equity-themed asset. This is a product default, not investment advice and
- * not a claim that any token represents regulated equity.
+ * The shared curve shape. Quote decimals and the market-cap band come from the
+ * selected quote profile; everything else is the same conservative default.
+ * This is a product default, not investment advice and not a claim that any
+ * token represents regulated equity.
  */
 export const NAVIS_EQUITY_CURVE_INPUT = Object.freeze({
   token: Object.freeze({
@@ -78,11 +92,21 @@ export const NAVIS_EQUITY_CURVE_INPUT = Object.freeze({
 }) satisfies BuildCurveWithMarketCapParams;
 
 export type MeteoraCurvePreview = Readonly<{
-  profileId: "navis-equity-v1";
+  profileId: MeteoraQuoteProfileId;
+  profileLabel: string;
   sdkVersion: string;
   programId: string;
   cluster: SolanaCluster;
-  quoteMint: string;
+  quoteSource: MeteoraQuoteSource;
+  /** Concrete mint when it is a constant; null when it is resolved per request. */
+  quoteMint: string | null;
+  quoteUnit: string;
+  availability: {
+    available: boolean;
+    status: MeteoraQuoteProfileStatus;
+    reason: string;
+  };
+  rationale: MeteoraCurveRationale;
   token: {
     standard: "SPL Token";
     baseDecimals: number;
@@ -92,10 +116,10 @@ export type MeteoraCurvePreview = Readonly<{
     leftover: string;
   };
   pricing: {
-    initialMarketCapSol: number;
-    migrationMarketCapSol: number;
-    migrationQuoteThresholdLamports: string;
-    migrationQuoteThresholdSol: string;
+    initialMarketCapQuote: number;
+    migrationMarketCapQuote: number;
+    migrationQuoteThresholdRaw: string;
+    migrationQuoteThreshold: string;
   };
   fees: {
     baseTradingFeeBps: number;
@@ -132,44 +156,90 @@ export type MeteoraCurvePreview = Readonly<{
   generated: ConfigParameters;
 }>;
 
-export function buildNavisMeteoraConfig() {
-  return buildCurveWithMarketCap(NAVIS_EQUITY_CURVE_INPUT);
+export function getNavisMeteoraCurveInput(
+  profileId: MeteoraQuoteProfileId = "navis-equity-v1",
+): BuildCurveWithMarketCapParams {
+  const profile = getMeteoraQuoteProfile(profileId);
+  return {
+    ...NAVIS_EQUITY_CURVE_INPUT,
+    token: {
+      ...NAVIS_EQUITY_CURVE_INPUT.token,
+      tokenQuoteDecimal:
+        profile.quoteDecimals === 6 ? TokenDecimal.SIX : TokenDecimal.NINE,
+    },
+    initialMarketCap: profile.initialMarketCap,
+    migrationMarketCap: profile.migrationMarketCap,
+  };
 }
 
-export function validateNavisMeteoraConfig(leftoverReceiver: string) {
+export function buildNavisMeteoraConfig(
+  profileId: MeteoraQuoteProfileId = "navis-equity-v1",
+) {
+  return buildCurveWithMarketCap(getNavisMeteoraCurveInput(profileId));
+}
+
+export function validateNavisMeteoraConfig(
+  leftoverReceiver: string,
+  profileId: MeteoraQuoteProfileId = "navis-equity-v1",
+) {
   const receiver = new PublicKey(leftoverReceiver);
-  const generated = buildNavisMeteoraConfig();
+  const generated = buildNavisMeteoraConfig(profileId);
   validateConfigParameters({ ...generated, leftoverReceiver: receiver });
   return generated;
 }
 
+export function getNavisMeteoraCurvePreviews(
+  cluster: SolanaCluster,
+): readonly MeteoraCurvePreview[] {
+  return (Object.keys(METEORA_QUOTE_PROFILES) as MeteoraQuoteProfileId[]).map((id) =>
+    getNavisMeteoraCurvePreview(cluster, id),
+  );
+}
+
 export function getNavisMeteoraCurvePreview(
   cluster: SolanaCluster,
+  profileId: MeteoraQuoteProfileId = "navis-equity-v1",
 ): MeteoraCurvePreview {
-  const generated = buildNavisMeteoraConfig();
-  const thresholdLamports = generated.migrationQuoteThreshold.toString(10);
-  const thresholdSol = formatLamportsAsSol(thresholdLamports);
+  const profile = getMeteoraQuoteProfile(profileId);
+  const generated = buildNavisMeteoraConfig(profileId);
+  const thresholdRaw = generated.migrationQuoteThreshold.toString(10);
+  const threshold = formatRawQuoteAmount(thresholdRaw, profile.quoteDecimals);
   const input = NAVIS_EQUITY_CURVE_INPUT;
+  const status = getMeteoraQuoteProfileStatus(profileId, cluster);
 
   return Object.freeze({
-    profileId: "navis-equity-v1",
+    profileId,
+    profileLabel: profile.label,
     sdkVersion: METEORA_DBC_SDK_VERSION,
     programId: METEORA_DBC_PROGRAM_ID,
     cluster,
-    quoteMint: WRAPPED_SOL_MINT,
+    quoteSource: profile.quoteSource,
+    quoteMint: profile.quoteSource === "wrapped_sol" ? WRAPPED_SOL_MINT : null,
+    quoteUnit: profile.quoteUnit,
+    availability: {
+      available: status !== "unavailable",
+      status,
+      reason:
+        status === "unavailable"
+          ? profile.unavailableReason
+          : status === "gated"
+            ? PRESTOCKS_QUOTE_GATE_REASON
+            : "Wrapped SOL quote mint.",
+    },
+    rationale: profile.rationale,
     token: {
       standard: "SPL Token",
       baseDecimals: input.token.tokenBaseDecimal,
-      quoteDecimals: input.token.tokenQuoteDecimal,
+      quoteDecimals: profile.quoteDecimals,
       authority: "immutable",
       totalSupply: String(input.token.totalTokenSupply),
       leftover: String(input.token.leftover),
     } as const,
     pricing: {
-      initialMarketCapSol: input.initialMarketCap,
-      migrationMarketCapSol: input.migrationMarketCap,
-      migrationQuoteThresholdLamports: thresholdLamports,
-      migrationQuoteThresholdSol: thresholdSol,
+      initialMarketCapQuote: profile.initialMarketCap,
+      migrationMarketCapQuote: profile.migrationMarketCap,
+      migrationQuoteThresholdRaw: thresholdRaw,
+      migrationQuoteThreshold: threshold,
     },
     fees: {
       baseTradingFeeBps: input.fee.baseFeeParams.feeSchedulerParam.startingFeeBps,
@@ -212,9 +282,9 @@ export function getNavisMeteoraCurvePreview(
   });
 }
 
-function formatLamportsAsSol(lamports: string) {
-  const padded = lamports.padStart(10, "0");
-  const whole = padded.slice(0, -9);
-  const fraction = padded.slice(-9).replace(/0+$/, "");
+function formatRawQuoteAmount(raw: string, decimals: number) {
+  const padded = raw.padStart(decimals + 1, "0");
+  const whole = padded.slice(0, -decimals);
+  const fraction = padded.slice(-decimals).replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole;
 }

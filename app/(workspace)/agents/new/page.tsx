@@ -51,11 +51,16 @@ export default async function NewAgentPage() {
           <div className="owned-agent-links">
             <span className="route-eyebrow">Your persistent agents</span>
             {ownedAgents.length > 0 ? (
-              ownedAgents.map((agent) => (
-                <Link key={agent.id} href={`/agents/${agent.slug}`}>
-                  {agent.name} <small>{agent.status}</small>
+              <>
+                {ownedAgents.map((agent) => (
+                  <Link key={agent.id} href={`/agents/${agent.slug}`}>
+                    {agent.name} <small>{agent.status}</small>
+                  </Link>
+                ))}
+                <Link href="/agents">
+                  All agents <small>list</small>
                 </Link>
-              ))
+              </>
             ) : (
               <p>
                 {session

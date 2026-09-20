@@ -151,6 +151,184 @@ describe("deterministic policy runner", () => {
     },
   );
 
+  describe("adversarial live-mode inputs", () => {
+    const liveModes = [
+      ["devnet", "devnet"],
+      ["mainnet", "mainnet-beta"],
+    ] as const;
+
+    function liveSetup(mode: "devnet" | "mainnet", cluster: "devnet" | "mainnet-beta") {
+      const liveFacts = facts();
+      liveFacts.mode = mode;
+      liveFacts.cluster = cluster;
+      liveFacts.liquidityObservedAt = "2026-09-17T00:04:30.000Z";
+      liveFacts.assetVerification = {
+        demo_mint_equity_a: "provider_verified",
+        demo_mint_equity_b: "onchain_verified",
+      };
+      const livePolicy = structuredClone(demoAgentBundle.riskPolicy.document);
+      livePolicy.constraints.find(
+        (constraint) => constraint.type === "allowed_modes",
+      )!.modes = [mode];
+      return { liveFacts, livePolicy };
+    }
+
+    function withAction(action: TradeProposal["action"]): TradeProposal {
+      const base = proposal();
+      if (base.action === "HOLD") throw new Error("fixture is value-moving");
+      if (action === "HOLD") {
+        return {
+          action,
+          maxSlippageBps: 0,
+          thesis: base.thesis,
+          evidence: base.evidence,
+          confidenceBps: base.confidenceBps,
+          invalidationConditions: base.invalidationConditions,
+          dataTimestamp: base.dataTimestamp,
+          expiresAt: base.expiresAt,
+        };
+      }
+      return { ...base, action };
+    }
+
+    it.each(liveModes)("fails closed on stale market data in %s", (mode, cluster) => {
+      const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+      liveFacts.dataObservedAt = "2026-09-16T23:00:00.000Z";
+      const result = evaluatePolicy(proposal(), livePolicy, liveFacts);
+      expect(result.approved).toBe(false);
+      expect(
+        result.checks.find((item) => item.rule === "max_data_age_seconds"),
+      ).toMatchObject({ status: "fail" });
+    });
+
+    it.each(liveModes)(
+      "fails closed on future-dated market data in %s",
+      (mode, cluster) => {
+        const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+        liveFacts.dataObservedAt = "2026-09-17T00:06:00.000Z";
+        const result = evaluatePolicy(proposal(), livePolicy, liveFacts);
+        expect(result.approved).toBe(false);
+        expect(
+          result.checks.find((item) => item.rule === "max_data_age_seconds"),
+        ).toMatchObject({ status: "fail" });
+      },
+    );
+
+    it.each(liveModes)("fails closed on an expired quote in %s", (mode, cluster) => {
+      const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+      liveFacts.quoteExpiresAt = "2026-09-17T00:05:00.000Z";
+      const result = evaluatePolicy(proposal(), livePolicy, liveFacts);
+      expect(result.approved).toBe(false);
+      expect(result.checks.find((item) => item.rule === "quote_expiry")).toMatchObject({
+        status: "fail",
+      });
+    });
+
+    const valueMovingActions = ["BUY", "SELL", "REBALANCE"] as const;
+
+    describe.each(liveModes)("liquidity in %s", (mode, cluster) => {
+      it.each(valueMovingActions)(
+        "blocks %s when liquidity is unavailable",
+        (action) => {
+          const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+          delete liveFacts.availableLiquidityUsdMicros;
+          const result = evaluatePolicy(withAction(action), livePolicy, liveFacts);
+          expect(result.approved).toBe(false);
+          expect(
+            result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+          ).toMatchObject({ status: "fail", observed: "unavailable" });
+        },
+      );
+
+      it.each(valueMovingActions)("blocks %s when liquidity is undated", (action) => {
+        const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+        delete liveFacts.liquidityObservedAt;
+        const result = evaluatePolicy(withAction(action), livePolicy, liveFacts);
+        expect(result.approved).toBe(false);
+        expect(
+          result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+        ).toMatchObject({ status: "fail", observed: "undated" });
+      });
+
+      it.each(valueMovingActions)("blocks %s when liquidity is stale", (action) => {
+        const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+        liveFacts.liquidityObservedAt = "2026-09-16T23:00:00.000Z";
+        const result = evaluatePolicy(withAction(action), livePolicy, liveFacts);
+        expect(result.approved).toBe(false);
+        expect(
+          result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+        ).toMatchObject({ status: "fail", observed: expect.stringMatching(/^stale/) });
+      });
+
+      it.each(valueMovingActions)(
+        "blocks %s when liquidity is below the floor",
+        (action) => {
+          const { liveFacts, livePolicy } = liveSetup(mode, cluster);
+          liveFacts.availableLiquidityUsdMicros = "1";
+          const result = evaluatePolicy(withAction(action), livePolicy, liveFacts);
+          expect(result.approved).toBe(false);
+          expect(
+            result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+          ).toMatchObject({ status: "fail", observed: "1" });
+        },
+      );
+
+      it("allows HOLD with missing or stale liquidity", () => {
+        const missing = liveSetup(mode, cluster);
+        delete missing.liveFacts.availableLiquidityUsdMicros;
+        const missingResult = evaluatePolicy(
+          withAction("HOLD"),
+          missing.livePolicy,
+          missing.liveFacts,
+        );
+        expect(missingResult.approved).toBe(true);
+        expect(
+          missingResult.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+        ).toMatchObject({ status: "pass", observed: "not required (HOLD)" });
+
+        const stale = liveSetup(mode, cluster);
+        stale.liveFacts.liquidityObservedAt = "2026-09-16T23:00:00.000Z";
+        expect(
+          evaluatePolicy(withAction("HOLD"), stale.livePolicy, stale.liveFacts)
+            .approved,
+        ).toBe(true);
+      });
+    });
+
+    it("only warns on stale liquidity in demo mode", () => {
+      const staleDemo = facts();
+      staleDemo.liquidityObservedAt = "2026-09-16T23:00:00.000Z";
+      const result = evaluatePolicy(
+        proposal(),
+        demoAgentBundle.riskPolicy.document,
+        staleDemo,
+      );
+      expect(result.approved).toBe(true);
+      expect(
+        result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+      ).toMatchObject({ status: "warn" });
+    });
+
+    it("accepts an undated demo liquidity figure as the labelled fixture value", () => {
+      const result = evaluatePolicy(
+        proposal(),
+        demoAgentBundle.riskPolicy.document,
+        facts(),
+      );
+      expect(
+        result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+      ).toMatchObject({ status: "pass", observed: "2000000000" });
+    });
+
+    it("accepts a fresh liquidity observation", () => {
+      const { liveFacts, livePolicy } = liveSetup("devnet", "devnet");
+      const result = evaluatePolicy(proposal(), livePolicy, liveFacts);
+      expect(
+        result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+      ).toMatchObject({ status: "pass", observed: "2000000000" });
+    });
+  });
+
   it.each([
     ["demo", "devnet"],
     ["devnet", "devnet"],
@@ -161,6 +339,7 @@ describe("deterministic policy runner", () => {
       const modeFacts = facts();
       modeFacts.mode = mode;
       modeFacts.cluster = cluster;
+      modeFacts.liquidityObservedAt = "2026-09-17T00:04:30.000Z";
       modeFacts.assetVerification = {
         demo_mint_equity_a: "provider_verified",
         demo_mint_equity_b: "onchain_verified",

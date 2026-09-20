@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Navis pre-commit hook: refuse to commit a package-lock.json whose resolved
+# URLs point anywhere other than https://registry.npmjs.org. Fast: it only runs
+# when the lockfile is staged, and checks the staged content, not the worktree.
+set -eu
+
+if ! git diff --cached --quiet -- package-lock.json; then
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' EXIT
+  if ! git show :package-lock.json > "$tmp" 2>/dev/null; then
+    echo "pre-commit: package-lock.json is being deleted; Vercel installs from the lockfile, so this is refused." >&2
+    exit 1
+  fi
+  if ! node scripts/check-lockfile-registry.mjs "$tmp"; then
+    echo "pre-commit: staged package-lock.json is poisoned; fix it before committing." >&2
+    exit 1
+  fi
+fi

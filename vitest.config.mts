@@ -5,7 +5,7 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
   },
   resolve: {
     alias: {

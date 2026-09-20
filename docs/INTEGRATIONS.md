@@ -26,25 +26,103 @@ confirmed onchain result.
 
 ## Meteora DBC
 
-| Capability                      | Status                       | Evidence                                                                                                                                                                                                                                                                                                                |
-| ------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Official SDK adapter            | Implemented                  | The package lock resolves `@meteora-ag/dynamic-bonding-curve-sdk` version `1.5.12`; the fresh baseline tests passed.                                                                                                                                                                                                    |
-| Config preview                  | Implemented, preview-only    | UI renders the exact SDK `1.5.12` generated configuration and labels the profile as not deployed.                                                                                                                                                                                                                       |
-| Pool read                       | Implemented, RPC-configured  | `/api/integrations/meteora/pools/[baseMint]` reads DBC pool state from the configured Solana RPC.                                                                                                                                                                                                                       |
-| Config transaction preparation  | Implemented, execution-gated | `/api/integrations/meteora/config/prepare` returns an unsigned create-config transaction after wallet auth, trusted origin, live-mode flags, and RPC blockhash.                                                                                                                                                         |
-| Config transaction simulation   | Implemented, execution-gated | `/api/integrations/meteora/config/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                       |
-| Config transaction submission   | Intent-bound, hard-blocked   | `/api/integrations/meteora/config/submit` accepts only a server-prepared intent ID plus signed bytes, checks owner, cluster, expiry, message hash and simulation, persists `broadcasting` before send. Broadcast itself is hard-blocked in every mode pending review; no evidence migration `0006` is applied anywhere. |
-| Config transaction confirmation | Implemented, RPC-configured  | `/api/integrations/meteora/config/confirm` reconciles submitted records to `confirmed`, `unknown_pending`, or `failed` from Solana RPC status.                                                                                                                                                                          |
-| Pool transaction preparation    | Implemented, execution-gated | `/api/integrations/meteora/pool/prepare` requires owned confirmed config evidence, creates an unsigned transaction, and returns the derived pool address as preview evidence only.                                                                                                                                      |
-| Pool transaction simulation     | Implemented, execution-gated | `/api/integrations/meteora/pool/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                         |
-| Pool transaction submission     | Intent-bound, hard-blocked   | Same intent binding as config submission; a second pool intent is refused once the launch has moved. Broadcast is hard-blocked in every mode until the protocol is retested on a real cluster.                                                                                                                          |
-| Live pool proof                 | External blocker             | Requires configured RPC, authenticated wallet, funded devnet/mainnet account, and successful onchain execution.                                                                                                                                                                                                         |
+| Capability                      | Status                       | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Official SDK adapter            | Implemented                  | The package lock resolves `@meteora-ag/dynamic-bonding-curve-sdk` version `1.5.12`; the fresh baseline tests passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Config preview                  | Implemented, preview-only    | UI renders the exact SDK `1.5.12` generated configuration and labels the profile as not deployed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Pool read                       | Implemented, RPC-configured  | `/api/integrations/meteora/pools/[baseMint]` reads DBC pool state from the configured Solana RPC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Config transaction preparation  | Implemented, execution-gated | `/api/integrations/meteora/config/prepare` returns an unsigned create-config transaction after wallet auth, trusted origin, live-mode flags, and RPC blockhash.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Config transaction simulation   | Implemented, execution-gated | `/api/integrations/meteora/config/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Config transaction submission   | Intent-bound, hard-blocked   | `/api/integrations/meteora/config/submit` accepts only a server-prepared intent ID plus signed bytes, checks owner, cluster, expiry, message hash and simulation, derives the signature from the signed bytes and persists `submitting` with that signature on the intent and launch before send. Repeated submits for a submitting, submitted, unknown_pending or consumed intent return the stored record and never send twice. Broadcast itself is hard-blocked in every mode pending review; no evidence migration `0006` is applied anywhere.                                                  |
+| Config transaction confirmation | Implemented, RPC-configured  | `/api/integrations/meteora/config/confirm` reconciles submitting, submitted, unknown_pending and signature_confirmed config and pool records from Solana RPC status, then decodes the promised config or pool account and labels the result `protocol_verified`, `signature_confirmed` (signature landed, account not yet readable) or `evidence_incomplete` (account missing fields or mismatched). Slot, fee and verified account address are stored separately in launch metadata and shown on the transactions ledger and pool monitor. Only `protocol_verified` moves a launch to `confirmed`. |
+| Pool transaction preparation    | Implemented, execution-gated | `/api/integrations/meteora/pool/prepare` requires owned confirmed config evidence, creates an unsigned transaction, and returns the derived pool address as preview evidence only.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Pool transaction simulation     | Implemented, execution-gated | `/api/integrations/meteora/pool/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Pool transaction submission     | Intent-bound, hard-blocked   | Same intent binding as config submission; a second pool intent is refused once the launch has moved. Broadcast is hard-blocked in every mode until the protocol is retested on a real cluster.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Live pool proof                 | External blocker             | Requires configured RPC, authenticated wallet, funded devnet/mainnet account, and successful onchain execution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
-### Navis equity-themed DBC profile
+### Quote profiles (server-approved allowlist)
+
+The quote mint is never a client value. Clients send a profile id; the server
+resolves it against an allowlist in `lib/integrations/meteora/quote-profiles.ts`.
+Unknown ids are rejected with HTTP 400, profiles that do not exist on the active
+cluster with HTTP 409. The resolved profile id and quote mint are persisted on
+the execution intent (`accounts_summary.quote`), and copied to the launch record
+(`market_launches.quote_mint`, `metadata.quoteProfileId`) at submit time. Pool
+derivation reads the quote mint from the confirmed launch record only.
+
+| Profile                   | Quote                                                                            | Clusters                                                                                                                                                                                             | Curve band                |
+| ------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `navis-equity-v1`         | Wrapped SOL `So11111111111111111111111111111111111111112`, 9 decimals            | devnet, mainnet-beta                                                                                                                                                                                 | 2 SOL to 20 SOL           |
+| `navis-stock-exposure-v1` | A PreStocks exposure token, chosen by symbol from the live catalogue, 9 decimals | mainnet-beta only, and gated: the mint must carry a Meteora DBC token badge. On devnet it is unavailable ("PreStocks issues its exposure tokens on mainnet only"). No fake mint is ever substituted. | 200 to 2,000 quote tokens |
+
+For `navis-stock-exposure-v1` the server fetches `https://prestocks.com/api/prestocks`
+at prepare time, takes the `contract_address` for the requested symbol, then reads
+the mint account over RPC and refuses anything that is not an SPL Token or
+Token-2022 mint with 9 decimals (the catalogue does not publish decimals; the
+live PreStocks mints are Token-2022 with 9 decimals, checked on mainnet on
+2026-09-20). The verification result (token program, decimals, extensions,
+token badge, slot) is stored with the intent.
+
+Token badge gate. The live PreStocks mints carry Token-2022 extensions that the
+DBC program only accepts on a quote mint when Meteora has issued a token badge
+PDA for it (`permanentDelegate`, `transferHook`, `transferFeeConfig`,
+`pausableConfig`, `defaultAccountState`, `confidentialTransferMint`,
+`scaledUiAmountConfig`, observed on SPACEX on 2026-09-20). Navis derives the
+badge address with the SDK and reads it onchain; if it is missing, preparation
+is refused with HTTP 409 and the reason. When present, the badge is passed to
+both `createConfig` and `createPool`. As of 2026-09-20 no badge exists for
+SPACEX, OPENAI or ANTHROPIC, so the profile is shown as "gated" on mainnet and
+cannot produce a transaction yet. Only Meteora can issue badges; Navis does not
+bypass the check.
+
+Pool derivation reads the confirmed config account onchain and refuses to derive
+a pool when the config's quote mint differs from the launch record.
+
+#### Curve rationale
+
+- Price band: both profiles use a 10x band from launch to graduation. The SOL
+  profile runs 2 SOL to 20 SOL; the stock-paired profile runs 200 to 2,000
+  PreStocks tokens so the price path follows stock exposure, not SOL volatility.
+- Fee schedule: flat 1% base fee (100 bps, linear scheduler with zero periods)
+  with Meteora dynamic fees enabled. Front-loaded fees were rejected because
+  PreStocks tokens trade thinly and would punish early liquidity.
+- Graduation threshold: computed by the SDK from the band. SOL profile
+  `4828261560` lamports (4.82826156 SOL); stock-paired profile `482826156061`
+  raw units (482.826156061 quote tokens).
+- Locked liquidity: 10% of migrated liquidity is permanently locked (5% partner,
+  5% creator) in DAMM v2. The remainder is claimable and disclosed as such.
+- Issuer and treasury: base token authority is immutable. Trading and migration
+  fees are split 50/50 between the Navis partner key and the creator wallet. The
+  agent treasury never holds the fee claimer role. For the stock-paired profile
+  PreStocks is the issuer of the quote token; Navis controls only the base token
+  and inherits PreStocks issuer risk and U.S. person restrictions.
+
+#### Status and devnet rehearsal
+
+No Meteora config, pool, or transaction signature exists on any cluster from
+this codebase. Broadcast is hard-blocked in every mode. The stock-paired profile
+cannot be rehearsed on devnet at all because no PreStocks mint exists there, and
+on mainnet it is gated until Meteora issues a token badge for a PreStocks mint;
+mainnet execution flags remain off in any case.
+
+Owner devnet rehearsal of `navis-equity-v1` (the only profile available there):
+
+1. Set `EXECUTION_MODE=devnet`, `ENABLE_DEVNET_EXECUTION=true`, a devnet
+   `SOLANA_RPC_URL`, `DATABASE_URL`, and `SESSION_SECRET`; create a devnet agent.
+2. Connect and authenticate a funded devnet wallet on `/markets/launch`.
+3. Select profile `navis-equity-v1`, prepare, sign, simulate.
+4. Record in `docs/EVIDENCE.md`: intent id, `messageSha256`, `feePayer`,
+   `accounts.config`, `accounts.quoteMint` (must equal wrapped SOL), the
+   simulation `contextSlot`, `unitsConsumed`, and `error` (must be null).
+5. Submission stays blocked until the broadcast gate is lifted in a separate
+   reviewed change; do not record a signature that does not exist.
+
+### Navis equity-themed DBC profile (`navis-equity-v1`)
 
 This is a conservative product default for SOL-quoted community assets. It is
 not investment advice and does not claim that any token represents regulated
-equity.
+equity. Figures below are for `navis-equity-v1`; `navis-stock-exposure-v1`
+shares every field except the quote mint, the market-cap band and the threshold.
 
 | Field                     | Value                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------- |
@@ -91,8 +169,10 @@ Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
 - Meteora config and pool transaction preparation, simulation, submission, and
   confirmation remain disabled for live use. All live flags are false. Server-prepared
   intent and simulation binding is implemented and tested. The broadcast-error path
-  still does not guarantee that every transport timeout persists as `unknown_pending`,
-  which is one reason broadcast stays hard-blocked before live release.
+  now records the signature before the send; a send error that is not a clear
+  preflight rejection leaves the record `unknown_pending` with the signature, and
+  reconciliation settles it later. Broadcast still stays hard-blocked before live
+  release.
 - Local remediation now also hard-blocks both Meteora broadcast endpoints regardless
   of environment toggles. Configuration/simulation inspection remains available when
   its existing prerequisites are configured. New config confirmations require
@@ -101,8 +181,10 @@ Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
 - Meteora prepare now stores a 90-second execution intent containing the owner,
   cluster, blockhash, signer set, accounts, and message hash. Simulation and submit
   accept that intent id instead of trusting client-supplied launch details or hashes.
-  Submit locks the intent and persists `broadcasting` state before an RPC broadcast,
-  so retries do not broadcast the same intent twice. No live broadcast was tested.
+  Submit locks the intent, derives the transaction signature from the signed bytes and
+  persists `submitting` with that signature before an RPC broadcast, so retries return
+  the stored record instead of broadcasting the same intent twice. No live broadcast
+  was tested.
 - ClawPump `/launch/self-funded` has no documented devnet or cluster selector.
   Current Navis posture supports preflight only. A funded launch requires an
   owner-approved mainnet release plus safe paid-retry, signature, and persistence

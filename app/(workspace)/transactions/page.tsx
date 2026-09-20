@@ -9,10 +9,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EmptyState, RouteHeader } from "@/components/route-primitives";
+import { AssuranceBadge } from "@/components/shared/assurance-badge";
 import { StatusBadge, type StatusTone } from "@/components/shared/domain-primitives";
+import { assuranceForExecution } from "@/lib/assurance";
 import { getDatabase } from "@/lib/db/client";
 import { agents, decisions, executionAttempts, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { summarizeMeteoraLaunchEvidence } from "@/lib/services/meteora-reconciliation";
 
 export const metadata: Metadata = { title: "Transactions" };
 export const dynamic = "force-dynamic";
@@ -50,9 +53,11 @@ async function loadExecutionRows() {
       createdAt: executionAttempts.createdAt,
       decisionHash: decisions.decisionHash,
       proposal: decisions.proposal,
+      agentMode: agents.mode,
     })
     .from(executionAttempts)
     .innerJoin(decisions, eq(decisions.id, executionAttempts.decisionId))
+    .innerJoin(agents, eq(agents.id, decisions.agentId))
     .orderBy(desc(executionAttempts.createdAt))
     .limit(25);
 }
@@ -70,6 +75,7 @@ async function loadLaunchRows() {
       baseMint: marketLaunches.baseMint,
       poolAddress: marketLaunches.poolAddress,
       transactionSignature: marketLaunches.transactionSignature,
+      metadata: marketLaunches.metadata,
       createdAt: marketLaunches.createdAt,
       updatedAt: marketLaunches.updatedAt,
       agentName: agents.name,
@@ -91,10 +97,23 @@ function toneForExecution(state: ExecutionRow["state"]): StatusTone {
 }
 
 function toneForLaunch(status: string): StatusTone {
-  if (status === "confirmed" || status === "pool_submitted") return "pass";
-  if (status.includes("submitted") || status.includes("pending")) return "pending";
+  if (status === "confirmed" || status === "pool_confirmed") return "pass";
+  if (
+    status.includes("submitting") ||
+    status.includes("submitted") ||
+    status.includes("pending") ||
+    status.includes("signature_confirmed")
+  )
+    return "pending";
   if (status.includes("failed") || status.includes("rejected")) return "block";
   if (status.includes("simulated")) return "simulation";
+  return "neutral";
+}
+
+function toneForEvidence(label: string): StatusTone {
+  if (label === "protocol_verified") return "pass";
+  if (label === "signature_confirmed") return "pending";
+  if (label === "evidence_incomplete") return "block";
   return "neutral";
 }
 
@@ -230,6 +249,15 @@ export default async function TransactionsPage({
                     ) : (
                       <span className="transaction-muted">No explorer link</span>
                     )}
+                    <div className="transaction-evidence">
+                      <AssuranceBadge
+                        assurance={assuranceForExecution({
+                          state: row.state,
+                          transactionSignature: row.transactionSignature,
+                          mode: row.agentMode,
+                        })}
+                      />
+                    </div>
                     {row.safeError ? (
                       <p className="transaction-error">{row.safeError}</p>
                     ) : null}
@@ -274,6 +302,25 @@ export default async function TransactionsPage({
                       <span>Pool</span>
                       <strong>{shortHash(row.poolAddress)}</strong>
                     </div>
+                    {(() => {
+                      const evidence = summarizeMeteoraLaunchEvidence(
+                        row.status,
+                        row.metadata,
+                      );
+                      if (!evidence) return null;
+                      return (
+                        <div className="transaction-evidence">
+                          <StatusBadge tone={toneForEvidence(evidence.label)}>
+                            {evidence.label.replaceAll("_", " ")}
+                          </StatusBadge>
+                          <span>
+                            slot {evidence.slot ?? "n/a"} · fee{" "}
+                            {evidence.feeLamports ?? "n/a"} lamports · account{" "}
+                            {shortHash(evidence.account)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     {row.transactionSignature ? (
                       <Link
                         className="secondary-button"

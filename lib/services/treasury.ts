@@ -82,7 +82,19 @@ export async function createPortfolioSnapshot(
 ): Promise<PortfolioSnapshot> {
   const prepared = preparePortfolioSnapshot(candidate);
   const db = database ?? (await import("../db/client")).getDatabase();
+  return persistPortfolioSnapshot(prepared, db);
+}
 
+/**
+ * Writes the treasury account and snapshot for an already prepared document.
+ * Accepts a database or an open transaction. When `id` is supplied the caller
+ * has already bound that identifier elsewhere (for example inside a decision
+ * context), so a content-hash collision with a different row is an error.
+ */
+export async function persistPortfolioSnapshot(
+  prepared: PreparedPortfolioSnapshot & Readonly<{ id?: string }>,
+  db: NavisDatabase,
+): Promise<PortfolioSnapshot> {
   return db.transaction(async (transaction) => {
     const [account] = await transaction
       .insert(schema.treasuryAccounts)
@@ -111,6 +123,7 @@ export async function createPortfolioSnapshot(
     const [snapshot] = await transaction
       .insert(schema.portfolioSnapshots)
       .values({
+        ...(prepared.id ? { id: prepared.id } : {}),
         agentId: prepared.document.agentId,
         treasuryAccountId: account.id,
         cluster: prepared.document.cluster,
@@ -135,6 +148,11 @@ export async function createPortfolioSnapshot(
       )[0];
     if (!persisted)
       throw new Error("Portfolio snapshot persistence returned no record");
+    if (prepared.id && persisted.id !== prepared.id) {
+      throw new Error(
+        "Portfolio snapshot content hash is already bound to another row",
+      );
+    }
 
     return portfolioSnapshotSchema.parse({
       ...prepared.document,

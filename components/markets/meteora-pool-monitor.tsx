@@ -19,7 +19,31 @@ type PoolStatus = Readonly<{
   migrationQuoteThresholdRaw: string;
   progressRatio: number;
   migrated: boolean;
+  launch: {
+    launchId: string | null;
+    status: string;
+    evidence: {
+      label: string;
+      state: string;
+      slot: number | null;
+      feeLamports: number | null;
+      confirmedAt: string | null;
+      account: string | null;
+      checks: {
+        field: string;
+        expected: string | null;
+        actual: string | null;
+        ok: boolean;
+      }[];
+    } | null;
+  } | null;
 }>;
+
+function evidenceTone(label: string) {
+  if (label === "protocol_verified") return "pass" as const;
+  if (label === "signature_confirmed") return "simulation" as const;
+  return "block" as const;
+}
 
 type QueryState =
   | { status: "idle" }
@@ -149,6 +173,71 @@ function PoolResult({ pool }: { pool: PoolStatus }) {
           <dt>RPC slot</dt>
           <dd>{pool.contextSlot}</dd>
         </div>
+      </dl>
+      <LaunchEvidence launch={pool.launch} />
+    </div>
+  );
+}
+
+function LaunchEvidence({ launch }: { launch: PoolStatus["launch"] }) {
+  if (!launch) {
+    return (
+      <p className="form-note">
+        No Navis launch record for this pool. The onchain state above is real, but Navis
+        did not submit it.
+      </p>
+    );
+  }
+  if (!launch.evidence) {
+    return (
+      <p className="form-note">
+        Navis launch record {launch.status.replaceAll("_", " ")}: not yet reconciled.
+      </p>
+    );
+  }
+  const evidence = launch.evidence;
+  return (
+    <div className="meteora-launch-evidence">
+      <div className="panel-heading">
+        <div>
+          <span>Navis launch record</span>
+          <h3>{launch.status.replaceAll("_", " ")}</h3>
+        </div>
+        <StatusBadge tone={evidenceTone(evidence.label)}>
+          {evidence.label.replaceAll("_", " ")}
+        </StatusBadge>
+      </div>
+      <dl className="meteora-address-list">
+        <div>
+          <dt>Confirmed slot</dt>
+          <dd>{evidence.slot ?? "not confirmed"}</dd>
+        </div>
+        <div>
+          <dt>Fee</dt>
+          <dd>
+            {evidence.feeLamports === null ? "n/a" : `${evidence.feeLamports} lamports`}
+          </dd>
+        </div>
+        <div>
+          <dt>Verified account</dt>
+          <dd>
+            {evidence.account ? (
+              <AddressValue value={evidence.account} label="verified account" />
+            ) : (
+              "none"
+            )}
+          </dd>
+        </div>
+        {evidence.checks.map((check) => (
+          <div key={check.field}>
+            <dt>{check.field}</dt>
+            <dd>
+              {check.ok
+                ? "matches"
+                : `expected ${check.expected ?? "?"}, got ${check.actual ?? "missing"}`}
+            </dd>
+          </div>
+        ))}
       </dl>
     </div>
   );

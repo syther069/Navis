@@ -2,7 +2,28 @@ import { parseProposalForContext, type DecisionContext } from "../../domain";
 import { hashCanonical } from "../../proofs/canonical";
 import type { DecisionProvider } from "./types";
 
+export const DEMO_DEFAULT_SLIPPAGE_BPS = 75;
+
+export type DemoDecisionProviderOptions = Readonly<{
+  /**
+   * Policy ceiling for requested slippage. The deterministic proposal never
+   * asks for more than the agent's own max_slippage_bps, so a created agent
+   * with a tight slippage policy still gets an approvable balanced run.
+   */
+  maxSlippageBps?: number;
+}>;
+
 export class DemoDecisionProvider implements DecisionProvider {
+  private readonly slippageBps: number;
+
+  constructor(options: DemoDecisionProviderOptions = {}) {
+    const ceiling = options.maxSlippageBps ?? DEMO_DEFAULT_SLIPPAGE_BPS;
+    this.slippageBps = Math.max(
+      1,
+      Math.min(DEMO_DEFAULT_SLIPPAGE_BPS, Math.trunc(ceiling)),
+    );
+  }
+
   async propose(context: DecisionContext) {
     const generatedAt = new Date(context.requestedAt);
     const expiresAt = new Date(generatedAt.getTime() + 5 * 60 * 1_000).toISOString();
@@ -25,7 +46,7 @@ export class DemoDecisionProvider implements DecisionProvider {
               decimals: outputAsset.decimals,
               uiAmount: "1",
             },
-            maxSlippageBps: 75,
+            maxSlippageBps: this.slippageBps,
             thesis:
               "The deterministic demo signal proposes a bounded one-unit rebalance for policy evaluation.",
             evidence: [

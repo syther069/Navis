@@ -11,6 +11,12 @@ import {
   isMeteoraBroadcastAvailable,
   METEORA_BROADCAST_UNAVAILABLE_REASON,
 } from "@/lib/integrations/meteora/broadcast-safety";
+import {
+  classifyMeteoraSendError,
+  deriveTransactionSignature,
+  isMeteoraIntentReplayable,
+} from "@/lib/integrations/meteora/submit-lifecycle";
+import { finalizeMeteoraSubmit } from "@/lib/services/meteora-submit";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
@@ -96,7 +102,7 @@ export async function POST(request: NextRequest) {
           status: 403,
         } as const;
       }
-      if (intent.status === "submitted" || intent.status === "consumed") {
+      if (isMeteoraIntentReplayable(intent.status)) {
         const [launch] = await transaction
           .select()
           .from(marketLaunches)
@@ -134,25 +140,38 @@ export async function POST(request: NextRequest) {
           status: 410,
         } as const;
       }
+      let transactionSignature: string;
       try {
-        client.parseVerifiedSignedTransaction({
+        const verified = client.parseVerifiedSignedTransaction({
           serializedTransaction: parsed.data.serializedTransaction,
           expectedMessageSha256: intent.messageSha256,
           expectedPayer: intent.feePayer,
         });
+        transactionSignature = deriveTransactionSignature(verified.transaction);
       } catch {
         return {
           error: "Signed transaction does not match the prepared execution intent.",
           status: 400,
         } as const;
       }
+      const accounts = intent.accountsSummary as {
+        accounts?: { config?: string; quoteMint?: string };
+        quote?: { profileId?: string; source?: string; symbol?: string };
+      };
+      const quoteMint = accounts.accounts?.quoteMint;
+      if (!quoteMint || !accounts.quote?.profileId) {
+        return {
+          error:
+            "Execution intent has no approved quote profile recorded; prepare it again.",
+          status: 409,
+        } as const;
+      }
+      // Record the signature before anything is sent. A timeout after send can
+      // then never lose the tracking record.
       await transaction
         .update(executionIntents)
-        .set({ status: "broadcasting", updatedAt: new Date() })
+        .set({ status: "submitting", transactionSignature, updatedAt: new Date() })
         .where(eq(executionIntents.id, intent.id));
-      const accounts = intent.accountsSummary as {
-        accounts?: { config?: string };
-      };
       const [launch] = await transaction
         .insert(marketLaunches)
         .values({
@@ -160,18 +179,22 @@ export async function POST(request: NextRequest) {
           provider: "meteora",
           idempotencyKey: `meteora-intent:${intent.id}`,
           cluster: intent.cluster,
-          status: "broadcasting",
-          quoteMint: "So11111111111111111111111111111111111111112",
+          status: "submitting",
+          transactionSignature,
+          quoteMint,
           payoutWallet: intent.ownerWallet,
           metadata: {
             kind: "meteora.createConfig",
             config: accounts.accounts?.config,
+            quoteProfileId: accounts.quote.profileId,
+            quoteSource: accounts.quote.source,
+            quoteSymbol: accounts.quote.symbol,
             intentId: intent.id,
             messageSha256: intent.messageSha256,
           },
         })
         .returning();
-      return { intent, launch } as const;
+      return { intent, launch, transactionSignature } as const;
     });
 
     if ("error" in prepared) {
@@ -199,43 +222,43 @@ export async function POST(request: NextRequest) {
         expectedMessageSha256: prepared.intent.messageSha256,
         expectedPayer: prepared.intent.feePayer,
       });
-      const [launch] = await database
-        .update(marketLaunches)
-        .set({
-          status: "submitted",
-          transactionSignature: submitted.transactionSignature,
-          updatedAt: new Date(),
-        })
-        .where(eq(marketLaunches.id, prepared.launch.id))
-        .returning();
-      await database
-        .update(executionIntents)
-        .set({
-          status: "submitted",
-          transactionSignature: submitted.transactionSignature,
-          updatedAt: new Date(),
-        })
-        .where(eq(executionIntents.id, prepared.intent.id));
+      if (submitted.transactionSignature !== prepared.transactionSignature) {
+        throw new Error("RPC returned a different signature than the recorded one.");
+      }
+      const launch = await finalizeMeteoraSubmit(database, {
+        launchId: prepared.launch.id,
+        intentId: prepared.intent.id,
+        fromLaunchStatus: "submitting",
+        launchStatus: "submitted",
+        intentStatus: "submitted",
+        metadata: prepared.launch.metadata as Record<string, unknown>,
+      });
       return NextResponse.json(
         { launch },
         { status: 201, headers: { "Cache-Control": "no-store" } },
       );
-    } catch {
-      await database
-        .update(marketLaunches)
-        .set({ status: "broadcast_failed", updatedAt: new Date() })
-        .where(eq(marketLaunches.id, prepared.launch.id));
-      await database
-        .update(executionIntents)
-        .set({
-          status: "failed",
-          simulation: { error: "Broadcast failed." },
-          updatedAt: new Date(),
-        })
-        .where(eq(executionIntents.id, prepared.intent.id));
+    } catch (error) {
+      const outcome = classifyMeteoraSendError(error);
+      const rejected = outcome.kind === "rejected_before_broadcast";
+      const launch = await finalizeMeteoraSubmit(database, {
+        launchId: prepared.launch.id,
+        intentId: prepared.intent.id,
+        fromLaunchStatus: "submitting",
+        launchStatus: rejected ? "broadcast_failed" : "unknown_pending",
+        intentStatus: rejected ? "failed" : "unknown_pending",
+        metadata: {
+          ...(prepared.launch.metadata as Record<string, unknown>),
+          send: { outcome: outcome.kind, reason: outcome.reason },
+        },
+      });
       return NextResponse.json(
-        { error: "Meteora broadcast failed. The attempt was recorded." },
-        { status: 502, headers: { "Cache-Control": "no-store" } },
+        {
+          launch,
+          error: rejected
+            ? "The RPC rejected the Meteora transaction before broadcast. The attempt was recorded."
+            : "Meteora broadcast outcome is unknown; the signature was recorded and can be reconciled.",
+        },
+        { status: rejected ? 502 : 202, headers: { "Cache-Control": "no-store" } },
       );
     }
   } catch {

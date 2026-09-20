@@ -9,7 +9,10 @@ import {
 import Link from "next/link";
 
 import { RouteHeader } from "@/components/route-primitives";
+import { AssuranceBadge } from "@/components/shared/assurance-badge";
 import { SourceStamp } from "@/components/shared/domain-primitives";
+import { PolicyExplanationPanel } from "@/components/shared/policy-explanation-panel";
+import { assuranceForReceipt } from "@/lib/assurance";
 import { demoProof } from "@/fixtures/demo-proof";
 
 const demoDecisionId = "demo-decision";
@@ -29,6 +32,14 @@ export default async function DecisionDetailPage({
         title="Rebalance proposal 001"
         description="A deterministic demo proposal connected to its immutable inputs, policy evaluation, and hash-verifiable simulation receipt."
         meta="Simulation · hash verified"
+      />
+      <div className="proof-assurance">
+        <AssuranceBadge assurance={assuranceForReceipt(demoProof.document)} />
+      </div>
+      <PolicyExplanationPanel
+        approved={demoProof.document.policyEvaluation.approved}
+        checks={demoProof.document.policyEvaluation.checks}
+        note="Values are basis points recorded by the deterministic demo policy evaluation."
       />
       <ol className="timeline" aria-label="Decision proof spine">
         {demoProof.timeline.map((event, index) => {

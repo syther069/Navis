@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
         status: marketLaunches.status,
         cluster: marketLaunches.cluster,
         baseMint: marketLaunches.baseMint,
+        quoteMint: marketLaunches.quoteMint,
         poolAddress: marketLaunches.poolAddress,
         metadata: marketLaunches.metadata,
       })
@@ -142,6 +143,15 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+    if (!launch.quoteMint) {
+      return NextResponse.json(
+        {
+          error:
+            "Meteora launch has no recorded quote mint, so the pool cannot be derived against an approved quote.",
+        },
+        { status: 409 },
+      );
+    }
 
     await database
       .update(executionIntents)
@@ -157,6 +167,7 @@ export async function POST(request: NextRequest) {
     const prepared = await createServerMeteoraDbcClient().prepareCreatePoolTransaction({
       config,
       baseMint: parsed.data.baseMint,
+      quoteMint: launch.quoteMint,
       payer: session.wallet,
       poolCreator: session.wallet,
       name: parsed.data.name,

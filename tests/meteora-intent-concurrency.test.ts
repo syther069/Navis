@@ -1,3 +1,4 @@
+import bs58 from "bs58";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -81,7 +82,9 @@ vi.mock("../lib/db/client", () => ({
 vi.mock("../lib/integrations/meteora/server", () => ({
   createServerMeteoraDbcClient: () => ({
     connection: { getBlockHeight: vi.fn().mockResolvedValue(10) },
-    parseVerifiedSignedTransaction: vi.fn(),
+    parseVerifiedSignedTransaction: () => ({
+      transaction: { signature: Buffer.alloc(64, 7) },
+    }),
     simulateSignedConfigTransaction: mocks.simulate,
     submitSignedPoolTransaction: mocks.sendPool,
   }),
@@ -143,7 +146,9 @@ describe("Meteora intent concurrency", () => {
     mocks.updateResults = [];
     mocks.updatedValues = [];
     mocks.simulate.mockResolvedValue({ error: null });
-    mocks.sendPool.mockResolvedValue({ transactionSignature: "pool-signature" });
+    mocks.sendPool.mockResolvedValue({
+      transactionSignature: bs58.encode(Buffer.alloc(64, 7)),
+    });
   });
 
   it("rejects simulation completion after the intent moved to broadcasting", async () => {
@@ -160,7 +165,7 @@ describe("Meteora intent concurrency", () => {
   });
 
   it("rejects a second pool intent after the launch moved", async () => {
-    mocks.selectedRows = [intent("meteora.pool"), launch("pool_broadcasting")];
+    mocks.selectedRows = [intent("meteora.pool"), launch("pool_submitting")];
 
     const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
 
@@ -171,15 +176,20 @@ describe("Meteora intent concurrency", () => {
   it("keeps the config idempotency key during pool submission", async () => {
     const currentLaunch = launch();
     mocks.selectedRows = [intent("meteora.pool"), currentLaunch];
-    mocks.updateResults = [[], [{ ...currentLaunch, status: "pool_broadcasting" }]];
+    mocks.updateResults = [[], [{ ...currentLaunch, status: "pool_submitting" }]];
 
     const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
     const poolTransition = mocks.updatedValues.find(
-      (values) => values.status === "pool_broadcasting",
+      (values) => values.status === "pool_submitting",
     );
 
     expect(response.status).toBe(201);
     expect(poolTransition).toBeDefined();
     expect(poolTransition).not.toHaveProperty("idempotencyKey");
+    // The launch row carries the pool signature; the config one moves to metadata.
+    expect(poolTransition?.transactionSignature).toBe(bs58.encode(Buffer.alloc(64, 7)));
+    expect(
+      (poolTransition?.metadata as Record<string, unknown>).configTransactionSignature,
+    ).toBe(currentLaunch.transactionSignature);
   });
 });

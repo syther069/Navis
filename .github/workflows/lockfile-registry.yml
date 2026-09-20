@@ -1,0 +1,19 @@
+name: Lockfile registry gate
+
+# Every push and pull request checks that package-lock.json only resolves
+# packages from https://registry.npmjs.org. This is the server-side backstop
+# for the local pre-commit/pre-push hooks; it cannot be skipped with --no-verify.
+on:
+  push:
+  pull_request:
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-lockfile-registry.mjs

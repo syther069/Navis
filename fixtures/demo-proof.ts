@@ -139,6 +139,7 @@ const facts = {
   dataObservedAt: timestamp,
   quoteExpiresAt: expiresAt,
   availableLiquidityUsdMicros: "2000000000",
+  liquidityObservedAt: timestamp,
   assetVerification: Object.fromEntries(
     demoAgentBundle.assets.map((asset) => [asset.mint, asset.verificationState]),
   ),

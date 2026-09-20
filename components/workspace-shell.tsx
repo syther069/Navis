@@ -26,7 +26,7 @@ type WorkspaceShellProps = {
 };
 
 const navigation = [
-  { label: "Agents", icon: Compass, href: "/agents/atlas", match: "/agents" },
+  { label: "Agents", icon: Compass, href: "/agents", match: "/agents" },
   { label: "Decisions", icon: Gauge, href: "/decisions", match: "/decisions" },
   { label: "Markets", icon: ChartDonut, href: "/markets/launch", match: "/markets" },
   {

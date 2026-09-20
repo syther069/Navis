@@ -425,7 +425,7 @@ export const executionIntents = pgTable(
     uniqueIndex("execution_intents_active_pool_launch_unique")
       .on(table.launchId)
       .where(
-        sql`${table.kind} = 'meteora.pool' and ${table.status} in ('prepared', 'simulating', 'simulated', 'broadcasting')`,
+        sql`${table.kind} = 'meteora.pool' and ${table.status} in ('prepared', 'simulating', 'simulated', 'broadcasting', 'submitting')`,
       ),
   ],
 );

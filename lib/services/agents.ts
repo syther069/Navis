@@ -139,6 +139,7 @@ export async function getPersistentAgentForOwner(
     assets: assetRows.map(({ asset }) =>
       assetSchema.parse({
         ...asset,
+        issuer: asset.issuer ?? undefined,
         sourceTimestamp: asset.sourceTimestamp?.toISOString(),
       }),
     ),
