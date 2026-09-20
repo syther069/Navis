@@ -208,7 +208,7 @@ Fetch live ClawPump pairs → select an explicitly stock-related supported asset
 - Zod schemas at every external boundary.
 - PostgreSQL-compatible persistence for deployed demo; checked-in JSON fixtures only for demo fallback.
 - Solana RPC reads and transaction confirmation with explicit cluster.
-- Wallet Adapter-compatible client connection; repository has moved to `anza-xyz/wallet-adapter`.
+- Wallet Adapter-compatible client connection, maintained upstream by Anza (`anza-xyz/wallet-adapter`); this repository uses the Solana npm packages and does not claim a separate wallet-adapter migration.
 - Official Meteora DBC TypeScript SDK and compatible Solana dependencies.
 - Correlation IDs and structured logs with secret redaction.
 - Responsive, keyboard-accessible interface with no fake live-state indicators.

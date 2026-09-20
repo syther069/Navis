@@ -93,10 +93,19 @@ Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
   broadcast-error path does not guarantee that every transport timeout persists as
   `unknown_pending`; server-prepared and simulation binding must also be completed
   before live release.
+- Local remediation now also hard-blocks both Meteora broadcast endpoints regardless
+  of environment toggles. Configuration/simulation inspection remains available when
+  its existing prerequisites are configured. New config confirmations require
+  complete, consistent successful RPC transaction evidence and real block time.
+  This safety block is not completion of the missing live transaction protocol.
 - ClawPump `/launch/self-funded` has no documented devnet or cluster selector.
   Current Navis posture supports preflight only. A funded launch requires an
   owner-approved mainnet release plus safe paid-retry, signature, and persistence
   code. No automatic launch is permitted.
+- Fresh public PreStocks evidence on 2026-09-20: HTTP 200, eight assets, read-only,
+  no value movement. See `docs/evidence/stocklana-prestocks-read.json`. Catalogue
+  read time is not a verified upstream quote timestamp; local UI/API disclosures
+  now make that distinction explicit.
 - PreStocks is a read-only catalogue integration. The UI discloses that provider
   tokens represent economic exposure only, are risky, and are not available to
   U.S. persons or other restricted users; Navis does not expose a PreStocks

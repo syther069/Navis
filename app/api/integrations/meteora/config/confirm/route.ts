@@ -19,32 +19,36 @@ function metadataRecord(value: unknown) {
     : {};
 }
 
+function json(body: unknown, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
 export async function POST(request: NextRequest) {
   if (!hasTrustedMutationOrigin(request)) {
-    return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+    return json({ error: "Untrusted request origin." }, 403);
   }
 
   if (!env.databaseUrl) {
-    return NextResponse.json(
-      { error: "Persistent storage is required before confirmation." },
-      { status: 503 },
-    );
+    return json({ error: "Persistent storage is required before confirmation." }, 503);
   }
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
   if (!session) {
-    return NextResponse.json(
+    return json(
       { error: "Authenticate a connected wallet before confirming a Meteora launch." },
-      { status: 401 },
+      401,
     );
   }
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json(
+    return json(
       { error: parsed.error.issues[0]?.message ?? "Invalid Meteora confirmation." },
-      { status: 400 },
+      400,
     );
   }
 
@@ -71,72 +75,97 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!launch) {
-      return NextResponse.json(
-        { error: "Meteora launch was not found for this wallet." },
-        { status: 404 },
-      );
+      return json({ error: "Meteora launch was not found for this wallet." }, 404);
     }
     if (!launch.transactionSignature) {
-      return NextResponse.json(
+      return json(
         { error: "Meteora launch has no transaction signature to confirm." },
-        { status: 409 },
+        409,
       );
     }
     if (launch.cluster !== env.cluster) {
-      return NextResponse.json(
+      return json(
         { error: "Meteora launch cluster does not match the active cluster." },
-        { status: 409 },
+        409,
       );
+    }
+
+    const metadata = metadataRecord(launch.metadata);
+    if (launch.status === "confirmed" || launch.status === "failed") {
+      return json(
+        {
+          launch,
+          confirmation: launch.status,
+        },
+        200,
+      );
+    }
+    if (
+      !["submitted", "unknown_pending"].includes(launch.status) ||
+      metadata.pool !== undefined
+    ) {
+      return json(
+        {
+          error:
+            "This confirmation endpoint only checks a pending Meteora config transaction.",
+        },
+        409,
+      );
+    }
+
+    async function persistConfirmation(
+      status: "unknown_pending" | "failed" | "confirmed",
+      confirmation: Record<string, unknown>,
+      responseStatus: number,
+    ) {
+      const [updated] = await database
+        .update(marketLaunches)
+        .set({
+          status,
+          metadata: { ...metadata, confirmation },
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(marketLaunches.id, launch.id),
+            eq(marketLaunches.status, launch.status),
+          ),
+        )
+        .returning();
+
+      if (!updated) {
+        return json(
+          { error: "Meteora launch state changed during confirmation; retry safely." },
+          409,
+        );
+      }
+      return json({ launch: updated, confirmation: status }, responseStatus);
     }
 
     const client = createSolanaRpcClient();
     const signature = await client.getSignatureStatus(launch.transactionSignature);
-    const metadata = metadataRecord(launch.metadata);
 
     if (!signature.status) {
-      const [updated] = await database
-        .update(marketLaunches)
-        .set({
-          status: "unknown_pending",
-          metadata: {
-            ...metadata,
-            confirmation: {
-              state: "signature_not_found",
-              contextSlot: signature.contextSlot.toString(),
-              checkedAt: new Date().toISOString(),
-            },
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(marketLaunches.id, launch.id))
-        .returning();
-      return NextResponse.json(
-        { launch: updated, confirmation: "unknown_pending" },
-        { status: 202, headers: { "Cache-Control": "no-store" } },
+      return persistConfirmation(
+        "unknown_pending",
+        {
+          state: "signature_not_found",
+          contextSlot: signature.contextSlot.toString(),
+          checkedAt: new Date().toISOString(),
+        },
+        202,
       );
     }
 
     if (signature.status.err !== null) {
-      const [updated] = await database
-        .update(marketLaunches)
-        .set({
-          status: "failed",
-          metadata: {
-            ...metadata,
-            confirmation: {
-              state: "onchain_error",
-              error: signature.status.err,
-              slot: signature.status.slot,
-              checkedAt: new Date().toISOString(),
-            },
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(marketLaunches.id, launch.id))
-        .returning();
-      return NextResponse.json(
-        { launch: updated, confirmation: "failed" },
-        { status: 200, headers: { "Cache-Control": "no-store" } },
+      return persistConfirmation(
+        "failed",
+        {
+          state: "onchain_error",
+          slot: signature.status.slot,
+          checkedAt: new Date().toISOString(),
+        },
+        200,
       );
     }
 
@@ -144,67 +173,86 @@ export async function POST(request: NextRequest) {
       signature.status.confirmationStatus !== "confirmed" &&
       signature.status.confirmationStatus !== "finalized"
     ) {
-      const [updated] = await database
-        .update(marketLaunches)
-        .set({
-          status: "unknown_pending",
-          metadata: {
-            ...metadata,
-            confirmation: {
-              state: "not_yet_confirmed",
-              confirmationStatus: signature.status.confirmationStatus ?? "unknown",
-              slot: signature.status.slot,
-              checkedAt: new Date().toISOString(),
-            },
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(marketLaunches.id, launch.id))
-        .returning();
-      return NextResponse.json(
-        { launch: updated, confirmation: "unknown_pending" },
-        { status: 202, headers: { "Cache-Control": "no-store" } },
+      return persistConfirmation(
+        "unknown_pending",
+        {
+          state: "not_yet_confirmed",
+          confirmationStatus: signature.status.confirmationStatus ?? "unknown",
+          slot: signature.status.slot,
+          checkedAt: new Date().toISOString(),
+        },
+        202,
       );
     }
 
     const transaction = await client.getTransactionEvidence(
       launch.transactionSignature,
     );
-    const confirmedAt = transaction?.blockTime
-      ? new Date(transaction.blockTime * 1_000).toISOString()
-      : new Date().toISOString();
-    const [updated] = await database
-      .update(marketLaunches)
-      .set({
-        status: "confirmed",
-        metadata: {
-          ...metadata,
-          confirmation: {
-            state: "confirmed",
-            confirmationStatus: signature.status.confirmationStatus,
-            slot: transaction?.slot ?? signature.status.slot,
-            feeLamports: transaction?.meta?.fee ?? null,
-            confirmedAt,
-          },
+    if (!transaction?.meta || transaction.blockTime === null) {
+      return persistConfirmation(
+        "unknown_pending",
+        {
+          state: "confirmed_transaction_evidence_unavailable",
+          checkedAt: new Date().toISOString(),
         },
-        updatedAt: new Date(),
-      })
-      .where(eq(marketLaunches.id, launch.id))
-      .returning();
+        202,
+      );
+    }
+    if (transaction.meta.err !== null) {
+      return persistConfirmation(
+        "failed",
+        {
+          state: "confirmed_transaction_error",
+          slot: transaction.slot,
+          checkedAt: new Date().toISOString(),
+        },
+        200,
+      );
+    }
+    if (
+      transaction.slot !== signature.status.slot ||
+      BigInt(signature.status.slot) > signature.contextSlot
+    ) {
+      return persistConfirmation(
+        "unknown_pending",
+        {
+          state: "inconsistent_chain_evidence",
+          signatureSlot: signature.status.slot,
+          transactionSlot: transaction.slot,
+          contextSlot: signature.contextSlot.toString(),
+          checkedAt: new Date().toISOString(),
+        },
+        202,
+      );
+    }
 
-    return NextResponse.json(
-      { launch: updated, confirmation: "confirmed" },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
-    );
-  } catch (error) {
-    return NextResponse.json(
+    const confirmedAtDate = new Date(transaction.blockTime * 1_000);
+    if (!Number.isFinite(confirmedAtDate.getTime())) {
+      return persistConfirmation(
+        "unknown_pending",
+        {
+          state: "invalid_block_time_evidence",
+          checkedAt: new Date().toISOString(),
+        },
+        202,
+      );
+    }
+
+    return persistConfirmation(
+      "confirmed",
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Meteora launch could not be confirmed.",
+        state: "confirmed",
+        confirmationStatus: signature.status.confirmationStatus,
+        slot: transaction.slot,
+        feeLamports: transaction.meta.fee,
+        confirmedAt: confirmedAtDate.toISOString(),
       },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      200,
+    );
+  } catch {
+    return json(
+      { error: "Meteora confirmation evidence is temporarily unavailable." },
+      502,
     );
   }
 }

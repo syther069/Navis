@@ -118,4 +118,68 @@ describe("deterministic policy runner", () => {
       result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
     ).toMatchObject({ status: "warn", observed: "unavailable" });
   });
+
+  it.each([
+    ["devnet", "devnet"],
+    ["mainnet", "mainnet-beta"],
+  ] as const)(
+    "fails closed when %s liquidity is unavailable for verified assets",
+    (mode, cluster) => {
+      const liveFacts = facts();
+      liveFacts.mode = mode;
+      liveFacts.cluster = cluster;
+      delete liveFacts.availableLiquidityUsdMicros;
+      liveFacts.assetVerification = {
+        demo_mint_equity_a: "provider_verified",
+        demo_mint_equity_b: "onchain_verified",
+      };
+      const livePolicy = structuredClone(demoAgentBundle.riskPolicy.document);
+      const allowedModes = livePolicy.constraints.find(
+        (constraint) => constraint.type === "allowed_modes",
+      )!;
+      allowedModes.modes = [mode];
+
+      const result = evaluatePolicy(proposal(), livePolicy, liveFacts);
+
+      expect(result.approved).toBe(false);
+      expect(
+        result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+      ).toMatchObject({ status: "fail", observed: "unavailable" });
+      expect(
+        result.checks.find((item) => item.rule === "verified_assets"),
+      ).toMatchObject({ status: "pass", observed: "all verified" });
+    },
+  );
+
+  it.each([
+    ["demo", "devnet"],
+    ["devnet", "devnet"],
+    ["mainnet", "mainnet-beta"],
+  ] as const)(
+    "approves %s when verified assets have sufficient reliable liquidity",
+    (mode, cluster) => {
+      const modeFacts = facts();
+      modeFacts.mode = mode;
+      modeFacts.cluster = cluster;
+      modeFacts.assetVerification = {
+        demo_mint_equity_a: "provider_verified",
+        demo_mint_equity_b: "onchain_verified",
+      };
+      const modePolicy = structuredClone(demoAgentBundle.riskPolicy.document);
+      const allowedModes = modePolicy.constraints.find(
+        (constraint) => constraint.type === "allowed_modes",
+      )!;
+      allowedModes.modes = [mode];
+
+      const result = evaluatePolicy(proposal(), modePolicy, modeFacts);
+
+      expect(result.approved).toBe(true);
+      expect(
+        result.checks.find((item) => item.rule === "min_liquidity_usd_micros"),
+      ).toMatchObject({ status: "pass", observed: "2000000000" });
+      expect(
+        result.checks.find((item) => item.rule === "verified_assets"),
+      ).toMatchObject({ status: "pass", observed: "all verified" });
+    },
+  );
 });

@@ -1,0 +1,371 @@
+{
+  "checkedAt": "2026-09-20T09:20:11.073Z",
+  "baseUrl": "https://navis-gilt.vercel.app",
+  "phase": "pre-remediation",
+  "method": "Fresh unauthenticated Chromium via Chrome DevTools Protocol; no wallet or persistent writes",
+  "results": [
+    {
+      "path": "/agents/atlas",
+      "journey": "Atlas start",
+      "h1": "Atlas",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "journey": "Clicked inspect decision",
+      "h1": "Rebalance proposal 001",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "journey": "Clicked public verifier",
+      "h1": "Atlas rebalance simulation",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas",
+      "viewport": 375,
+      "h1": "Atlas",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/new",
+      "viewport": 375,
+      "h1": "Define a mandate",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/decisions",
+      "viewport": 375,
+      "h1": "Decisions",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "viewport": 375,
+      "h1": "Rebalance proposal 001",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs",
+      "viewport": 375,
+      "h1": "Proofs",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "viewport": 375,
+      "h1": "Atlas rebalance simulation",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/markets/launch",
+      "viewport": 375,
+      "h1": "Market launch preflight",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/transactions",
+      "viewport": 375,
+      "h1": "Transactions",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/settings",
+      "viewport": 375,
+      "h1": "Capabilities",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/disclosures",
+      "viewport": 375,
+      "h1": "Risk and privacy disclosures",
+      "width": 375,
+      "scrollWidth": 360,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas",
+      "viewport": 768,
+      "h1": "Atlas",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/new",
+      "viewport": 768,
+      "h1": "Define a mandate",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/decisions",
+      "viewport": 768,
+      "h1": "Decisions",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "viewport": 768,
+      "h1": "Rebalance proposal 001",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs",
+      "viewport": 768,
+      "h1": "Proofs",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "viewport": 768,
+      "h1": "Atlas rebalance simulation",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/markets/launch",
+      "viewport": 768,
+      "h1": "Market launch preflight",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/transactions",
+      "viewport": 768,
+      "h1": "Transactions",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/settings",
+      "viewport": 768,
+      "h1": "Capabilities",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/disclosures",
+      "viewport": 768,
+      "h1": "Risk and privacy disclosures",
+      "width": 768,
+      "scrollWidth": 753,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas",
+      "viewport": 1440,
+      "h1": "Atlas",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/new",
+      "viewport": 1440,
+      "h1": "Define a mandate",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/decisions",
+      "viewport": 1440,
+      "h1": "Decisions",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "viewport": 1440,
+      "h1": "Rebalance proposal 001",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs",
+      "viewport": 1440,
+      "h1": "Proofs",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "viewport": 1440,
+      "h1": "Atlas rebalance simulation",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/markets/launch",
+      "viewport": 1440,
+      "h1": "Market launch preflight",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/transactions",
+      "viewport": 1440,
+      "h1": "Transactions",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/settings",
+      "viewport": 1440,
+      "h1": "Capabilities",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    },
+    {
+      "path": "/disclosures",
+      "viewport": 1440,
+      "h1": "Risk and privacy disclosures",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "overflow": false,
+      "missingLabels": [],
+      "explorers": []
+    }
+  ],
+  "review": {
+    "shown": true,
+    "createDisabled": true
+  },
+  "mobileNavigation": {
+    "opened": true,
+    "dialog": {
+      "dialog": true,
+      "active": "Close navigation"
+    },
+    "afterEscape": {
+      "dialog": false,
+      "active": "Open navigation"
+    }
+  },
+  "reducedMotion": {
+    "matches": true,
+    "transition": "1e-05s"
+  },
+  "zoom": {
+    "method": "200% CSS zoom on Atlas at 375px",
+    "overflow": false
+  },
+  "contrastSample": {
+    "count": 61,
+    "failures": []
+  },
+  "errors": [],
+  "limits": [
+    "No real wallet/signing, persistent create/edit/delete, or onchain mutation tested",
+    "No screen-reader session or comprehensive all-state WCAG certification",
+    "Early skip-link measurement sampled an in-progress animation; not used as final-visibility proof"
+  ]
+}

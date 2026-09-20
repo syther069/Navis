@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Navis Remediation Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f3f4f6;
+        color: #20252d;
+        font:
+          15px/1.65 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1120px;
+        margin: 36px auto;
+        background: #fff;
+        padding: 48px 56px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+      }
+      h1 {
+        font-size: 32px;
+        line-height: 1.2;
+        margin-top: 0;
+      }
+      h2 {
+        font-size: 23px;
+        line-height: 1.3;
+        margin-top: 38px;
+        padding-top: 24px;
+        border-top: 1px solid #d8dee6;
+      }
+      h3 {
+        font-size: 18px;
+        margin-top: 26px;
+      }
+      a {
+        color: #064caa;
+      }
+      code {
+        font-size: 0.88em;
+        background: #f0f3f6;
+        padding: 2px 4px;
+        border-radius: 3px;
+        overflow-wrap: anywhere;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        padding: 16px;
+        background: #f0f3f6;
+        border-radius: 5px;
+      }
+      .table-wrap {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+      }
+      td,
+      th {
+        padding: 10px 12px;
+        border: 1px solid #d8dee6;
+        vertical-align: top;
+        text-align: left;
+        min-width: 115px;
+      }
+      th {
+        background: #edf1f6;
+      }
+      li {
+        margin: 6px 0;
+      }
+      li p {
+        margin: 5px 0;
+      }
+      blockquote {
+        border-left: 4px solid #445e7d;
+        padding-left: 18px;
+        color: #445266;
+      }
+      @media (max-width: 600px) {
+        body {
+          font-size: 14px;
+        }
+        main {
+          margin: 0;
+          padding: 24px 18px;
+          border: 0;
+          border-radius: 0;
+        }
+        h1 {
+          font-size: 27px;
+        }
+        h2 {
+          font-size: 21px;
+        }
+        .table-wrap {
+          margin: 0 -2px;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+          font-size: 11px;
+        }
+        main {
+          max-width: none;
+          margin: 0;
+          padding: 0;
+          border: 0;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        table {
+          font-size: 9px;
+        }
+        td,
+        th {
+          min-width: 0;
+          padding: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Navis: remediation and improvement report</h1>
+      <p>
+        Date: 2026-09-20. This report follows the completed read-only assessment in
+        <code>STOCKLANA_JUDGE_AUDIT.md</code>. That document preserves the original
+        verdict; this one records subsequent local changes and remaining work.
+      </p>
+      <p>
+        <strong>Scope:</strong> safe local correctness, security, disclosure and
+        documentation changes only. No push, deployment, production setting change,
+        migration, account change, wallet signing, token issuance, funding or submission
+        was performed.
+      </p>
+      <h2>1. Original judge score</h2>
+      <p>
+        <strong>72/100</strong>, medium confidence, plausible main-track entry. This is
+        an independent analytical framework, not official weighting or a prediction of
+        placement.
+      </p>
+      <p>
+        Baseline categories: real user/problem 16/20; end-to-end product 17/25; Solana
+        necessity/correctness 9/15; UX 13/15; safety/evidence 10/15;
+        originality/continuation 7/10.
+      </p>
+      <h2>2. Revised score after fixes</h2>
+      <p>
+        <strong>75/100 for the locally remediated code</strong>, subject to the
+        verification record below. UX rises to 14/15 because evidence provenance and
+        verification limitations are clearer; safety/evidence rises to 12/15 because
+        checks fail closed more consistently and unsafe broadcasts cannot be enabled
+        through flags alone. Other categories are unchanged.
+      </p>
+      <p>
+        The public Vercel build has <strong>not</strong> received these changes. Its
+        audited baseline score remains 72/100. Hard-blocking an unsafe transaction path
+        does not earn credit for implementing live execution, and documentation
+        corrections do not create new onchain evidence.
+      </p>
+      <h2>3. Eligibility before fixes</h2>
+      <p>
+        <strong>Potentially eligible, pending submission requirements.</strong> Public
+        repository and demo links satisfy the supporting-link requirement in principle.
+        Registration, declarations and authenticated submission were not verified.
+      </p>
+      <p>
+        Optional videos, production persistence and funded transactions are not
+        independently mandatory main-track requirements in the official rules inspected.
+      </p>
+      <h2>4. Eligibility after fixes</h2>
+      <p>
+        <strong
+          >Unchanged: potentially eligible, pending submission requirements.</strong
+        >
+        Local safety fixes improve quality but cannot register a team, establish
+        originality, select tracks or submit the form.
+      </p>
+      <p>
+        Deadline remains <strong>September 25, 2026, 4:00 p.m. ET</strong>, or September
+        26 at 1:30 a.m. IST.
+      </p>
+      <h2>5. Files changed and improvement register</h2>
+      <h3>R1. Fail closed on Meteora broadcasting</h3>
+      <ul>
+        <li>
+          <p>
+            <strong>Priority/category:</strong> P0, security and sponsor integration.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Baseline config/pool submit routes could
+            reach broadcast when flags were enabled, despite unresolved prepared-message
+            binding, caller-controlled pool metadata, race and transport-recovery
+            issues. See audit S2/S3.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Prevent unsafe activation by a deployment
+            toggle while preserving existing preparation code.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Shared code-level broadcast block, both
+            route guards and disabled UI controls with the same explicit reason. This is
+            a containment fix, not completion of the transaction protocol.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong>
+            <code>lib/integrations/meteora/broadcast-safety.ts</code>,
+            <code>app/api/integrations/meteora/{config,pool}/submit/route.ts</code>,
+            <code>components/markets/meteora-config-prepare.tsx</code>,
+            <code>tests/meteora-route-safety.test.ts</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong>
+            <code>npx vitest run tests/meteora-route-safety.test.ts</code>; both
+            broadcast routes remain unavailable even with execution configuration
+            enabled in isolated mocks.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> No additional approval for this strengthening.
+            Removing the block, signing or funding requires a separate reviewed release
+            and owner approval.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> More honest, safer demo; no new
+            bounty eligibility. <strong>Verified and complete</strong> for containment.
+          </p>
+        </li>
+      </ul>
+      <h3>R2. Require complete confirmation evidence</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P0, functionality and security.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Config confirmation accepted missing
+            transaction details and substituted local time for absent block time. See
+            audit S1.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Avoid presenting incomplete or
+            contradictory evidence as complete confirmation.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Missing transaction/meta/block time or
+            inconsistent slots remain unknown; chain errors fail; successful consistent
+            RPC evidence and actual block time are required. Terminal and pool states
+            are not overwritten; updates compare current status; provider errors are
+            sanitized.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong>
+            <code>app/api/integrations/meteora/config/confirm/route.ts</code>,
+            <code>tests/meteora-route-safety.test.ts</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong> Focused route tests cover null evidence,
+            errors, mismatches, successful evidence, terminal/pool preservation and
+            error sanitization.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> No additional approval for local mocked
+            validation. No existing records were migrated or re-certified.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Improves future evidence
+            integrity without claiming live confirmation.
+            <strong>Verified and complete</strong> locally; real RPC lifecycle remains
+            <strong>Implemented but externally unverified</strong>.
+          </p>
+        </li>
+      </ul>
+      <h3>R3. Verify receipt relationships, not just isolated hashes</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P0, functionality and security.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Independently matching hashes did not
+            establish that the supplied proposal, strategy, policy, portfolio and mode
+            referred to one coherent decision. See audit S4.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Reject internally contradictory rehashed
+            receipts and clarify the meaning of verification.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Cross-reference, agent, mode/cluster,
+            proposal and reconstructible policy checks; policy approval consistency;
+            confirmed evidence requires policy approval, 64-byte base58 signature syntax
+            and the exact canonical explorer link for its signature/cluster. Public copy
+            distinguishes document integrity from authorship or independent chain
+            confirmation.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong> <code>lib/proofs/receipt.ts</code>,
+            <code>tests/proof-receipt.test.ts</code>,
+            <code>app/(workspace)/proofs/[proofId]/page.tsx</code>,
+            <code>scripts/smoke-judge-flow.mjs</code>. The smoke check accepts both the
+            old public and new local success labels, recording which matched.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong>
+            <code>npx vitest run tests/proof-receipt.test.ts</code>; negative cases
+            rehash changed context, policy, mode, agent and explorer evidence.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> No additional approval for pure local
+            verification.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Supports a narrower, defensible
+            integrity claim. <strong>Verified and complete</strong> for the implemented
+            checks.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Residual limitation:</strong> The receipt lacks the complete policy
+            facts object, so the full policy input hash cannot be independently
+            recomputed. It does not prove signer authorship or chain settlement, even
+            when signature syntax is valid.
+          </p>
+        </li>
+      </ul>
+      <h3>R4. Reject unknown liquidity in live policy</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P0, functionality and security.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Missing liquidity was only a warning
+            while warnings still allowed approval. See audit S5.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Prevent future value-moving approval based
+            on an unknown required risk input.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Demo retains an explicit warning;
+            devnet/mainnet fail closed. Verified-asset/sufficient-liquidity cases remain
+            supported.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong> <code>lib/policy/runner.ts</code>,
+            <code>tests/policy-runner.test.ts</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong>
+            <code>npx vitest run tests/policy-runner.test.ts</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> None for the stricter local rule; no live flags
+            changed.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Safer stated governance, not live
+            trading evidence. <strong>Verified and complete</strong>.
+          </p>
+        </li>
+      </ul>
+      <h3>R5. Validate session claims defensively</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P1, security.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Session decoding accepted any string
+            wallet/subject and an absent expiry if the JWT otherwise verified. See audit
+            S7.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Reject malformed internally minted or
+            incorrectly constructed signed sessions.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Reuse the real Solana-wallet schema;
+            require a UUID user subject and expiration, retaining
+            issuer/audience/signature checks.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong> <code>lib/auth/server.ts</code>,
+            <code>tests/auth-session-token.test.ts</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong> Six focused tests: valid session, malformed
+            wallet, malformed subject, missing expiry, expired token and wrong issuer.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> No additional approval; tests use an explicitly
+            synthetic key, not a real secret.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Defense in depth.
+            <strong>Verified and complete</strong> locally; production sessions remain
+            unavailable.
+          </p>
+        </li>
+      </ul>
+      <h3>R6. Clarify PreStocks freshness and preserve asset boundaries</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P1, UX and sponsor integration.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> A current local capture time could be
+            mistaken for a current upstream price timestamp; Next may serve cached
+            provider data.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Prevent research prices being mistaken for
+            executable fresh quotes.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> UI labels catalogue read time explicitly;
+            UI/API say upstream price freshness is unknown and prices are not execution
+            quotes. Existing read-only scope, contract-address validation and
+            eligibility disclosures remain.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong>
+            <code>components/markets/prestocks/prestocks-catalogue.tsx</code>,
+            <code>app/api/assets/prestocks/route.ts</code>,
+            <code>tests/prestocks-route.test.ts</code>,
+            <code>docs/evidence/stocklana-prestocks-read.json</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong> Focused API tests and final judge smoke;
+            fresh public GET independently returned HTTP 200 with eight assets,
+            read-only true and value movement false.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> None; no trading or provider account operation.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Better evidence honesty; still a
+            read-only catalogue. <strong>Verified and complete</strong> for disclosure.
+          </p>
+        </li>
+      </ul>
+      <h3>R7. Correct deployment, documentation and formal-requirement claims</h3>
+      <ul>
+        <li>
+          <p>
+            <strong>Priority/category:</strong> P0, documentation, deployment and
+            eligibility.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Problem/evidence:</strong> Documentation still said no
+            deployment/push despite the verified production commit; local and production
+            capabilities differed; “minimum package” wording could imply optional videos
+            were mandatory.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Give judges correct links and prevent
+            claims that demo health means wallet/transaction readiness.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Implemented fix:</strong> Record Vercel origin, commit, public smoke
+            and browser evidence; distinguish unpublished Replit from published Vercel;
+            identify missing production services. Clarify optional videos,
+            wallet-adapter upstream naming and app-origin setup without changing any
+            environment.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Files:</strong> <code>README.md</code>, <code>PRD.md</code>,
+            <code>.env.example</code>,
+            <code
+              >docs/{EVIDENCE,LOCAL_QA,IMPLEMENTATION_AUDIT,SUBMISSION_DRAFT,DEPLOYMENT_RUNBOOK,SECURITY_REVIEW,INTEGRATIONS}.md</code
+            >,
+            <code
+              >docs/evidence/stocklana-{public-smoke,browser-audit,prestocks-read}.json</code
+            >.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification:</strong> <code>npm run submission:audit</code>,
+            <code>npm run format:check</code>, recorded public smoke and metadata
+            comparisons.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> None for accurate local documentation. Any new
+            publish, push, production configuration or migration remains separately
+            controlled.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Supporting links now present and
+            accurate. <strong>Verified and complete</strong> for recorded evidence, not
+            final submission.
+          </p>
+        </li>
+      </ul>
+      <h3>R8. Complete safe live protocol and dependency review before activation</h3>
+      <ul>
+        <li>
+          <p>
+            <strong>Priority/category:</strong> P0 before any live release; security and
+            sponsor integration.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Exact remaining problem:</strong> Pool/preparation/simulation
+            metadata binding, duplicate-operation prevention, durable broadcast timeout
+            recovery and chain account verification remain incomplete. Production
+            dependency audit still reports 19 affected package entries, including six
+            high-severity entries.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Evidence/impact:</strong> Audit S2/S3/S6. Unsafe activation could
+            duplicate an operation or produce misleading evidence; advisory reachability
+            requires package-specific review.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Recommended fix:</strong> Keep the code block. Implement
+            server-persisted immutable preparations, exact signed-message/semantic
+            account checks, expiry/simulation binding, CAS/idempotency and durable
+            attempt reconciliation; verify with mocked boundary tests before any
+            separately approved funded test. Review compatible parent-package updates
+            rather than forced chain-SDK overrides.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Likely files:</strong> Meteora client/prepare/submit routes, launch
+            service/schema/tests, <code>package.json</code>,
+            <code>package-lock.json</code>, <code>docs/SECURITY_REVIEW.md</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification command:</strong>
+            <code>npm run check &amp;&amp; npm audit --omit=dev</code>, plus focused
+            race/timeout/account-binding tests and separately approved chain
+            verification.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> Required for protocol release, breaking
+            dependency/architecture choices, funding and signing. None of these was
+            performed.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Live bounty evidence remains
+            unavailable. <strong>Blocked by user approval</strong> for live release,
+            with explicit internal implementation work still required; this is not just
+            a credential blocker.
+          </p>
+        </li>
+      </ul>
+      <h3>R9. Finish the fresh governed-proposal workflow</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P1, functionality.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Exact problem/evidence:</strong> PRD FR-05 calls for proposal
+            generation, but the judge journey shows a recorded fixture. Provider
+            adapters alone do not supply an interactive product loop.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Improve repeat usage and the end-to-end
+            main-track score.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Recommended fix:</strong> A separately scoped feature pass should
+            connect mandate/context capture, structured provider output, deterministic
+            policy and newly verifiable evidence, preserving demo labels and ownership.
+            Do not disguise a copied fixture as fresh AI.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Likely files:</strong> Agent/decision pages, AI and decision
+            services, proof repositories, API routes and integration tests.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification command:</strong> <code>npm run check</code>, plus one
+            targeted browser journey once the new feature is complete.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> Keep the previously deferred feature separate
+            from this safe bug-fix pass; agree the intended user workflow before
+            completing it. Production credentials/persistence require their own
+            approval.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Material competitiveness gap, not
+            formal ineligibility. <strong>Not applicable</strong> to the local bug-fix
+            completion claim; the feature remains incomplete, not externally verified.
+          </p>
+        </li>
+      </ul>
+      <h3>R10. Production authentication, project license and submission materials</h3>
+      <ul>
+        <li>
+          <p><strong>Priority/category:</strong> P1, deployment and eligibility.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Exact problem/evidence:</strong> Production lacks database,
+            sessions, authentication origin and RPC. Registration/declarations,
+            owner-selected license and optional videos are not established.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expected impact:</strong> Make persistent wallet-backed usage
+            possible where advertised and complete the formal entry.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Recommended fix:</strong> Owner reviews database/session/origin
+            configuration, chooses a project license, completes registration and
+            declarations, selects evidence-supported sponsor tracks, optionally records
+            videos, and manually submits.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Likely files:</strong> Deployment platform configuration,
+            <code>LICENSE</code> after owner choice, <code>docs/EVIDENCE.md</code>,
+            <code>docs/SUBMISSION_DRAFT.md</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Verification command:</strong> Public
+            <code>npm run smoke:judge</code> using <code>NAVIS_SMOKE_BASE_URL</code>;
+            inspect <code>/api/health</code>; targeted real-wallet verification after
+            approval; manually check submission receipt and video duration.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Approval:</strong> Required. No production setting, legal license,
+            external account or submission was changed.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Submission impact/status:</strong> Formal entry remains
+            <strong>Blocked by user approval</strong>; wallet-backed functionality
+            remains <strong>Implemented but externally unverified</strong> and
+            unavailable in the audited deployment.
+          </p>
+        </li>
+      </ul>
+      <h3>P2 improvements deliberately not used to dilute the product</h3>
+      <p>
+        Measured layout and sampled contrast already pass; no cosmetic dashboard
+        expansion was added. Broader screen-reader testing, all loading/error states,
+        stronger independent proof provenance, versioned receipt support for
+        submitted/failed signatures, and dependency reachability review remain useful
+        future work. Their likely files are the shared UI/state components,
+        receipt/domain schemas, tests and security review; verify with targeted tests
+        and <code>npm run check</code>. These are quality improvements, not new formal
+        eligibility requirements. No speculative performance optimization was made
+        without a measured regression.
+      </p>
+      <h2>6. Tests and checks passed</h2>
+      <p>
+        Pre-remediation baseline: <code>npm run check</code> passed all eight gates with
+        113 tests in 24 files. Public smoke passed all eleven routes plus health.
+      </p>
+      <p>
+        <strong>Final <code>npm run check</code>: passed all eight gates</strong>,
+        including formatting, zero-warning ESLint, strict TypeScript,
+        <strong>143 tests in 26 files</strong>, production build, eleven-route judge
+        smoke, Drizzle validation and submission audit. The submission audit retains one
+        truthful warning for twelve optional-video/live-evidence TODO markers.
+      </p>
+      <p>
+        The first verification attempts caught test-only BigInt literals incompatible
+        with the existing TypeScript target and a smoke assertion for the old proof
+        heading. Both were corrected without changing the toolchain or weakening the
+        receipt checks; the final complete command passed.
+      </p>
+      <p>
+        <code>npm audit --omit=dev</code> was rerun:
+        <strong
+          >19 affected production package entries, six high and thirteen moderate, zero
+          critical</strong
+        >. Its non-zero exit is the expected unresolved advisory result, not a
+        successful clean audit. No forced upgrade was used.
+      </p>
+      <p>
+        The existing workflow was restarted once after the code batch and served pages
+        successfully. A fresh proof-page screenshot renders the clearer verification
+        boundary and matching hashes/references. The screenshot tool's loopback HMR
+        socket reported handshake warnings; this was not a failed page response or
+        production failure. Earlier development-console errors preceded the restart and
+        were not evidence against the separately tested production build.
+      </p>
+      <p>
+        Evidence: <code>docs/evidence/stocklana-local-smoke.json</code>,
+        <code>docs/evidence/stocklana-dependency-audit.json</code>, and the separate
+        baseline public/browser reports. Git diff whitespace checks passed; no
+        production secret values or purported real transaction evidence were added.
+      </p>
+      <p>
+        Dependency findings remain unresolved; no forced upgrade or dependency version
+        change was made. SAST/privacy baseline scans returned no findings, but this is
+        not a security certification.
+      </p>
+      <h2>7. Remaining blockers</h2>
+      <div class="table-wrap">
+        <table>
+          <tr>
+            <th>Blocker</th>
+            <th>Required input or approval</th>
+            <th>Safe preparation completed</th>
+            <th>Exact next action and verification</th>
+            <th>Update afterward</th>
+          </tr>
+          <tr>
+            <td>Exposed GitHub token</td>
+            <td>Owner revocation</td>
+            <td>Token was not used, reproduced or saved by the audit</td>
+            <td>
+              Revoke it in GitHub token settings; do not send replacement credentials
+              through chat
+            </td>
+            <td>Do not store token details in documentation</td>
+          </tr>
+          <tr>
+            <td>Production wallet/persistence unavailable</td>
+            <td>Approved database/session configuration and exact HTTPS app origin</td>
+            <td>Server-backed build, auth/ownership tests, health and safe demo</td>
+            <td>
+              Configure through platform secret controls, review schema setup and
+              backups, then verify health and real-wallet sign-in without a funded
+              transaction
+            </td>
+            <td>Evidence and security review</td>
+          </tr>
+          <tr>
+            <td>Local fixes not on Vercel</td>
+            <td>Separate owner authorization to push/deploy</td>
+            <td>Local code/tests and evidence reports</td>
+            <td>
+              Review diff, preserve user commit identity, push only approved changes;
+              verify the new deployment commit, health and smoke
+            </td>
+            <td>Evidence and submission draft</td>
+          </tr>
+          <tr>
+            <td>Fresh proposal workflow missing</td>
+            <td>Defined feature-completion scope</td>
+            <td>
+              Existing provider/domain/policy components and explicit audit findings
+            </td>
+            <td>Implement and verify a genuinely new governed decision path</td>
+            <td>README, evidence, demo script</td>
+          </tr>
+          <tr>
+            <td>Live Meteora/ClawPump proof missing</td>
+            <td>
+              Safe code, provider access, owner approval, funds and wallet signature
+              where required
+            </td>
+            <td>
+              Broadcast block, preflight/configuration tooling and regression tests
+            </td>
+            <td>
+              Complete protocol review first; only then independently approve execution
+              and verify actual cluster/signature/mint/pool evidence
+            </td>
+            <td>Integration/evidence/security documents</td>
+          </tr>
+          <tr>
+            <td>Dependency risk</td>
+            <td>Compatibility/reachability review and explicit release decision</td>
+            <td>Fresh audit and no forced upgrades</td>
+            <td>
+              Review advisory roots and safe parent updates; rerun full checks if
+              dependencies change
+            </td>
+            <td>Dependency audit and security review</td>
+          </tr>
+          <tr>
+            <td>Project license</td>
+            <td>Owner's legal/license choice</td>
+            <td>Dependency attributions already present</td>
+            <td>
+              Choose and add an appropriate license; verify actual dependency notices
+            </td>
+            <td>LICENSE and attributions</td>
+          </tr>
+          <tr>
+            <td>Registration and submission</td>
+            <td>Owner account and declarations</td>
+            <td>
+              Draft, verified links, official deadline and honest track boundaries
+            </td>
+            <td>
+              Register, confirm originality/team, select up to three appropriate sponsor
+              tracks, review and submit before deadline; keep confirmation
+            </td>
+            <td>Submission draft/evidence</td>
+          </tr>
+          <tr>
+            <td>Optional videos</td>
+            <td>Owner recording/publication and URLs</td>
+            <td>Existing demo script; public demo verified</td>
+            <td>
+              If supplied, keep pitch at most three minutes and technical walkthrough at
+              most five; check links and duration
+            </td>
+            <td>Submission draft/evidence</td>
+          </tr>
+        </table>
+      </div>
+      <h2>8. Sponsor-bounty status after fixes</h2>
+      <ul>
+        <li>
+          <p>
+            <strong>ClawPump:</strong> technically prepared in part, not
+            bounty-qualified without the required real stock-paired launch.
+            <strong>Blocked by credentials or funding</strong>, owner approval and
+            missing safe funded-launch implementation.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Meteora:</strong> SDK configuration builder and guarded preparation
+            paths; no verified working devnet/mainnet execution.
+            <strong>Blocked by user approval</strong> for release, with incomplete
+            protocol work. The hard block must not be described as implemented live
+            safety.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>PreStocks:</strong> likely scope-compatible, read-only catalogue
+            with clearer freshness/eligibility limitations;
+            <strong>Verified but needs polish</strong> as a sponsor-use case. No
+            guarantee of bounty eligibility or ranking.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Pyth:</strong> absent and not claimed.
+            <strong>Not applicable</strong>.
+          </p>
+        </li>
+      </ul>
+      <h2>9. Deployment status</h2>
+      <p>
+        <strong>Verified and complete for the pre-remediation public demo:</strong>
+        <a href="https://navis-gilt.vercel.app">https://navis-gilt.vercel.app</a>,
+        Vercel production <code>READY</code>, GitHub commit
+        <code>ac26e54089154c872f117a54cc73af2a8fc6ff2b</code>.
+      </p>
+      <p>
+        The public app is demo/devnet, with PreStocks and demo AI configured. Production
+        database, wallet sessions, authentication origin, Solana RPC, ClawPump and
+        Meteora are not configured. A 200 health response means the demo can render, not
+        that every capability is ready.
+      </p>
+      <p>
+        Replit itself is not published. Local remediation is
+        <strong>not pushed or deployed</strong>. The existing artifact remains a
+        server-backed Next.js app; no static-export conversion, duplicate application or
+        database migration was introduced.
+      </p>
+      <h2>10. Exact user actions still required</h2>
+      <ol>
+        <li>
+          <p>
+            Revoke the token that was exposed in chat; never paste another token here.
+          </p>
+        </li>
+        <li>
+          <p>
+            Review the audit and local fixes. Authorize any later push/deployment
+            separately.
+          </p>
+        </li>
+        <li>
+          <p>
+            Decide whether the submission will advertise only the working read-only demo
+            or also wallet-backed persistent features; approve the necessary production
+            configuration before claiming the latter.
+          </p>
+        </li>
+        <li>
+          <p>
+            Choose the project's license and verify original-work/team declarations.
+          </p>
+        </li>
+        <li>
+          <p>
+            Register for Stocklana and choose only evidence-appropriate sponsor tracks.
+            Do not claim the ClawPump launch requirement is satisfied.
+          </p>
+        </li>
+        <li>
+          <p>
+            Optionally record the pitch/technical videos within their three/five-minute
+            limits.
+          </p>
+        </li>
+        <li>
+          <p>
+            Review the authenticated form and manually submit before September 25, 2026,
+            4:00 p.m. ET.
+          </p>
+        </li>
+      </ol>
+      <p>
+        Funded sponsor work is optional for a truthful main-track demo, not an action to
+        perform automatically for a higher score.
+      </p>
+      <h2>11. Is Navis ready to submit?</h2>
+      <p>
+        <strong
+          >Technically presentable as a deployed deterministic demo; formal submission
+          readiness is still blocked by owner confirmation and submission.</strong
+        >
+        It is not a production-ready live trading agent or a verified ClawPump/Meteora
+        bounty entry.
+      </p>
+      <p>
+        The safe local remediation pass can be complete while these external and
+        larger-feature requirements remain open. No user should infer that a 75/100
+        analytical score certifies security, financial suitability or eligibility.
+      </p>
+      <h2>12. Claims that must not appear in the final submission</h2>
+      <ul>
+        <li>
+          <p>
+            “Live mainnet trading/ClawPump launch/Meteora pool confirmed” without
+            genuine matching evidence.
+          </p>
+        </li>
+        <li>
+          <p>
+            “Fresh AI decisions can be generated in the judge flow” while only the
+            recorded fixture exists.
+          </p>
+        </li>
+        <li>
+          <p>“All dependencies are secure” or “all audits passed with no risks.”</p>
+        </li>
+        <li>
+          <p>
+            “Receipt verification proves authorship or independently verifies chain
+            settlement.”
+          </p>
+        </li>
+        <li><p>“Catalogue capture time proves current executable prices.”</p></li>
+        <li>
+          <p>
+            “Production wallet authentication and persistence are verified” while health
+            lists them unavailable.
+          </p>
+        </li>
+        <li>
+          <p>
+            “The latest remediation is deployed” before the new commit is actually built
+            and tested publicly.
+          </p>
+        </li>
+        <li>
+          <p>
+            “Videos are required for formal eligibility,” “guaranteed eligible,” or
+            “winner.”
+          </p>
+        </li>
+        <li>
+          <p>
+            Any invented signature, address, payout, provider request ID, ownership
+            right or bounty qualification.
+          </p>
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

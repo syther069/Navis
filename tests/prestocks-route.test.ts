@@ -48,6 +48,8 @@ describe("PreStocks asset API route", () => {
     );
     expect(body.disclosures.join(" ")).toContain("not legal shares");
     expect(body.disclosures.join(" ")).toContain("does not provide PreStocks buy");
+    expect(body.disclosures.join(" ")).toContain("not a verified quote timestamp");
+    expect(body.disclosures.join(" ")).toContain("not execution quotes");
   });
 
   it("returns a safe unavailable response without exposing provider details", async () => {

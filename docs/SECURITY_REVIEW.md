@@ -4,7 +4,17 @@ Updated: 2026-09-20.
 
 ## Review summary
 
-Fresh `npm run check` passed all eight automated gates on the restored root application, including 24 test files / 113 tests and the 11-route smoke. Focused agent ownership and sponsor safety tests pass. Local browser QA and runtime nonce-origin checks pass. Real wallet signing, live deployment, and production secret review remain open.
+The pre-remediation baseline passed all eight automated gates, including 24 test files / 113 tests and the 11-route smoke. The public Vercel demo is now independently verified, but its database, authentication origin, sessions and RPC are not configured. Real wallet signing and production secret review remain open. See `REMEDIATION_REPORT.md` for the separate local hardening pass and final validation.
+
+## Local hardening after the judge audit
+
+- Receipt verification now checks document/context cross-references, mode/cluster/agent coherence, policy approval and reconstructible policy outcomes. Confirmed receipt evidence requires a syntactically valid signature and the correct canonical explorer URL. It does not independently verify chain settlement or authorship, and cannot recompute the full policy input hash without the complete facts object.
+- Live policy evaluations now fail closed when liquidity is unknown; demo evaluations retain an explicit warning.
+- Session parsing requires a valid Solana wallet, UUID subject and expiration in addition to JWT signature/issuer/audience checks.
+- Both Meteora broadcast routes have a code-level safety block that environment flags cannot enable. The UI exposes the same unavailable state. Exact preparation/simulation binding, pool account verification, durable idempotency and broadcast recovery still require implementation and review.
+- New Meteora configuration confirmations reject incomplete or inconsistent RPC evidence, use actual block time, preserve terminal/pool state, compare current status on updates and sanitize upstream errors. Existing historical records were not migrated or re-certified.
+- Fresh dependency, SAST and privacy scans were run during the audit. SAST and privacy scans returned no findings; dependency findings remain unresolved. Absence of static findings is not a security certification.
+- These changes are local only. The public deployment remains the pre-remediation commit until the owner separately authorizes a push and redeployment.
 
 ## Checks performed
 
@@ -33,7 +43,7 @@ Fresh `npm run check` passed all eight automated gates on the restored root appl
 - `npm run submission:audit`: passed required file/disclosure checks with one expected warning for TODO markers that require external deployment/repository/video/live-evidence inputs.
 - `npm audit --omit=dev`: 19 production advisories, comprising 6 high and 13 moderate findings with no critical findings. Core advisory roots are `bigint-buffer` (GHSA-3gc7-fjrx-p6mg), `toml` (GHSA-82x6-q7mm-w9cf and GHSA-v5mp-jgw5-2x6j), `stream-json` (GHSA-528h-pc64-c93x), and `uuid` (GHSA-w5hq-g745-h8pq), inherited through Solana/Meteora dependency chains. These findings remain unresolved and are not a security certification.
 
-## Required before production/mainnet
+## Required before production wallet operations or mainnet
 
 - Provision hosted secrets through the deployment platform.
 - Verify no secret appears in build logs, screenshots, demo video, or submission materials.

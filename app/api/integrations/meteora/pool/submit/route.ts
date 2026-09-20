@@ -7,6 +7,10 @@ import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import {
+  isMeteoraBroadcastAvailable,
+  METEORA_BROADCAST_UNAVAILABLE_REASON,
+} from "@/lib/integrations/meteora/broadcast-safety";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
@@ -36,6 +40,13 @@ function executionSubmissionAvailable() {
 export async function POST(request: NextRequest) {
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+  }
+
+  if (!isMeteoraBroadcastAvailable()) {
+    return NextResponse.json(
+      { error: METEORA_BROADCAST_UNAVAILABLE_REASON },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   if (!executionSubmissionAvailable()) {

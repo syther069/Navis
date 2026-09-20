@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-20T09:27:07.328Z",
+  "url": "https://navis-gilt.vercel.app/api/assets/prestocks",
+  "httpStatus": 200,
+  "status": "available",
+  "assetCount": 8,
+  "readOnly": true,
+  "valueMovementAvailable": false,
+  "capturedAt": "2026-09-20T09:27:07.260Z",
+  "sourceUrl": "https://prestocks.com/api/prestocks",
+  "upstreamQuoteTimestamp": "not supplied/verified"
+}

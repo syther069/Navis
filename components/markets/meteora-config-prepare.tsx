@@ -11,6 +11,7 @@ import { useRef, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
 import { StatusBadge } from "@/components/shared/domain-primitives";
+import { METEORA_BROADCAST_UNAVAILABLE_REASON } from "@/lib/integrations/meteora/broadcast-safety";
 
 type PreparedConfigTransaction = Readonly<{
   kind: "meteora.createConfig";
@@ -573,7 +574,6 @@ export function MeteoraConfigPrepare({
           poolSubmitted={state.poolSubmitted}
           poolConfirmation={state.poolConfirmation}
           canSimulate={Boolean(signTransaction)}
-          canSubmit={Boolean(selectedAgentId)}
           agents={agents}
           selectedAgentId={selectedAgentId}
           onAgentChange={setSelectedAgentId}
@@ -619,7 +619,6 @@ function PreparedTransactionReview({
   poolSubmitted,
   poolConfirmation,
   canSimulate,
-  canSubmit,
   agents,
   selectedAgentId,
   onAgentChange,
@@ -652,7 +651,6 @@ function PreparedTransactionReview({
   poolSubmitted?: SubmitResult;
   poolConfirmation?: ConfirmationResult;
   canSimulate: boolean;
-  canSubmit: boolean;
   agents: readonly {
     id: string;
     name: string;
@@ -672,9 +670,7 @@ function PreparedTransactionReview({
   onSubmitPool: () => void;
   onConfirmPool: () => void;
 }) {
-  const simulationPassed = Boolean(simulation && simulation.error === null);
   const configConfirmed = confirmation?.confirmation === "confirmed";
-  const poolSimulationPassed = Boolean(poolSimulation && poolSimulation.error === null);
 
   return (
     <div className="meteora-prepared-review">
@@ -762,18 +758,13 @@ function PreparedTransactionReview({
       </div>
       {simulation ? <SimulationReview simulation={simulation} /> : null}
       <div className="meteora-submit-actions">
-        <button
-          className="primary-button"
-          type="button"
-          disabled={!simulationPassed || !canSubmit || submitting || Boolean(submitted)}
-          onClick={onSubmit}
-        >
+        <button className="primary-button" type="button" disabled onClick={onSubmit}>
           <FileMagnifyingGlass aria-hidden="true" size={16} />
           {submitting ? "Submitting" : submitted ? "Submitted" : "Submit config"}
         </button>
         <p className="form-note">
-          Submission broadcasts the signed config transaction and persists only the
-          returned Solana signature. Pool creation remains a separate step.
+          {METEORA_BROADCAST_UNAVAILABLE_REASON} Preparation and simulation remain
+          available for review.
         </p>
       </div>
       {submitted ? (
@@ -797,7 +788,6 @@ function PreparedTransactionReview({
         submitted={poolSubmitted}
         confirmation={poolConfirmation}
         canSimulate={canSimulate}
-        canSubmit={poolSimulationPassed}
         onNameChange={onPoolNameChange}
         onSymbolChange={onPoolSymbolChange}
         onUriChange={onPoolUriChange}
@@ -827,7 +817,6 @@ function PoolCreationReview({
   submitted,
   confirmation,
   canSimulate,
-  canSubmit,
   onNameChange,
   onSymbolChange,
   onUriChange,
@@ -848,7 +837,6 @@ function PoolCreationReview({
   submitted?: SubmitResult;
   confirmation?: ConfirmationResult;
   canSimulate: boolean;
-  canSubmit: boolean;
   onNameChange: (name: string) => void;
   onSymbolChange: (symbol: string) => void;
   onUriChange: (uri: string) => void;
@@ -952,12 +940,13 @@ function PoolCreationReview({
             <button
               className="primary-button"
               type="button"
-              disabled={!canSubmit || submitting || Boolean(submitted)}
+              disabled
               onClick={onSubmit}
             >
               <FileMagnifyingGlass aria-hidden="true" size={16} />
               {submitting ? "Submitting" : submitted ? "Submitted" : "Submit pool"}
             </button>
+            <p className="form-note">{METEORA_BROADCAST_UNAVAILABLE_REASON}</p>
           </div>
         </div>
       ) : null}

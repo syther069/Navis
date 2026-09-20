@@ -40,11 +40,16 @@ export function PreStocksCatalogue({ catalogue }: PreStocksCatalogueProps) {
 
       <div className="prestocks-source">
         <SourceStamp
-          source="PreStocks /api/prestocks"
+          source="PreStocks catalogue read time"
           timestamp={catalogue.capturedAt}
         />
         <StatusBadge tone="warn">Eligibility gated</StatusBadge>
       </div>
+      <p className="route-copy">
+        This is Navis&apos;s catalogue read time, not a verified quote timestamp.
+        Responses may be cached; upstream price freshness is unknown. These prices are
+        for research, not execution quotes.
+      </p>
 
       <div className="prestocks-grid">
         {catalogue.assets.map((asset) => (

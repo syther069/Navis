@@ -2,20 +2,21 @@
 
 Verified: 2026-09-20.
 
+After the separate local remediation pass, `npm run check` passed with 143 tests in 26 files, production build and eleven-route judge smoke. The restarted preview renders the revised receipt explanation. The broader public-browser checks below are baseline observations of the deployed commit, not a claim that local fixes are already live.
+
 ## Browser walkthrough
 
-- A clean, unauthenticated browser completed Atlas → Inspect decision → demo decision → public verifier.
+- A fresh real-Chromium browser completed the public Atlas → Inspect decision → actual public verifier journey.
 - All requested pages loaded without application errors.
 - Demo hashes validated. The receipt remained `offchain_only`, showed signature `None`, and exposed no explorer link.
 - `/agents/new` accepted a valid mandate in review, displayed defaults, and kept save/link disabled without authentication. No write occurred.
-- At 375 px, Atlas, decision, proof, launch, and new-agent review had no horizontal overflow.
-- Keyboard skip navigation showed a visible 2 px focus indicator.
-- Reduced-motion duration computed to `0.00001s`.
-- Headings remained readable at 200% zoom, including the checked top of the launch page.
+- Ten UI routes at 375, 768, and 1440 px had no horizontal overflow or missing input labels.
+- Keyboard menu Escape and focus return passed; contrast checks had no failures.
+- Reduced-motion was effective, and Atlas remained usable without overflow at 200% CSS zoom.
 
 ![Local Navis preview](evidence/navis-root-preview.jpg)
 
-The image is from the local Replit preview, not a published deployment.
+Public and local machine-readable evidence is expected in `evidence/stocklana-public-smoke.json` and `evidence/stocklana-browser-audit.json` after the main release pass copies sanitized generated reports.
 
 ## Runtime nonce checks
 
@@ -26,8 +27,7 @@ The image is from the local Replit preview, not a published deployment.
 
 ## Limitations
 
-- No real wallet extension, wallet signature, live transaction, public deployment, or production health endpoint was tested.
+- No real wallet extension, wallet signature, live transaction, or full screen-reader audit was tested. The public Vercel deployment and its health endpoint were tested.
 - Fresh interactive proposal generation remains deferred and archived. The verified flow uses deterministic demo evidence.
-- The Screenshot tool's `127.0.0.1` probe observed only a development HMR WebSocket 502. The real browser preview showed no application error or functional UI issue.
-- `getDeploymentInfo` reports no deployment and no public URL.
+- Replit `getDeploymentInfo` reports NOT published; this does not describe the separate READY Vercel deployment.
 - `npm audit --omit=dev` still reports 19 unresolved production advisories: 6 high, 13 moderate, and 0 critical.

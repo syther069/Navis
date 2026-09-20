@@ -211,11 +211,13 @@ export function evaluatePolicy(
   if (facts.availableLiquidityUsdMicros === undefined) {
     checks.push({
       rule: "min_liquidity_usd_micros",
-      status: "warn",
+      status: facts.mode === "demo" ? "warn" : "fail",
       observed: "unavailable",
       threshold: minimumLiquidity.toString(),
       explanation:
-        "No reliable liquidity measurement was supplied; execution must recheck.",
+        facts.mode === "demo"
+          ? "No reliable liquidity measurement was supplied; demo evaluation requires an execution-time recheck."
+          : "No reliable liquidity measurement was supplied; live-mode evaluation fails closed.",
     });
   } else {
     const liquidity = parseUnsignedInteger(facts.availableLiquidityUsdMicros);

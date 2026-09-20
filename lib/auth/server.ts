@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { jwtVerify, SignJWT } from "jose";
+import { z } from "zod";
 
 import { getDatabase } from "@/lib/db/client";
 import { authChallenges, users } from "@/lib/db/schema";
@@ -16,6 +17,7 @@ import {
   createAuthNonce,
   hashAuthNonce,
   verifyWalletSignature,
+  walletSchema,
 } from "./core";
 
 export { AuthenticationError } from "./core";
@@ -23,6 +25,11 @@ export { AuthenticationError } from "./core";
 export const SESSION_COOKIE_NAME = "navis_session";
 const AUTH_STATEMENT =
   "Authenticate to Navis. This request does not authorize a transaction.";
+const sessionClaimsSchema = z.object({
+  sub: z.uuid(),
+  wallet: walletSchema,
+  exp: z.number().int().positive(),
+});
 
 function requireAuthenticationConfiguration() {
   if (!env.databaseUrl || !env.sessionSecret || !env.appOriginConfigured) {
@@ -192,14 +199,13 @@ export async function readSessionToken(token: string) {
       },
     );
 
-    if (typeof payload.sub !== "string" || typeof payload.wallet !== "string") {
-      return null;
-    }
+    const claims = sessionClaimsSchema.safeParse(payload);
+    if (!claims.success) return null;
 
     return {
-      userId: payload.sub,
-      wallet: payload.wallet,
-      expiresAt: payload.exp ? new Date(payload.exp * 1_000).toISOString() : null,
+      userId: claims.data.sub,
+      wallet: claims.data.wallet,
+      expiresAt: new Date(claims.data.exp * 1_000).toISOString(),
     };
   } catch {
     return null;

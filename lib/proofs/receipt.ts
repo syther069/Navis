@@ -1,3 +1,4 @@
+import bs58 from "bs58";
 import { z } from "zod";
 
 import {
@@ -7,6 +8,7 @@ import {
   strategyDocumentSchema,
   tradeProposalSchema,
 } from "../domain";
+import { createSolanaExplorerUrl } from "../integrations/solana/config";
 import { hashCanonical } from "./canonical";
 
 export const proofReceiptDocumentSchema = z
@@ -159,8 +161,121 @@ export const proofReceiptDocumentSchema = z
 
 export type ProofReceiptDocument = z.infer<typeof proofReceiptDocumentSchema>;
 
+function policyEvidenceMatches(document: ProofReceiptDocument) {
+  const checksByRule = new Map(
+    document.policyEvaluation.checks.map((check) => [check.rule, check]),
+  );
+  if (checksByRule.size !== document.policyEvaluation.checks.length) return false;
+
+  const constraintRules = document.riskPolicy.document.constraints.map(
+    (constraint) => constraint.type,
+  );
+  if (
+    !constraintRules.every((rule) => checksByRule.has(rule)) ||
+    !checksByRule.has("verified_assets")
+  ) {
+    return false;
+  }
+
+  const proposal = document.decision.proposal;
+  const proposalMints =
+    proposal.action === "HOLD" ? [] : [proposal.inputMint, proposal.outputMint];
+  const allowedMints = document.riskPolicy.document.constraints.find(
+    (constraint) => constraint.type === "allowed_mints",
+  )!;
+  const allowedModes = document.riskPolicy.document.constraints.find(
+    (constraint) => constraint.type === "allowed_modes",
+  )!;
+  const maxSlippage = document.riskPolicy.document.constraints.find(
+    (constraint) => constraint.type === "max_slippage_bps",
+  )!;
+  const assetVerification = new Map(
+    document.decision.context.assets.map((asset) => [
+      asset.mint,
+      asset.verificationState,
+    ]),
+  );
+  const unverified = proposalMints.filter(
+    (mint) =>
+      !["provider_verified", "onchain_verified"].includes(
+        assetVerification.get(mint) ?? "unknown",
+      ),
+  );
+
+  const expected = {
+    allowed_mints: {
+      status: proposalMints.every((mint) => allowedMints.mints.includes(mint))
+        ? "pass"
+        : "fail",
+      observed: proposalMints.join(", ") || "none (HOLD)",
+      threshold: allowedMints.mints.join(", "),
+    },
+    allowed_modes: {
+      status: allowedModes.modes.includes(document.decision.context.mode)
+        ? "pass"
+        : "fail",
+      observed: `${document.decision.context.mode}/${document.decision.context.cluster}`,
+      threshold: allowedModes.modes.join(", "),
+    },
+    max_slippage_bps: {
+      status: proposal.maxSlippageBps <= maxSlippage.value ? "pass" : "fail",
+      observed: String(proposal.maxSlippageBps),
+      threshold: String(maxSlippage.value),
+    },
+    verified_assets: {
+      status:
+        unverified.length === 0 || document.decision.context.mode === "demo"
+          ? "pass"
+          : "fail",
+      observed: unverified.join(", ") || "all verified",
+      threshold:
+        document.decision.context.mode === "demo"
+          ? "demo identifiers allowed"
+          : "verified assets only",
+    },
+  } as const;
+
+  return Object.entries(expected).every(([rule, values]) => {
+    const actual = checksByRule.get(rule);
+    return (
+      actual?.status === values.status &&
+      actual.observed === values.observed &&
+      actual.threshold === values.threshold
+    );
+  });
+}
+
+function hasValidConfirmedExecutionEvidence(document: ProofReceiptDocument) {
+  const signature = document.execution.transactionSignature;
+  if (
+    !document.policyEvaluation.approved ||
+    !signature ||
+    !document.execution.slot ||
+    !document.execution.explorerUrl
+  ) {
+    return false;
+  }
+
+  try {
+    if (bs58.decode(signature).length !== 64) return false;
+  } catch {
+    return false;
+  }
+
+  return (
+    document.execution.explorerUrl ===
+    createSolanaExplorerUrl("tx", signature, document.cluster)
+  );
+}
+
 export function verifyProofReceipt(candidate: unknown, claimedReceiptHash: string) {
   const document = proofReceiptDocumentSchema.parse(candidate);
+  const context = document.decision.context;
+  const proposal = document.decision.proposal;
+  const strategyUniverse = new Set(document.strategy.document.universe);
+  const contextAssets = new Set(context.assets.map((asset) => asset.mint));
+  const proposalMints =
+    proposal.action === "HOLD" ? [] : [proposal.inputMint, proposal.outputMint];
   const checks = {
     receipt: hashCanonical(document) === claimedReceiptHash,
     strategy: hashCanonical(document.strategy.document) === document.strategy.hash,
@@ -169,16 +284,39 @@ export function verifyProofReceipt(candidate: unknown, claimedReceiptHash: strin
     portfolio: hashCanonical(document.portfolio.document) === document.portfolio.hash,
     decision:
       hashCanonical({
-        context: document.decision.context,
-        proposal: document.decision.proposal,
+        context,
+        proposal,
       }) === document.decision.hash,
+    strategyReference:
+      context.strategy.hash === document.strategy.hash &&
+      document.strategy.document.riskPolicyVersion === context.riskPolicy.version &&
+      context.permittedActions.every((action) =>
+        document.strategy.document.allowedActions.includes(action),
+      ) &&
+      context.assets.every((asset) => strategyUniverse.has(asset.mint)),
+    riskPolicyReference: context.riskPolicy.hash === document.riskPolicy.hash,
+    portfolioReference:
+      context.portfolio.contentHash === document.portfolio.hash &&
+      hashCanonical(context.portfolio.document) === document.portfolio.hash,
+    proposalContext:
+      context.permittedActions.includes(proposal.action) &&
+      proposalMints.every((mint) => contextAssets.has(mint)),
+    modeClusterCoherence:
+      document.mode === context.mode &&
+      document.cluster === context.cluster &&
+      document.portfolio.document.cluster === context.cluster &&
+      context.portfolio.document.cluster === context.cluster &&
+      context.assets.every((asset) => asset.cluster === context.cluster),
+    agentCoherence:
+      document.portfolio.document.agentId === context.agentId &&
+      context.portfolio.document.agentId === context.agentId,
+    policyEvidence: policyEvidenceMatches(document),
+    policyApproval:
+      document.policyEvaluation.approved ===
+      document.policyEvaluation.checks.every((check) => check.status !== "fail"),
     executionEvidence:
       document.execution.state === "confirmed"
-        ? Boolean(
-            document.execution.transactionSignature &&
-            document.execution.slot &&
-            document.execution.explorerUrl,
-          )
+        ? hasValidConfirmedExecutionEvidence(document)
         : document.execution.transactionSignature === null &&
           document.execution.explorerUrl === null,
     hashAnchoring:

@@ -34,12 +34,13 @@ const checks = [
     path: "/proofs/demo-proof",
     includes: [
       "Public verifier",
-      "All published hashes match",
       "Transaction signature",
       "None",
       "Offchain only",
       "deterministic demo receipt",
     ],
+    // The public baseline and locally hardened verifier use different labels.
+    includesAny: ["Hashes and references match", "All published hashes match"],
     excludes: ["explorer.solana.com/tx/"],
   },
   {
@@ -180,6 +181,9 @@ async function run() {
           throw new Error(`${check.path} did not include expected text: ${text}`);
         }
       }
+      if (check.includesAny && !check.includesAny.some((text) => body.includes(text))) {
+        throw new Error(`${check.path} did not report successful receipt integrity`);
+      }
       for (const text of check.excludes ?? []) {
         if (body.includes(text)) {
           throw new Error(`${check.path} included forbidden text: ${text}`);
@@ -189,6 +193,7 @@ async function run() {
       results.push({
         path: check.path,
         includes: check.includes,
+        matchedAlternative: check.includesAny?.find((text) => body.includes(text)),
         excludes: check.excludes ?? [],
       });
     }

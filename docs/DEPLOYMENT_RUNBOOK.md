@@ -16,7 +16,7 @@ npm audit --omit=dev
 
 Expected local state as of this runbook:
 
-- Fresh `npm run check` passed on 2026-09-20 across all eight gates, 24 test files / 113 tests, production Next.js 16.3.5 build, and the 11-route smoke including `/agents/new`.
+- Baseline fresh `npm run check` passed on 2026-09-20 across all eight gates, 24 test files / 113 tests, production Next.js 16.3.5 build, and the 11-route smoke including `/agents/new`; final counts are pending the main release pass.
 - `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and 0 critical. The unresolved machine-readable result is `docs/dependency-audit.json`.
 - Local browser QA passed the clean unauthenticated flow, responsive/accessibility review, and runtime nonce-origin checks. Real wallet extension/signing remains unverified.
 - Do not use `npm audit fix --force` without a compatibility pass because it can change core chain dependencies.
@@ -25,7 +25,7 @@ Expected local state as of this runbook:
 
 Navis is the npm application at the repository root. The only active artifact descriptor is `artifacts/navis/.replit-artifact/artifact.toml`; it routes `/` to the root Next.js application and invokes root `npm run dev`, `npm run build`, and `npm run start`. It is preview metadata, not a second application source.
 
-The Next.js scripts bind to `0.0.0.0` and use Replit's supplied `PORT`. `NEXT_PUBLIC_APP_URL` remains unset until `getDeploymentInfo` yields the real published HTTPS origin. Only when `NODE_ENV=development` may wallet auth derive the preview origin from the exact runtime `REPLIT_DEV_DOMAIN`. Production auth blocks until an explicit HTTPS `NEXT_PUBLIC_APP_URL` is configured. Settings and `/api/health` expose only a public-capability origin boolean, never the origin value or secrets.
+The Next.js scripts bind to `0.0.0.0` and use Replit's supplied `PORT`. Leave `NEXT_PUBLIC_APP_URL` unset for the first Replit Publish; for the approved Vercel deployment, use the exact HTTPS origin `https://navis-gilt.vercel.app`. Only when `NODE_ENV=development` may wallet auth derive the preview origin from the exact runtime `REPLIT_DEV_DOMAIN`. Production auth blocks until an explicit HTTPS `NEXT_PUBLIC_APP_URL` is configured. Settings and `/api/health` expose only a public-capability origin boolean, never the origin value or secrets.
 
 ## 3. Required deployment inputs
 
@@ -75,11 +75,11 @@ Then open `/api/health` on the published origin and verify database readiness wi
 
 ## 6. Exact Replit Publish sequence
 
-Current deployment lookup returned `success=true`, `isDeployed=false`, and an empty `primaryUrl`. Do not set or invent a public URL before publishing.
+Replit `getDeploymentInfo` returns NOT published, while the separately verified Vercel deployment is READY at https://navis-gilt.vercel.app. Do not conflate these deployment targets.
 
-1. Click **Publish** in Replit.
+1. Click **Publish** in Replit only if a Replit deployment is required; the current public demo is Vercel, not Replit.
 2. Keep the safe posture: `NAVIS_EXECUTION_MODE=demo`, `ENABLE_DEMO_MODE=true`, `ENABLE_DEVNET_EXECUTION=false`, `ENABLE_MAINNET_EXECUTION=false`, `MAINNET_RELEASE_APPROVED=false`, and `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`.
-3. Leave `NEXT_PUBLIC_APP_URL` unset for this first Publish.
+3. Leave `NEXT_PUBLIC_APP_URL` unset for this first Replit Publish. For an approved Vercel deployment, use the exact HTTPS origin.
 4. Accept the Replit production database schema prompt. Do not run manual production SQL.
 5. Wait for Publish to finish and verify the actual HTTPS primary URL.
 6. Add that exact origin as production `NEXT_PUBLIC_APP_URL` through Replit Secrets.
@@ -183,12 +183,14 @@ Before submission, update:
 - `docs/SECURITY_REVIEW.md` with final audit status and accepted-risk notes.
 - `README.md` if the hosted environment differs from the local setup.
 
-Minimum package:
+Formal minimum: register first, complete the required form and declarations, and include at least one supporting link (repository, demo, or video). Videos are optional, not an independent eligibility gate.
+
+Recommended judging package:
 
 - Repository URL.
-- Public demo URL after the user publishes.
-- Pitch video no longer than three minutes.
-- Technical walkthrough no longer than five minutes.
+- Public demo URL: https://navis-gilt.vercel.app, with the verified commit and limitations in `docs/EVIDENCE.md`.
+- Optional pitch video no longer than three minutes.
+- Optional technical walkthrough no longer than five minutes.
 - One-paragraph product summary.
 - Clear disclosure that demo receipts are simulations unless a real signature is present.
 - Sponsor integration evidence for every sponsor claim.

@@ -4,6 +4,8 @@ Navis is a governed Solana equity-agent workspace for the Stocklana hackathon. I
 
 Navis is not a brokerage UI and does not claim that demo assets or PreStocks tokens are legal shares. Demo receipts are simulations. Explorer links and signatures appear only when Navis has stored real submitted transaction evidence.
 
+Independent review: [judge audit](docs/STOCKLANA_JUDGE_AUDIT.md) and [separate remediation report](docs/REMEDIATION_REPORT.md). Final local checks pass with 143 tests in 26 files. Local hardening is not yet pushed or deployed; the public demo remains the separately verified baseline commit.
+
 ## What is implemented
 
 - Premium dark “Proof Terminal” product shell with demo Atlas agent.
@@ -23,9 +25,9 @@ Navis is not a brokerage UI and does not claim that demo assets or PreStocks tok
 - ClawPump funded launch is unsupported in the current demo/devnet posture. The documented self-funded route has no devnet selector, and Navis currently implements preflight only.
 - No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
 - Meteora live submission remains disabled until signed caller input is server-bound to the exact previously prepared proposal and the protocol is retested.
-- No published application URL, demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
+- The Vercel demo is publicly available at https://navis-gilt.vercel.app and is read-only deterministic demo mode. Replit `getDeploymentInfo` still reports NOT published; this is distinct from the Vercel deployment. No demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
 - PreStocks is read-only. Navis does not expose buy/sell or launch actions for PreStocks assets.
-- Browser-based real-wallet authentication remains unverified in the final manual QA pass.
+- The public health mode is `demo` on `devnet`: PreStocks and the demo AI provider are configured, while database, authentication origin, wallet sessions, Solana RPC, ClawPump, and Meteora are not configured. The public app is read-only and deterministic; it is not persistent or wallet-ready.
 
 ## Quick start
 
@@ -83,7 +85,7 @@ The database pool uses a 5-second connection timeout, 10-second statement timeou
 
 ## Validation
 
-The current local validation set is:
+The baseline local validation set is:
 
 ```bash
 npm run check
@@ -103,10 +105,11 @@ To inspect the submission package for missing evidence rows, TODO markers, and u
 npm run submission:audit
 ```
 
-Latest local result on 2026-09-20:
+Baseline result on 2026-09-20 (final counts may be updated by the main release pass):
 
-- Fresh `npm run check` passed all eight gates: format verification, ESLint, strict TypeScript, 24 test files / 113 tests, production Next.js 16.3.5 build, 11-route judge smoke including `/agents/new`, Drizzle schema validation, and submission audit.
-- Local browser QA passed the clean unauthenticated Atlas-to-verifier flow, `/agents/new` no-write review, 375 px responsive checks, keyboard focus, reduced motion, and 200% zoom. Runtime nonce checks passed same-origin binding and rejected foreign or missing origins. A real wallet extension and signing remain unverified.
+- Fresh `npm run check` passed all eight baseline gates: format verification, ESLint, strict TypeScript, 24 test files / 113 tests, production Next.js 16.3.5 build, 11-route judge smoke including `/agents/new`, Drizzle schema validation, and submission audit.
+- Independently verified real-Chromium QA passed the public Atlas → Inspect decision → public verifier journey and 10 UI routes at 375/768/1440 px with no overflow or missing input labels. Valid new-agent review created no write, auth-create remained disabled, Escape/focus return passed, contrast checks had no failures, reduced motion was effective, and Atlas at 200% CSS zoom had no overflow. Full screen-reader testing and actual wallet signing remain unverified.
+- The Vercel deployment is READY at the same GitHub main commit (`ac26e54089154c872f117a54cc73af2a8fc6ff2b`). Public `/api/health` reports demo/devnet and the read-only deterministic posture described above.
 - `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, and no critical. The machine-readable result is `docs/dependency-audit.json`; this is not a claim that warnings are resolved or that the application is security-certified.
 
 ## Demo route map

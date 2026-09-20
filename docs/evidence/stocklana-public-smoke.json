@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-09-20T09:18:39.817Z",
+  "baseUrl": "https://navis-gilt.vercel.app",
+  "health": {
+    "status": "ok",
+    "checkedAt": "2026-09-20T09:18:35.814Z",
+    "mode": "demo",
+    "cluster": "devnet",
+    "services": {
+      "database": {
+        "status": "not_configured"
+      },
+      "authenticationOrigin": {
+        "status": "not_configured"
+      },
+      "solanaRpc": {
+        "status": "not_configured"
+      },
+      "walletSessions": {
+        "status": "not_configured"
+      },
+      "clawpump": {
+        "status": "not_configured"
+      },
+      "meteora": {
+        "status": "not_configured"
+      },
+      "prestocks": {
+        "status": "configured"
+      },
+      "ai": {
+        "status": "configured"
+      }
+    }
+  },
+  "results": [
+    {
+      "path": "/agents/new",
+      "includes": ["Define a mandate", "Review mandate"],
+      "excludes": []
+    },
+    {
+      "path": "/agents/atlas",
+      "includes": ["Atlas", "Constraint ledger", "Demo portfolio snapshot"],
+      "excludes": []
+    },
+    {
+      "path": "/decisions",
+      "includes": ["Decisions", "Atlas bounded one-unit rebalance", "Simulated"],
+      "excludes": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "includes": ["Demo decision", "policy evaluation", "Open public verifier"],
+      "excludes": []
+    },
+    {
+      "path": "/proofs",
+      "includes": ["Proofs", "DEMO RECEIPT", "Simulation"],
+      "excludes": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "includes": [
+        "Public verifier",
+        "All published hashes match",
+        "Transaction signature",
+        "None",
+        "Offchain only",
+        "deterministic demo receipt"
+      ],
+      "excludes": ["explorer.solana.com/tx/"]
+    },
+    {
+      "path": "/markets/launch",
+      "includes": ["Market launch preflight", "Meteora DBC", "PreStocks"],
+      "excludes": []
+    },
+    {
+      "path": "/settings",
+      "includes": ["Capabilities", "Meteora DBC", "Execution posture"],
+      "excludes": []
+    },
+    {
+      "path": "/disclosures",
+      "includes": [
+        "Risk and privacy disclosures",
+        "Not brokerage or investment advice",
+        "PreStocks action path",
+        "Offchain only",
+        "Private keys"
+      ],
+      "excludes": []
+    },
+    {
+      "path": "/transactions",
+      "includes": ["Transactions", "Execution ledger"],
+      "excludes": []
+    },
+    {
+      "path": "/api/assets/prestocks",
+      "includes": ["readOnly", "valueMovementAvailable", "PreStocks"],
+      "excludes": ["private upstream trace", "CLAWPUMP_API_KEY", "SESSION_SECRET"]
+    }
+  ]
+}

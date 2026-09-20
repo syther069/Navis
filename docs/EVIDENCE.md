@@ -4,44 +4,46 @@ Updated: 2026-09-20.
 
 This manifest records what can be proven from the current local workspace and what remains externally blocked.
 
+Final local remediation verification: `npm run check` passed all eight gates with **143 tests in 26 files**. The table below preserves the earlier 113-test baseline. See `REMEDIATION_REPORT.md` and `docs/evidence/stocklana-local-smoke.json` for the local fixes; they are **not** present in the public pre-remediation commit.
+
 ## Local build evidence
 
-| Gate                                          | Latest local result                                                                 |
-| --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `npm run format:check`                        | Passed                                                                              |
-| `npm run lint`                                | Passed                                                                              |
-| `npm run typecheck`                           | Passed                                                                              |
-| `npm test`                                    | Passed: 24 files / 113 tests                                                        |
-| `npm run build`                               | Passed: production Next.js 16.3.5 build                                             |
-| `npm run smoke:judge`                         | Passed: 11-route deterministic demo flow including `/agents/new`                    |
-| `node node_modules/drizzle-kit/bin.cjs check` | Passed                                                                              |
-| `npm run check`                               | Fresh pass: all 8 gates, 24 test files / 113 tests                                  |
-| `npm run submission:audit`                    | Passed with expected external-evidence TODO warning                                 |
-| Deployed URL smoke verifier                   | Implemented and validated against a temporary local origin; no public URL recorded  |
-| Local browser QA                              | Passed clean flow, responsive/accessibility checks, and nonce-origin runtime checks |
+| Gate                                          | Latest local result                                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `npm run format:check`                        | Passed                                                                                                                     |
+| `npm run lint`                                | Passed                                                                                                                     |
+| `npm run typecheck`                           | Passed                                                                                                                     |
+| `npm test`                                    | Passed: 24 files / 113 tests                                                                                               |
+| `npm run build`                               | Passed: production Next.js 16.3.5 build                                                                                    |
+| `npm run smoke:judge`                         | Passed: 11-route deterministic demo flow including `/agents/new`                                                           |
+| `node node_modules/drizzle-kit/bin.cjs check` | Passed                                                                                                                     |
+| `npm run check`                               | Baseline fresh pass: all 8 gates, 24 test files / 113 tests                                                                |
+| `npm run submission:audit`                    | Passed with expected external-evidence TODO warning                                                                        |
+| Deployed URL smoke verifier                   | Public Vercel origin passed all 11 judge-flow routes and health: https://navis-gilt.vercel.app                             |
+| Local browser QA                              | Fresh Chromium public journey and 10 UI routes passed at 375/768/1440 px; see `docs/evidence/stocklana-browser-audit.json` |
 
 ## Public URLs
 
-| Item                | Value                                       |
-| ------------------- | ------------------------------------------- |
-| Deployed demo URL   | Not published or recorded                   |
-| Repository URL      | https://github.com/syther069/Navis.git      |
-| Demo video URL      | Not recorded                                |
-| Pitch video URL     | Not recorded; official maximum is 3 minutes |
-| Technical video URL | Not recorded; official maximum is 5 minutes |
+| Item                | Value                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Deployed demo URL   | https://navis-gilt.vercel.app (Vercel READY; Replit remains NOT published)                       |
+| Repository URL      | https://github.com/syther069/Navis.git (GitHub main: `ac26e54089154c872f117a54cc73af2a8fc6ff2b`) |
+| Demo video URL      | Not recorded                                                                                     |
+| Pitch video URL     | Not recorded; official maximum is 3 minutes                                                      |
+| Technical video URL | Not recorded; official maximum is 5 minutes                                                      |
 
 ## Demo evidence
 
-| Item                | Value                                                                       |
-| ------------------- | --------------------------------------------------------------------------- |
-| Demo agent          | Atlas                                                                       |
-| Demo route          | `/agents/atlas`                                                             |
-| Demo decision route | `/agents/atlas/decisions/demo-decision`                                     |
-| Demo proof route    | `/proofs/demo-proof`                                                        |
-| Disclosure route    | `/disclosures`                                                              |
-| Receipt type        | Deterministic simulation; no onchain signature                              |
-| Hash anchoring      | Offchain-only decision hash; no memo instruction or transaction signature   |
-| Interaction status  | Recorded deterministic walkthrough verified; fresh proposal wiring deferred |
+| Item                | Value                                                                     |
+| ------------------- | ------------------------------------------------------------------------- |
+| Demo agent          | Atlas                                                                     |
+| Demo route          | `/agents/atlas`                                                           |
+| Demo decision route | `/agents/atlas/decisions/demo-decision`                                   |
+| Demo proof route    | `/proofs/demo-proof`                                                      |
+| Disclosure route    | `/disclosures`                                                            |
+| Receipt type        | Deterministic simulation; no onchain signature                            |
+| Hash anchoring      | Offchain-only decision hash; no memo instruction or transaction signature |
+| Interaction status  | Public deterministic walkthrough verified; fresh proposal wiring deferred |
 
 ## ClawPump evidence
 
@@ -90,7 +92,7 @@ This manifest records what can be proven from the current local workspace and wh
 - Copy-ready submission language is staged in `docs/SUBMISSION_DRAFT.md`.
 - Open-source and sponsor credits are recorded in `docs/ATTRIBUTIONS.md`.
 - Main track plus at most three sponsor tracks is the current platform rule. Planned sponsor targets are ClawPump, Meteora DBC, and PreStocks.
-- No funded-wallet action, live launch, production deployment, video, or final submission is claimed.
+- No funded-wallet action, live launch, production database deployment, video, or final submission is claimed; the read-only Vercel demo deployment is explicitly recorded above.
 
 ## Restoration and database evidence
 
@@ -102,8 +104,9 @@ This manifest records what can be proven from the current local workspace and wh
 | Preservation SHA-256 | `11090837a18cce61c4310d995cb218f21745b20a216314165a39890ea638ea65`                                                                                                       |
 | Other preserved work | Root scaffold and in-progress application changes saved separately under `.restoration`                                                                                  |
 | Development database | Migrations `0000` through `0005` applied in order with journal SHA tracking                                                                                              |
-| Production database  | Not published or migrated                                                                                                                                                |
-| Preview health       | HTTP 200; `tablesReady=true`, `immutabilityGuardsReady=true`; no secrets exposed                                                                                         |
-| Deployment lookup    | `success=true`, `isDeployed=false`, empty `primaryUrl`; no public URL exists                                                                                             |
+| Production database  | Not published or migrated; public Vercel demo is read-only and non-persistent                                                                                            |
+| Preview health       | Dev health: HTTP 200; `tablesReady=true`, `immutabilityGuardsReady=true`, origin and wallet session configured, no RPC/ClawPump; no secrets exposed                      |
+| Public health        | HTTP 200; demo/devnet; database, authentication origin, wallet sessions, Solana RPC, ClawPump, and Meteora not configured; PreStocks and demo AI configured              |
+| Deployment lookup    | Replit `getDeploymentInfo`: `NOT published`; separate Vercel deployment is READY at the URL above                                                                        |
 
-Focused agent ownership and sponsor safety tests pass. Local browser QA and runtime nonce-origin checks pass; see `docs/LOCAL_QA.md` and `docs/evidence/navis-root-preview.jpg`. A real wallet extension and signing remain unverified. The production audit result is recorded in `docs/dependency-audit.json`: 19 advisories, 6 high and 13 moderate, with no critical findings.
+Focused agent ownership and sponsor safety tests pass in the baseline. Public Chromium QA passed the documented deterministic journey; generated sanitized evidence is expected at `docs/evidence/stocklana-public-smoke.json` and `docs/evidence/stocklana-browser-audit.json` after the main release pass copies it. A real wallet extension and signing remain unverified. The production audit result is recorded in `docs/dependency-audit.json`: 19 advisories, 6 high and 13 moderate, with no critical findings.

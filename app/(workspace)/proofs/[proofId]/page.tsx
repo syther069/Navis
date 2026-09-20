@@ -26,22 +26,25 @@ export default async function ProofDetailPage({
       <RouteHeader
         eyebrow="Public verifier"
         title={demoProof.title}
-        description="Canonical hashes are verified locally from the published receipt. Execution remains explicitly simulated and has no explorer link."
-        meta={verification.valid ? "Hashes valid · demo" : "Verification failed"}
+        description="Canonical hashes and receipt cross-references are checked locally. This verifies document integrity, not independent authorship or chain confirmation."
+        meta={
+          verification.valid ? "Integrity checks valid · demo" : "Verification failed"
+        }
       />
       <section className="route-panel proof-card">
         <div className="proof-warning">
           <WarningCircle aria-hidden="true" size={19} />
           <span>
             This is a deterministic demo receipt, not an onchain transaction. It has no
-            signature, paid fees, or claim of financial performance.
+            signature, paid fees, independent authorship attestation, or claim of
+            financial performance.
           </span>
         </div>
         <div className="proof-verification-heading">
           <div>
             <span className="route-eyebrow">Receipt integrity</span>
             <h2>
-              {verification.valid ? "All published hashes match" : "Mismatch detected"}
+              {verification.valid ? "Hashes and references match" : "Mismatch detected"}
             </h2>
           </div>
           <StatusBadge tone={verification.valid ? "pass" : "block"}>

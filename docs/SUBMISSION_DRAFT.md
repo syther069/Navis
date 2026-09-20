@@ -2,7 +2,7 @@
 
 Updated: 2026-09-20.
 
-Use this draft as the source text for the final Stocklana submission form. Replace every `TODO` before submitting.
+Use this draft as the source text for the final Stocklana submission form. Replace required `TODO` fields before submitting; optional video and live-sponsor evidence may remain unfilled when genuinely unavailable.
 
 ## Project name
 
@@ -22,9 +22,9 @@ Demo receipts are explicitly labelled simulations. Real explorer links, mints, p
 
 | Item                | URL                                    |
 | ------------------- | -------------------------------------- |
-| Demo URL            | TODO                                   |
+| Demo URL            | https://navis-gilt.vercel.app          |
 | Repository URL      | https://github.com/syther069/Navis.git |
-| Demo video URL      | TODO                                   |
+| Demo video URL      | Not recorded                           |
 | Pitch video URL     | TODO, 3 minutes maximum                |
 | Technical video URL | TODO, 5 minutes maximum                |
 
@@ -93,15 +93,15 @@ Latest automated local gate:
 npm run check
 ```
 
-Result: fresh pass on 2026-09-20 across all eight gates, 24 test files / 113 tests, production Next.js 16.3.5 build, 11-route deterministic demo smoke including `/agents/new`, Drizzle schema validation, and submission audit.
+Result: final local remediation pass on 2026-09-20 across all eight gates, 26 test files / 143 tests, production Next.js 16.3.5 build, 11-route deterministic demo smoke including `/agents/new`, Drizzle schema validation, and submission audit. These local changes have not been pushed or deployed; public verification applies to the separately recorded baseline commit.
 
 Latest deployed smoke gate:
 
 ```bash
-NAVIS_SMOKE_BASE_URL=TODO NAVIS_SMOKE_REPORT=docs/deployed-smoke-report.json npm run smoke:judge
+NAVIS_SMOKE_BASE_URL=https://navis-gilt.vercel.app NAVIS_SMOKE_REPORT=docs/evidence/stocklana-public-smoke.json npm run smoke:judge
 ```
 
-Result: TODO.
+Result: Public Vercel deployment READY at https://navis-gilt.vercel.app; all 11 judge-flow routes and `/api/health` passed. Replit remains NOT published. Sanitized generated report: `docs/evidence/stocklana-public-smoke.json`. This report verifies the pre-remediation production commit; subsequent local fixes have not been pushed or deployed.
 
 Known audit status:
 
@@ -116,7 +116,7 @@ Result: 19 production advisories, comprising 6 high and 13 moderate findings wit
 - Enter the main Stocklana track.
 - Select at most three sponsor tracks: ClawPump, Meteora DBC, and PreStocks, only where final evidence supports the claim.
 - Submit before Friday, September 25, 2026 at 4:00 p.m. ET.
-- The official submit route returned only a sign-in prompt during public verification on 2026-09-20. Review form-only terms while authenticated.
+- Formal entry still requires one public demo link and registration; the final authenticated form and registration remain external requirements. Optional video URLs are genuinely missing and are not mandatory for eligibility.
 
 ## Disclosures
 
@@ -126,4 +126,5 @@ Result: 19 production advisories, comprising 6 high and 13 moderate findings wit
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
 - Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump and Meteora also require their unresolved protocol and security gates to be completed and retested.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
+- The public demo is read-only deterministic demo mode on devnet; it has no persistence, wallet sessions, RPC, ClawPump, or Meteora configuration and must not be presented as live-funds or wallet-ready.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`.
