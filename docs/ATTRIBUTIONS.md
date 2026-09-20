@@ -6,13 +6,13 @@ Navis is original application work built for the Stocklana hackathon. It uses th
 
 ## Sponsor and platform resources
 
-| Resource                                            | How Navis uses it                                                                                                                                                                       |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Solana documentation and Wallet Adapter             | Wallet connection, nonce-bound wallet authentication, RPC/cluster semantics, explorer-safe evidence links, and Solana transaction handling.                                             |
-| ClawPump documentation and API references           | Server-side agent linking, pair discovery, and self-funded launch preflight surfaces. Live launch execution requires credentials, funding, provider acceptance, and chain confirmation. |
-| Meteora Dynamic Bonding Curve documentation and SDK | DBC config preview, transaction preparation/simulation/submission surfaces, and pool monitoring.                                                                                        |
-| PreStocks public API                                | Read-only catalogue discovery and economic-exposure/eligibility disclosure.                                                                                                             |
-| Stocklana hackathon brief                           | Product framing, judging constraints, and sponsor-claim evidence requirements.                                                                                                          |
+| Resource                                            | How Navis uses it                                                                                                                                                                                                                |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Solana documentation and Wallet Adapter             | Wallet connection, nonce-bound wallet authentication, RPC/cluster semantics, explorer-safe evidence links, and Solana transaction handling.                                                                                      |
+| ClawPump documentation and API references           | Server-side agent linking, pair discovery, and self-funded launch preflight surfaces. Live launch execution requires credentials, funding, provider acceptance, and chain confirmation.                                          |
+| Meteora Dynamic Bonding Curve documentation and SDK | DBC config preview with two server-approved quote profiles (SOL-quoted and stock-paired on a PreStocks mint), intent-bound transaction preparation/simulation/submission surfaces (broadcast hard-blocked), and pool monitoring. |
+| PreStocks public API                                | Read-only catalogue discovery, the Atlas demo asset universe, the research view (premium or discount, valuation gap, allocation impact) and economic-exposure/eligibility disclosure.                                            |
+| Stocklana hackathon brief                           | Product framing, judging constraints, and sponsor-claim evidence requirements.                                                                                                                                                   |
 
 Official references were rechecked on 2026-09-20:
 
@@ -63,6 +63,10 @@ Official references were rechecked on 2026-09-20:
 | `typescript`             | Apache-2.0 | Type checking and language tooling.   |
 | `vite`                   | MIT        | Vitest peer/runtime tooling.          |
 | `vitest`                 | MIT        | Unit/integration tests.               |
+
+## Navis licence
+
+Navis itself is released under the MIT licence (`LICENSE`, copyright TANUJ CHANDA; `license` field in `package.json`). The sponsor SDKs and every dependency listed above keep their own licences, which are compatible with redistribution under MIT.
 
 ## Claim boundaries
 

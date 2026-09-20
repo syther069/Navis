@@ -35,11 +35,16 @@ export function PolicyExplanationPanel({
   checks,
   headingId = "policy-explanation-title",
   note,
+  factSources,
+  factSourceLabel = "Data fact",
 }: {
   approved: boolean;
   checks: readonly PolicyExplanationCheck[];
   headingId?: string;
   note?: string;
+  /** Per-rule statement of which external data fact fed the check. */
+  factSources?: Readonly<Record<string, string>>;
+  factSourceLabel?: string;
 }) {
   return (
     <section
@@ -59,16 +64,28 @@ export function PolicyExplanationPanel({
         </StatusBadge>
       </div>
       <div className="decision-run-checks">
-        {checks.map((check) => (
-          <PolicyResult
-            key={check.rule}
-            label={check.rule.replaceAll("_", " ")}
-            observed={check.observed}
-            threshold={check.threshold}
-            detail={check.explanation}
-            status={check.status === "fail" ? "block" : check.status}
-          />
-        ))}
+        {checks.map((check) => {
+          const fact = factSources?.[check.rule];
+          return (
+            <div className="policy-result-group" key={check.rule}>
+              <PolicyResult
+                label={check.rule.replaceAll("_", " ")}
+                observed={check.observed}
+                threshold={check.threshold}
+                detail={check.explanation}
+                status={check.status === "fail" ? "block" : check.status}
+              />
+              {fact ? (
+                <small
+                  className="policy-result-fact"
+                  data-testid={`policy-fact-${check.rule}`}
+                >
+                  <span>{factSourceLabel}:</span> {fact}
+                </small>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       {note ? <small className="policy-explanation-note">{note}</small> : null}
     </section>

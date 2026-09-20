@@ -3622,3 +3622,100 @@ button:active:not(:disabled) {
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
+
+.decision-run-universe-note {
+  margin: var(--space-3) 0;
+  border: 1px solid rgb(242 169 59 / 24%);
+  border-radius: var(--radius-md);
+  background: rgb(242 169 59 / 8%);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.policy-result-group {
+  display: grid;
+  gap: 4px;
+}
+
+.policy-result-fact {
+  display: block;
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.policy-result-fact span {
+  color: #d8d2ff;
+  font-family: var(--font-data);
+  font-size: var(--text-meta);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.prestocks-research {
+  margin-top: var(--space-5);
+}
+
+.prestocks-research-table-wrap {
+  margin-top: var(--space-4);
+  overflow-x: auto;
+}
+
+.prestocks-research-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.prestocks-research-table th,
+.prestocks-research-table td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prestocks-research-table thead th {
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.prestocks-research-table tbody th {
+  display: grid;
+  gap: 3px;
+  max-width: 150px;
+  font-weight: 500;
+}
+
+.prestocks-research-table td .status-badge {
+  white-space: nowrap;
+}
+
+.prestocks-research-table tbody th span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.prestocks-research-table td small,
+.prestocks-research-table tbody th small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.prestocks-research-excluded {
+  display: block;
+  margin-top: var(--space-3);
+  color: var(--text-muted);
+  line-height: 1.6;
+}

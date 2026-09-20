@@ -31,6 +31,14 @@ vi.mock("../lib/auth/server", async (importOriginal) => {
   };
 });
 
+// Route tests never reach the network: the default PreStocks universe falls
+// back to the fixture with a note, exactly as an offline deployment would.
+vi.mock("../lib/integrations/prestocks/client", () => ({
+  getPreStocksCatalogue: vi.fn(async () => {
+    throw new TypeError("fetch failed");
+  }),
+}));
+
 vi.mock("../lib/db/client", () => ({
   getDatabase: () => {
     const query = {
@@ -87,6 +95,30 @@ describe("decision run routes", () => {
     // Neither run ever claims execution; a replay cannot mint one either.
     expect(first.receipt.execution.state).toBe("simulated");
     expect(second.receipt.execution.transactionSignature).toBeNull();
+    // PreStocks is the default universe; offline it falls back visibly.
+    expect(first.universe).toMatchObject({ requested: "prestocks", used: "fixture" });
+    expect(first.universe.note).toContain("could not be reached");
+  });
+
+  it("runs the fixture universe when asked and never notes a fallback", async () => {
+    const run = await (
+      await post({ agentSlug: "atlas", scenario: "balanced", universe: "fixture" })
+    ).json();
+    expect(run.universe).toEqual({
+      requested: "fixture",
+      used: "fixture",
+      note: null,
+      prestocks: null,
+    });
+  });
+
+  it("rejects an unknown universe", async () => {
+    const response = await post({
+      agentSlug: "atlas",
+      scenario: "balanced",
+      universe: "pyth",
+    });
+    expect(response.status).toBe(400);
   });
 
   it("hides a persisted agent from a session that does not own it", async () => {

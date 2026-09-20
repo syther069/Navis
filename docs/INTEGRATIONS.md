@@ -149,18 +149,67 @@ shares every field except the quote mint, the market-cap band and the threshold.
 
 ## PreStocks
 
-| Capability        | Status                | Evidence                                                                                                                                 |
-| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| API source        | Documented dependency | `PRESTOCKS_API_URL` defaults to `https://prestocks.com/api/prestocks`.                                                                   |
-| Response schema   | Verified live         | `/api/prestocks` returns token records with `contract_address`, price, valuation, supply, and source links.                              |
-| Catalogue adapter | Implemented read-only | `lib/integrations/prestocks/client.ts` validates the live response and never substitutes ticker symbols for mints.                       |
-| Read-only API     | Implemented           | `GET /api/assets/prestocks` returns the validated catalogue plus read-only action/disclosure metadata, or a safe unavailable response.   |
-| Product surface   | Implemented read-only | `components/markets/prestocks/prestocks-catalogue.tsx` displays the catalogue, source timestamp, exact mint, and eligibility disclosure. |
-| Value movement    | Not implemented       | Navis exposes no PreStocks buy/sell/launch path; acknowledgement persistence is deferred until a value-moving PreStocks action exists.   |
+| Capability        | Status                | Evidence                                                                                                                                                                                                                         |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API source        | Documented dependency | `PRESTOCKS_API_URL` defaults to `https://prestocks.com/api/prestocks`.                                                                                                                                                           |
+| Response schema   | Verified live         | `/api/prestocks` returns token records with `contract_address`, price, valuation, supply, and source links.                                                                                                                      |
+| Catalogue adapter | Implemented read-only | `lib/integrations/prestocks/client.ts` validates the live response and never substitutes ticker symbols for mints.                                                                                                               |
+| Read-only API     | Implemented           | `GET /api/assets/prestocks` returns the validated catalogue plus read-only action/disclosure metadata, or a safe unavailable response.                                                                                           |
+| Product surface   | Implemented read-only | `components/markets/prestocks/prestocks-catalogue.tsx` displays the catalogue, source timestamp, exact mint, and eligibility disclosure.                                                                                         |
+| Value movement    | Not implemented       | Navis exposes no PreStocks buy/sell/launch path; acknowledgement persistence is deferred until a value-moving PreStocks action exists.                                                                                           |
+| Asset universe    | Implemented (demo)    | `lib/integrations/prestocks/research.ts` builds the Atlas demo universe from validated `contract_address` values; `lib/services/run-decision.ts` evaluates policy against it. In-memory Atlas runs only.                         |
+| Research facts    | Implemented           | Premium or discount (token price vs mark price), mark vs implied valuation gap, supply and allocation concentration, shown on `/markets/launch` and in every PreStocks-universe run result. Research data, not execution quotes. |
 
 Preview evidence on 2026-09-20: HTTP 200, 8 assets, provider capture timestamp
 `2026-09-20T08:29:20.874Z`, schema validation passed, `readOnly=true`, and
 `valueMovementAvailable=false`. This proves catalogue availability, not trading.
+
+### PreStocks as the demo asset universe
+
+The Atlas demo run (`POST /api/decisions/run`, `universe: "prestocks" | "fixture"`,
+default `prestocks`) can evaluate against the PreStocks catalogue instead of the
+four fictional fixture tokens:
+
+- Allowed mints and the strategy universe are the validated `contract_address`
+  values. The derived strategy and risk policy get their own hashes and `_prestocks`
+  ids, so the receipt binds exactly the documents that were evaluated.
+- Freshness (`max_data_age_seconds`) is measured from Navis's catalogue read time,
+  which is stated as such. It is not an upstream quote timestamp. The client caches
+  for 60 seconds, inside the 300-second Atlas limit; a stale read fails the rule.
+- Token price is the only price fact (`priceUsdMicros` in `marketInputs`, source
+  `prestocks_catalogue`). The catalogue publishes no liquidity and no executable
+  quote, so no liquidity value and no quote expiry are supplied: the liquidity rule
+  warns instead of using an invented number, and the quote-expiry check is absent.
+- The fictional research portfolio holds every usable asset, weighted from the
+  agent's own limits around a 400 USD reference (rotation source 2.5x the trade
+  limit, rotation target a quarter of the position limit, the rest shared
+  equally). Quantities are whole base units and each value is recomputed from
+  that quantity at the token price. The proposal rotates the asset with the
+  richest token-price premium into the asset with the deepest discount; the
+  scenario ("balanced" or "oversized") only sets the intended trade size in USD,
+  and the deterministic provider sells exactly the quantity worth that much,
+  capped at the holding. Policy facts are then measured from the proposal:
+  trade value = proposal amount x token price, every post-trade position = the
+  starting holding moved by exactly that value (value for value, before
+  slippage), turnover = that trade. A proposal that sells more than the
+  portfolio holds, or a mint it does not hold, is refused as infeasible rather
+  than evaluated. The reserve floor still comes from the scenario because the
+  research portfolio has no cash leg; the run result says so. The result shows
+  each asset's premium or discount, mark vs implied valuation gap, supply, and
+  each holding before and after the trade as a share of the portfolio and of
+  the asset's implied valuation.
+- Assets are `provider_verified` with 9 decimals (the documented Token-2022
+  check; the catalogue itself does not publish decimals) and labelled
+  `mainnet-beta`, the only cluster where the mints exist. The run stays in demo
+  mode: nothing is executed, and no PreStocks execution path exists.
+- The receipt carries `dataSource` (universe, source, source URL, read time, asset
+  count, note). Fixture runs record `universe: "fixture"` with no source URL.
+- Rows the schema rejects (bad symbol, zero mark price, duplicate or invalid mint)
+  are excluded and listed, never patched. Fewer than two usable assets, a network
+  failure or a validation failure fall back to the fixture universe with a visible
+  note on the run result; no value is ever fabricated.
+- Persisted (database) agents keep their stored allowlist; a PreStocks request for
+  them runs the fixture universe and says so.
 
 ## Audit notes
 

@@ -13,6 +13,7 @@
     "test": "vitest run",
     "smoke:judge": "node scripts/smoke-judge-flow.mjs",
     "submission:audit": "node scripts/submission-audit.mjs",
+    "evidence:screenshots": "node scripts/capture-evidence-screenshots.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",

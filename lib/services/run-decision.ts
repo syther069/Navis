@@ -26,6 +26,30 @@ import {
   type PolicyFacts,
 } from "../policy/runner";
 import type { DecisionScenario } from "../decisions/scenarios";
+import {
+  FIXTURE_UNIVERSE_SUMMARY,
+  type DecisionUniverseSource,
+  type DecisionUniverseSummary,
+  type PreStocksUniverseSummary,
+  type UniverseAllocationPosition,
+} from "../decisions/universe";
+import {
+  holdingWeights,
+  planHoldings,
+  portfolioValue,
+  simulateRotation,
+  type PreStocksHolding,
+} from "../integrations/prestocks/allocation";
+import { getPreStocksCatalogue } from "../integrations/prestocks/client";
+import {
+  buildPreStocksUniverse,
+  concentrationImpact,
+  describePremium,
+  PRESTOCKS_CLUSTER,
+  usdMicros,
+  type PreStocksCatalogueLike,
+  type PreStocksUniverse,
+} from "../integrations/prestocks/research";
 import { hashCanonical } from "../proofs/canonical";
 import {
   proofReceiptDocumentSchema,
@@ -75,6 +99,8 @@ export type RunModelMetadata = DecisionProviderMetadata &
   Readonly<{
     /** Which demo scenario produced the policy facts, when known. */
     scenario?: DecisionScenario;
+    /** Which asset universe the run evaluated against, when known. */
+    universe?: DecisionUniverseSummary;
     fallback?: {
       used: true;
       reason: string;
@@ -88,6 +114,7 @@ export type DecisionRunResult = Readonly<{
   proofId: string | null;
   agent: Readonly<{ id: string; slug: string; name: string; mode: string }>;
   scenario: DecisionScenario | null;
+  universe: DecisionUniverseSummary;
   generatedAt: string;
   proposal: Awaited<ReturnType<typeof prepareDecision>>["proposal"];
   modelMetadata: RunModelMetadata;
@@ -157,6 +184,7 @@ export async function loadDecisionRun({
     proofId: row.proof.id,
     agent: row.agent,
     scenario: modelMetadata.scenario ?? null,
+    universe: modelMetadata.universe ?? FIXTURE_UNIVERSE_SUMMARY,
     generatedAt: row.proof.finalizedAt.toISOString(),
     proposal: row.decision.proposal,
     modelMetadata,
@@ -180,7 +208,62 @@ export async function loadDecisionRun({
   };
 }
 
-function demoPortfolio(bundle: AgentBundle, generatedAt: string) {
+/**
+ * PreStocks research holdings: every usable asset, weighted from the agent's
+ * own trade and position limits around the same fictional 400 USD reference
+ * as the fixture portfolio. Quantities are whole base units and every value is
+ * recomputed from that quantity at the catalogue token price.
+ */
+export function prestocksHoldings(
+  universe: PreStocksUniverse,
+  policy: RiskPolicyDocument,
+): PreStocksHolding[] {
+  return planHoldings(
+    universe,
+    holdingWeights(
+      {
+        maxTradeBps: policyLimit(policy, "max_trade_bps"),
+        maxPositionBps: policyLimit(policy, "max_position_bps"),
+      },
+      universe.assets.length,
+    ),
+    DEMO_PORTFOLIO_VALUE_USD_MICROS,
+  );
+}
+
+function demoPortfolio(
+  bundle: AgentBundle,
+  generatedAt: string,
+  universe?: PreStocksUniverse,
+) {
+  if (universe) {
+    const holdings = prestocksHoldings(universe, bundle.riskPolicy.document);
+    return portfolioSnapshotDocumentSchema.parse({
+      agentId: bundle.agent.id,
+      owner: DEMO_TREASURY_OWNER,
+      cluster: bundle.agent.cluster,
+      slot: String(Date.now()),
+      source: "demo_fixture",
+      capturedAt: generatedAt,
+      balances: [
+        { kind: "native", rawAmount: "2000000000", decimals: 9, slot: "0" },
+        ...holdings.map((holding) => ({
+          kind: "spl-token",
+          mint: holding.mint,
+          rawAmount: holding.rawAmount,
+          decimals: holding.decimals,
+          slot: "0",
+        })),
+      ],
+      valuations: holdings.map((holding) => ({
+        status: "priced",
+        mint: holding.mint,
+        valueUsdMicros: holding.valueUsdMicros,
+        source: "prestocks_catalogue_token_price",
+        observedAt: universe.capturedAt,
+      })),
+    });
+  }
   const [inputAsset, outputAsset, unpricedAsset] = bundle.assets;
   if (!inputAsset || !outputAsset || !unpricedAsset) {
     throw new Error("A decision run requires at least three configured assets.");
@@ -240,6 +323,48 @@ function demoPortfolio(bundle: AgentBundle, generatedAt: string) {
   });
 }
 
+/**
+ * Atlas with its allowlist, strategy universe and assets replaced by the
+ * PreStocks universe. The derived strategy and policy get their own hashes and
+ * ids, so the receipt still binds the exact documents that were evaluated.
+ * The run is labelled with the PreStocks cluster (mainnet-beta, the only place
+ * those mints exist) while staying in demo mode: nothing is ever executed.
+ */
+export function withPreStocksUniverse(
+  bundle: AgentBundle,
+  universe: PreStocksUniverse,
+): AgentBundle {
+  const riskPolicyDocument: RiskPolicyDocument = {
+    ...bundle.riskPolicy.document,
+    constraints: bundle.riskPolicy.document.constraints.map((constraint) =>
+      constraint.type === "allowed_mints"
+        ? { ...constraint, mints: [...universe.allowedMints] }
+        : constraint,
+    ),
+  };
+  const strategyDocument = {
+    ...bundle.strategy.document,
+    universe: [...universe.allowedMints],
+  };
+  return {
+    ...bundle,
+    agent: { ...bundle.agent, cluster: PRESTOCKS_CLUSTER },
+    strategy: {
+      ...bundle.strategy,
+      id: `${bundle.strategy.id}_prestocks`,
+      document: strategyDocument,
+      hash: hashCanonical(strategyDocument),
+    },
+    riskPolicy: {
+      ...bundle.riskPolicy,
+      id: `${bundle.riskPolicy.id}_prestocks`,
+      document: riskPolicyDocument,
+      hash: hashCanonical(riskPolicyDocument),
+    },
+    assets: universe.assets,
+  };
+}
+
 type PortfolioReference = Readonly<{
   id: string;
   contentHash: string;
@@ -250,11 +375,12 @@ export function buildDecisionContext(
   bundle: AgentBundle,
   generatedAt: string,
   portfolio?: PortfolioReference,
+  universe?: PreStocksUniverse,
 ): DecisionContext {
   const portfolioReference: PortfolioReference = portfolio ?? {
     id: `run_snapshot_${randomUUID()}`,
     contentHash: "",
-    document: demoPortfolio(bundle, generatedAt),
+    document: demoPortfolio(bundle, generatedAt, universe),
   };
   const contentHash =
     portfolioReference.contentHash || hashCanonical(portfolioReference.document);
@@ -281,16 +407,28 @@ export function buildDecisionContext(
       document: portfolioReference.document,
     },
     assets: [...bundle.assets],
-    marketInputs: [
-      {
-        id: `fresh_run_${randomUUID()}`,
-        mint: outputAsset.mint,
-        source: "fresh_demo_run",
-        observedAt: generatedAt,
-        liquidityUsdMicros: "2000000000",
-        quoteExpiresAt: new Date(Date.parse(generatedAt) + 300_000).toISOString(),
-      },
-    ],
+    // PreStocks rows are research prices with no liquidity and no quote
+    // expiry: the catalogue publishes neither, so neither is invented.
+    marketInputs: universe
+      ? universe.research.map((row) => ({
+          id: `prestocks_${row.symbol.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+          mint: row.mint,
+          source: "prestocks_catalogue",
+          observedAt: universe.capturedAt,
+          ...(usdMicros(row.tokenPriceUsd)
+            ? { priceUsdMicros: usdMicros(row.tokenPriceUsd)! }
+            : {}),
+        }))
+      : [
+          {
+            id: `fresh_run_${randomUUID()}`,
+            mint: outputAsset.mint,
+            source: "fresh_demo_run",
+            observedAt: generatedAt,
+            liquidityUsdMicros: "2000000000",
+            quoteExpiresAt: new Date(Date.parse(generatedAt) + 300_000).toISOString(),
+          },
+        ],
     permittedActions: bundle.strategy.document.allowedActions,
   });
 }
@@ -461,6 +599,163 @@ function demoPolicyFacts(
   };
 }
 
+type PreStocksSimulation = Readonly<{
+  facts: PolicyFacts;
+  holdings: readonly PreStocksHolding[];
+  simulation: ReturnType<typeof simulateRotation>;
+}>;
+
+/**
+ * PreStocks facts are measured from the proposal itself: the input amount is
+ * valued at the catalogue token price, every post-trade position is the
+ * starting holding plus or minus exactly that value, turnover is that trade,
+ * and freshness is the catalogue read time. There is no execution quote to
+ * expire and no published liquidity figure, so neither is supplied and the
+ * liquidity rule warns instead of leaning on an invented number. The reserve
+ * floor still comes from the scenario, because the research portfolio holds
+ * no cash leg; the UI says so.
+ */
+function prestocksPolicyFacts(
+  bundle: AgentBundle,
+  context: DecisionContext,
+  scenario: DecisionScenario,
+  universe: PreStocksUniverse,
+  proposal: PreparedDecision["proposal"],
+): PreStocksSimulation {
+  if (context.mode !== "demo" || context.portfolio.document.source !== "demo_fixture") {
+    throw new PersistentDecisionRunsNotEnabledError();
+  }
+  const holdings = prestocksHoldings(universe, bundle.riskPolicy.document);
+  const simulation = simulateRotation(holdings, proposal);
+  const scenarioFacts = demoScenarioFacts(bundle.riskPolicy.document, scenario);
+  const total = BigInt(simulation.portfolioValueUsdMicros);
+  const facts: PolicyFacts = {
+    now: context.requestedAt,
+    mode: context.mode,
+    cluster: context.cluster,
+    portfolioValueUsdMicros: simulation.portfolioValueUsdMicros,
+    tradeValueUsdMicros: simulation.tradeValueUsdMicros,
+    postReserveUsdMicros: (
+      (total * BigInt(Math.max(0, Math.trunc(scenarioFacts.reserveBps)))) /
+      BPS_DENOMINATOR
+    ).toString(),
+    postPositions: simulation.postPositions.map((position) => ({
+      mint: position.mint,
+      valueUsdMicros: position.valueUsdMicros,
+    })),
+    dailyTurnoverUsdMicros: simulation.tradeValueUsdMicros,
+    dataObservedAt: universe.capturedAt,
+    assetVerification: Object.fromEntries(
+      context.assets.map((asset) => [asset.mint, asset.verificationState]),
+    ),
+  };
+  return { facts, holdings, simulation };
+}
+
+/** The scenario's intended trade size against the priced research holdings. */
+export function prestocksTradeTarget(
+  bundle: AgentBundle,
+  universe: PreStocksUniverse,
+  scenario: DecisionScenario,
+) {
+  const holdings = prestocksHoldings(universe, bundle.riskPolicy.document);
+  const total = portfolioValue(holdings);
+  const tradeBps = demoScenarioFacts(bundle.riskPolicy.document, scenario).tradeBps;
+  return (
+    (total * BigInt(Math.max(0, Math.trunc(tradeBps)))) /
+    BPS_DENOMINATOR
+  ).toString();
+}
+
+/**
+ * Everything the run result and receipt say about the PreStocks universe:
+ * freshness, the research rows, the concentration impact of the proposed
+ * allocation and which fact fed which policy rule.
+ */
+function summarizePreStocksUniverse(
+  universe: PreStocksUniverse,
+  run: PreStocksSimulation,
+  proposal: PreparedDecision["proposal"],
+): PreStocksUniverseSummary {
+  const { facts, holdings, simulation } = run;
+  const portfolioUsd = Number(facts.portfolioValueUsdMicros) / 1_000_000;
+  const byMint = new Map(universe.research.map((row) => [row.mint, row]));
+  const heldByMint = new Map(holdings.map((holding) => [holding.mint, holding]));
+  const inputMint = proposal.action === "HOLD" ? null : proposal.inputMint;
+  const outputMint = proposal.action === "HOLD" ? null : proposal.outputMint;
+  const positions: UniverseAllocationPosition[] = simulation.postPositions.map(
+    (position) => {
+      const row = byMint.get(position.mint);
+      const held = heldByMint.get(position.mint);
+      const impact = concentrationImpact({
+        allocationUsd: Number(position.valueUsdMicros) / 1_000_000,
+        portfolioUsd,
+        impliedValuationUsd: row?.impliedValuationUsd ?? 0,
+      });
+      return {
+        mint: position.mint,
+        symbol: row?.symbol ?? position.mint,
+        role:
+          position.mint === inputMint
+            ? "rotation source"
+            : position.mint === outputMint
+              ? "rotation target"
+              : "held",
+        startValueUsdMicros: held?.valueUsdMicros ?? "0",
+        valueUsdMicros: position.valueUsdMicros,
+        portfolioShareBps: impact.portfolioShareBps,
+        impliedValuationShareBps: impact.valuationShareBps,
+      };
+    },
+  );
+  const source = positions.find((position) => position.role === "rotation source");
+  const target = positions.find((position) => position.role === "rotation target");
+  const sourceRow = source ? byMint.get(source.mint) : undefined;
+  const targetRow = target ? byMint.get(target.mint) : undefined;
+  const usd = (micros: string) => `${(Number(micros) / 1_000_000).toFixed(2)} USD`;
+  const positionLine = (position: UniverseAllocationPosition | undefined) => {
+    const row = position ? byMint.get(position.mint) : undefined;
+    return position && row
+      ? `${position.symbol} ${usd(position.startValueUsdMicros)} before, ${usd(position.valueUsdMicros)} after = ${String(position.portfolioShareBps ?? "n/a")} bps of the portfolio and ${String(position.impliedValuationShareBps ?? "n/a")} bps of its PreStocks implied valuation (${row.impliedValuationUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })} USD)`
+      : null;
+  };
+  const inputLine =
+    proposal.action !== "HOLD" && simulation.input && sourceRow
+      ? `${proposal.inputAmount.uiAmount} ${sourceRow.symbol} x ${sourceRow.tokenPriceUsd.toFixed(2)} USD token price = ${usd(simulation.tradeValueUsdMicros)}`
+      : `no trade (HOLD)`;
+  const factsUsed: Record<string, string> = {
+    allowed_mints: `Allowlist is the ${String(universe.allowedMints.length)} validated PreStocks contract_address values read at ${universe.capturedAt}: ${universe.research
+      .map((row) => `${row.symbol} ${row.mint}`)
+      .join(", ")}.`,
+    max_data_age_seconds: `Data age is measured from Navis's PreStocks catalogue read time ${universe.capturedAt} (${universe.sourceUrl}). This is the read time, not an upstream quote timestamp.`,
+    max_trade_bps: `Trade value is the proposal amount at the catalogue token price: ${inputLine}, against a ${portfolioUsd.toFixed(2)} USD research portfolio (sum of the priced holdings). ${sourceRow ? `${sourceRow.symbol} is ${describePremium(sourceRow.premiumBps)} to mark` : ""}${targetRow ? `, ${targetRow.symbol} is ${describePremium(targetRow.premiumBps)} to mark` : ""}; PreStocks prices chose the pair, the scenario chose the intended size.`,
+    max_position_bps: [
+      "Post-trade positions are the starting research holdings moved by exactly the trade value (value for value at catalogue token prices, before slippage).",
+      positionLine(source),
+      positionLine(target),
+    ]
+      .filter(Boolean)
+      .join(" "),
+    max_daily_turnover_bps: `Turnover is this trade alone: ${usd(simulation.tradeValueUsdMicros)} of ${portfolioUsd.toFixed(2)} USD.`,
+    min_liquidity_usd_micros:
+      "PreStocks publishes no liquidity figure, so no liquidity value was supplied and the rule warns instead of using an invented number.",
+    verified_assets: `All ${String(universe.assets.length)} assets are provider_verified from the catalogue contract_address; demo mode does not require an onchain mint check.`,
+  };
+  return {
+    sourceUrl: universe.sourceUrl,
+    capturedAt: universe.capturedAt,
+    assetCount: universe.assets.length,
+    excluded: universe.excluded,
+    research: universe.research,
+    allocation: {
+      portfolioValueUsdMicros: facts.portfolioValueUsdMicros,
+      tradeValueUsdMicros: facts.tradeValueUsdMicros,
+      positions,
+    },
+    factsUsed,
+  };
+}
+
 function eligibility(bundle: AgentBundle, approved: boolean) {
   if (!approved) return { eligible: false, reason: "Policy rejected this proposal." };
   if (bundle.agent.mode === "demo") {
@@ -489,12 +784,16 @@ async function prepareWithFallback(
   context: DecisionContext,
   policy: RiskPolicyDocument,
   requestedProvider?: DecisionProvider,
+  tradeValueUsdMicros?: string,
 ): Promise<
   Omit<PreparedDecision, "modelMetadata"> & { modelMetadata: RunModelMetadata }
 > {
   // The deterministic provider respects the agent's own slippage ceiling so a
   // balanced run is approvable for every policy the creation form accepts.
-  const demo = { maxSlippageBps: policyLimit(policy, "max_slippage_bps") };
+  const demo = {
+    maxSlippageBps: policyLimit(policy, "max_slippage_bps"),
+    ...(tradeValueUsdMicros ? { tradeValueUsdMicros } : {}),
+  };
   let provider: DecisionProvider;
   try {
     provider = requestedProvider ?? createDecisionProvider({ demo });
@@ -524,6 +823,7 @@ type EvaluatedRun = Readonly<{
   policyEvaluation: PolicyEvaluation;
   policyInputHash: string;
   executionEligibility: Readonly<{ eligible: boolean; reason: string }>;
+  universe: DecisionUniverseSummary;
 }>;
 
 function buildReceipt(bundle: AgentBundle, run: EvaluatedRun, proofId: string) {
@@ -567,6 +867,23 @@ function buildReceipt(bundle: AgentBundle, run: EvaluatedRun, proofId: string) {
       explanation:
         "This receipt hashes the decision offchain only. No Solana transaction anchors it.",
     },
+    dataSource: run.universe.prestocks
+      ? {
+          universe: "prestocks",
+          source: "PreStocks catalogue (research data, not execution quotes)",
+          sourceUrl: run.universe.prestocks.sourceUrl,
+          capturedAt: run.universe.prestocks.capturedAt,
+          assetCount: run.universe.prestocks.assetCount,
+          note: run.universe.note,
+        }
+      : {
+          universe: "fixture",
+          source: "Demo fixture universe",
+          sourceUrl: null,
+          capturedAt: run.generatedAt,
+          assetCount: run.context.assets.length,
+          note: run.universe.note,
+        },
   });
   const receiptHash = hashCanonical(receipt);
   const verified = verifyProofReceipt(receipt, receiptHash).valid;
@@ -574,19 +891,59 @@ function buildReceipt(bundle: AgentBundle, run: EvaluatedRun, proofId: string) {
   return { receipt, receiptHash };
 }
 
+type ResolvedUniverse = Readonly<{
+  requested: DecisionUniverseSource;
+  note: string | null;
+  prestocks: PreStocksUniverse | null;
+}>;
+
+const FIXTURE_RESOLVED: ResolvedUniverse = {
+  requested: "fixture",
+  note: null,
+  prestocks: null,
+};
+
 async function evaluateRun(
   bundle: AgentBundle,
   context: DecisionContext,
   scenario: DecisionScenario,
   provider: DecisionProvider | undefined,
   generatedAt: string,
+  resolved: ResolvedUniverse = FIXTURE_RESOLVED,
 ): Promise<EvaluatedRun> {
   const prepared = await prepareWithFallback(
     context,
     bundle.riskPolicy.document,
     provider,
+    resolved.prestocks
+      ? prestocksTradeTarget(bundle, resolved.prestocks, scenario)
+      : undefined,
   );
-  const facts = demoPolicyFacts(bundle, context, scenario);
+  const prestocksRun = resolved.prestocks
+    ? prestocksPolicyFacts(
+        bundle,
+        context,
+        scenario,
+        resolved.prestocks,
+        prepared.proposal,
+      )
+    : null;
+  const facts = prestocksRun
+    ? prestocksRun.facts
+    : demoPolicyFacts(bundle, context, scenario);
+  const universe: DecisionUniverseSummary = {
+    requested: resolved.requested,
+    used: resolved.prestocks ? "prestocks" : "fixture",
+    note: resolved.note,
+    prestocks:
+      resolved.prestocks && prestocksRun
+        ? summarizePreStocksUniverse(
+            resolved.prestocks,
+            prestocksRun,
+            prepared.proposal,
+          )
+        : null,
+  };
   const policyEvaluation = evaluatePolicy(
     prepared.proposal,
     bundle.riskPolicy.document,
@@ -602,11 +959,12 @@ async function evaluateRun(
     context,
     prepared: {
       ...prepared,
-      modelMetadata: { ...prepared.modelMetadata, scenario },
+      modelMetadata: { ...prepared.modelMetadata, scenario, universe },
     },
     policyEvaluation,
     policyInputHash,
     executionEligibility: eligibility(bundle, policyEvaluation.approved),
+    universe,
   };
 }
 
@@ -628,6 +986,7 @@ function toResult(
       mode: bundle.agent.mode,
     },
     scenario,
+    universe: run.universe,
     generatedAt: run.generatedAt,
     proposal: run.prepared.proposal,
     modelMetadata: run.prepared.modelMetadata,
@@ -640,25 +999,70 @@ function toResult(
   };
 }
 
+/**
+ * Resolves the requested universe. PreStocks is read live and validated; any
+ * failure (network, schema, fewer than two usable assets) falls back to the
+ * fixture universe with the reason recorded on the run. No value is invented.
+ */
+async function resolveUniverse(
+  requested: DecisionUniverseSource,
+  loadCatalogue: () => Promise<PreStocksCatalogueLike>,
+): Promise<ResolvedUniverse> {
+  if (requested === "fixture") return FIXTURE_RESOLVED;
+  try {
+    const catalogue = await loadCatalogue();
+    const universe = buildPreStocksUniverse(catalogue);
+    const note =
+      universe.excluded.length > 0
+        ? `${String(universe.excluded.length)} catalogue row(s) were excluded from the universe: ${universe.excluded
+            .map((item) => `${item.symbol} (${item.reason})`)
+            .join("; ")}`
+        : null;
+    return { requested, note, prestocks: universe };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    const reason = /fetch failed/i.test(detail)
+      ? "the PreStocks catalogue could not be reached"
+      : detail;
+    return {
+      requested,
+      prestocks: null,
+      note: `PreStocks universe unavailable (${reason}). This run used the fixture universe instead; no PreStocks value was substituted.`,
+    };
+  }
+}
+
 async function runInMemory(
   bundle: AgentBundle,
   scenario: DecisionScenario,
   provider: DecisionProvider | undefined,
   context: DecisionContext | undefined,
+  resolved: ResolvedUniverse,
 ): Promise<DecisionRunResult> {
   const generatedAt = freshGeneratedAt();
   const decisionId = randomUUID();
-  const decisionContext = context ?? buildDecisionContext(bundle, generatedAt);
+  const runBundle = resolved.prestocks
+    ? withPreStocksUniverse(bundle, resolved.prestocks)
+    : bundle;
+  const decisionContext =
+    context ??
+    buildDecisionContext(
+      runBundle,
+      generatedAt,
+      undefined,
+      resolved.prestocks ?? undefined,
+    );
   const run = await evaluateRun(
-    bundle,
+    runBundle,
     decisionContext,
     scenario,
     provider,
     generatedAt,
+    resolved,
   );
-  const receipt = buildReceipt(bundle, run, decisionId);
+  const receipt = buildReceipt(runBundle, run, decisionId);
   const result = toResult(
-    bundle,
+    runBundle,
     run,
     { decisionId, proofId: null },
     receipt,
@@ -674,11 +1078,15 @@ async function runInMemory(
  * terminal execution attempt (simulated or rejected) and proof receipt are all
  * written in one transaction so a stored receipt always has stored inputs.
  */
+const PERSISTED_UNIVERSE_NOTE =
+  "Stored agents evaluate against their own immutable policy allowlist, so the PreStocks universe is not applied to this run. It is available on the Atlas demo run.";
+
 async function runPersisted(
   bundle: AgentBundle,
   scenario: DecisionScenario,
   provider: DecisionProvider | undefined,
   database: NavisDatabase,
+  requestedUniverse: DecisionUniverseSource,
 ): Promise<DecisionRunResult> {
   if (bundle.agent.mode !== "demo") throw new PersistentDecisionRunsNotEnabledError();
   if (!UUID_PATTERN.test(bundle.agent.id)) {
@@ -695,7 +1103,11 @@ async function runPersisted(
   });
   // The provider (live AI or deterministic demo) runs before any write so the
   // transaction never waits on a network call.
-  const run = await evaluateRun(bundle, context, scenario, provider, generatedAt);
+  const run = await evaluateRun(bundle, context, scenario, provider, generatedAt, {
+    requested: requestedUniverse,
+    prestocks: null,
+    note: requestedUniverse === "prestocks" ? PERSISTED_UNIVERSE_NOTE : null,
+  });
 
   return database.transaction(async (transaction) => {
     await persistPortfolioSnapshot(
@@ -789,17 +1201,28 @@ export async function runDecision({
   scenario,
   provider,
   database,
+  universe = "fixture",
+  loadCatalogue = getPreStocksCatalogue,
 }: {
   bundle: AgentBundle;
   context?: DecisionContext;
   scenario: DecisionScenario;
   provider?: DecisionProvider;
   database?: NavisDatabase;
+  /** Asset universe; callers default to "prestocks" when the catalogue may be reachable. */
+  universe?: DecisionUniverseSource;
+  /** Catalogue loader, injectable for tests; defaults to the live PreStocks client. */
+  loadCatalogue?: () => Promise<PreStocksCatalogueLike>;
 }): Promise<DecisionRunResult> {
-  if (database) return runPersisted(bundle, scenario, provider, database);
+  if (database) return runPersisted(bundle, scenario, provider, database, universe);
   if (bundle.agent.slug !== "atlas" || bundle.agent.mode !== "demo") {
     // Without a database only the public Atlas fixture may run in memory.
     throw new PersistentDecisionRunsNotEnabledError();
   }
-  return runInMemory(bundle, scenario, provider, context);
+  // A caller-supplied context already fixes the assets, so it always runs
+  // against the fixture universe.
+  const resolved = context
+    ? FIXTURE_RESOLVED
+    : await resolveUniverse(universe, loadCatalogue);
+  return runInMemory(bundle, scenario, provider, context, resolved);
 }

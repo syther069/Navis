@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Buildings, Coins, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 
@@ -10,6 +11,7 @@ import {
   PreStocksCatalogue,
   PreStocksUnavailable,
 } from "@/components/markets/prestocks/prestocks-catalogue";
+import { PreStocksResearchView } from "@/components/markets/prestocks/prestocks-research";
 import { SponsorPanelState } from "@/components/markets/sponsor-panel-state";
 import { RouteHeader } from "@/components/route-primitives";
 import { AddressValue } from "@/components/shared/address-value";
@@ -22,6 +24,10 @@ import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import { getNavisMeteoraCurvePreviews } from "@/lib/integrations/meteora/config";
 import { listMeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
 import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
+import {
+  orderByPremiumSignal,
+  researchRow,
+} from "@/lib/integrations/prestocks/research";
 
 export const metadata: Metadata = { title: "Market launch" };
 export const dynamic = "force-dynamic";
@@ -286,7 +292,25 @@ async function PreStocksSection({
       />
     );
   }
-  return <PreStocksCatalogue catalogue={prestocks.data} />;
+  return (
+    <>
+      <PreStocksCatalogue catalogue={prestocks.data} />
+      <section className="route-panel prestocks-panel" aria-label="PreStocks research">
+        <PreStocksResearchView
+          research={orderByPremiumSignal(prestocks.data.assets.map(researchRow))}
+          capturedAt={prestocks.data.capturedAt}
+          sourceUrl={prestocks.data.sourceUrl}
+        />
+        <p className="route-copy">
+          The Atlas demo run on <Link href="/agents/atlas">/agents/atlas</Link> can use
+          this catalogue as its asset universe: the allowlist becomes these contract
+          addresses, freshness is this read time, and the proposal rotates the richest
+          premium into the deepest discount. The run result shows the allocation impact
+          per asset. No PreStocks execution path exists.
+        </p>
+      </section>
+    </>
+  );
 }
 
 export default function MarketLaunchPage() {

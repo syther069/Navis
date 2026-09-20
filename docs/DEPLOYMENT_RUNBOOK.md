@@ -44,7 +44,7 @@ Provision these before a public deployment:
 | `ENABLE_MAINNET_EXECUTION`                        | Mainnet signing/submission                                         | Must stay false until final approval.                                                                                 |
 | `MAINNET_RELEASE_APPROVED`                        | Mainnet release gate                                               | Must stay false until an owner has completed all live checks.                                                         |
 | `SOLANA_RPC_URL`                                  | Treasury reads, transaction simulation/submission, Meteora monitor | Use a rate-limited production-grade endpoint for a public demo.                                                       |
-| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0005`; Replit production migrates through Publish.                                    |
+| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0005`; Replit production migrates through Publish; Vercel: section 6a.                |
 | `SESSION_SECRET`                                  | Wallet-auth sessions                                               | At least 32 characters; server-only.                                                                                  |
 | `CLAWPUMP_API_KEY`                                | ClawPump agent/pair/preflight/launch calls                         | Server-only; expected `cpk_` prefix.                                                                                  |
 | `PRESTOCKS_API_URL`                               | PreStocks read-only catalogue                                      | Defaults to `https://prestocks.com/api/prestocks`.                                                                    |
@@ -64,7 +64,7 @@ Do not deploy it as a static-only site unless the API routes, database-backed le
 
 ## 5. Database setup
 
-The development database has migrations `0000` through `0005` applied in order with journal SHA tracking. The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. For Replit production, provision and migrate managed PostgreSQL through the user Publish flow.
+The repository ships migrations `0000` through `0007`. The development database has `0000` through `0005` applied in order with journal SHA tracking; `0006` (execution intents) and `0007` (Meteora submitting status) are applied to no database yet. The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
 
 Do not add startup or deploy-time DDL. Do not prescribe manual SQL against Replit managed production.
 
@@ -78,7 +78,7 @@ Then open `/api/health` on the published origin and verify database readiness wi
 
 ## 6. Exact Replit Publish sequence
 
-The public demo is the Vercel deployment, READY at https://navis-gilt.vercel.app from GitHub `main` commit `a335681`. Navis is not published through Replit. Do not conflate these deployment targets.
+The public demo is the Vercel deployment at https://navis-gilt.vercel.app, built from GitHub `main` (the deployed commit is recorded in `docs/EVIDENCE.md`). Navis is not published through Replit. Do not conflate these deployment targets.
 
 1. Click **Publish** in Replit only if a Replit deployment is required; the current public demo is Vercel, not Replit.
 2. Keep the safe posture: `NAVIS_EXECUTION_MODE=demo`, `ENABLE_DEMO_MODE=true`, `ENABLE_DEVNET_EXECUTION=false`, `ENABLE_MAINNET_EXECUTION=false`, `MAINNET_RELEASE_APPROVED=false`, and `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`.
@@ -87,7 +87,33 @@ The public demo is the Vercel deployment, READY at https://navis-gilt.vercel.app
 5. Wait for Publish to finish and verify the actual HTTPS primary URL.
 6. Add that exact origin as production `NEXT_PUBLIC_APP_URL` through Replit Secrets.
 7. Click **Republish** so production wallet authentication uses the explicit origin.
-8. Verify public `/api/health`, the 11 judge routes, nonce/origin rejection and acceptance behavior, and the deployed smoke report.
+8. Verify public `/api/health`, the judge routes, nonce/origin rejection and acceptance behavior, and the deployed smoke report.
+
+## 6a. Vercel: enabling persistence and wallet sessions on the public site
+
+The public site currently runs with no usable database, session secret or explicit app origin: `GET /api/health` shows `database`, `authenticationOrigin` and `walletSessions` as `not_configured`, although the Vercel project has variables with those names defined. Fresh Atlas runs still work (in memory); created agents, persisted runs and wallet sign-in do not. To enable them the owner must:
+
+1. In the Vercel project settings (Production environment) set real values for:
+   - `DATABASE_URL`: a PostgreSQL connection string reachable from Vercel (for example Neon or Vercel Postgres).
+   - `SESSION_SECRET`: a random string of at least 32 characters.
+   - `NEXT_PUBLIC_APP_URL`: exactly `https://navis-gilt.vercel.app`.
+2. Trigger a new production deployment (Redeploy in the Vercel dashboard, or push to `main`). Environment changes do not apply to an existing deployment.
+3. Apply the migrations to that database from a machine that can reach it:
+
+   ```bash
+   DATABASE_URL='<the same connection string>' npx drizzle-kit migrate
+   DATABASE_URL='<the same connection string>' npm run db:check
+   ```
+
+   This applies `0000` through `0007`. Navis never runs DDL at startup.
+
+4. Confirm `GET https://navis-gilt.vercel.app/api/health` now reports `database`, `authenticationOrigin` and `walletSessions` as `configured`, then run the public smoke:
+
+   ```bash
+   NAVIS_SMOKE_BASE_URL=https://navis-gilt.vercel.app npm run smoke:judge
+   ```
+
+Keep the execution flags in the demo posture; persistence does not require devnet or mainnet execution.
 
 ## 7. Devnet rehearsal
 

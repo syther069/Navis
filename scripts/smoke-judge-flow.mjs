@@ -197,11 +197,20 @@ async function exerciseFreshDecision() {
   if (!run.decisionId || run.policyEvaluation?.approved !== false) {
     throw new Error("Fresh oversized decision did not produce a policy rejection");
   }
+  // The default universe is PreStocks; offline it must fall back visibly, and
+  // either way the receipt must name its data source.
+  if (
+    !["prestocks", "fixture"].includes(run.universe?.used) ||
+    (run.universe.used === "fixture" && typeof run.universe.note !== "string") ||
+    run.receipt?.dataSource?.universe !== run.universe.used
+  ) {
+    throw new Error("Fresh decision did not report an honest asset universe");
+  }
   const stored = await fetch(`${baseUrl}/api/decisions/${run.decisionId}`);
   if (!stored.ok) {
     throw new Error(`Fresh decision GET returned HTTP ${stored.status}`);
   }
-  return run.decisionId;
+  return { decisionId: run.decisionId, universe: run.universe.used };
 }
 
 async function run() {
@@ -305,12 +314,13 @@ async function run() {
     results.push({ path: "/proofs/unknown-proof-id", status: 404 });
 
     if (health.services?.database?.status === "not_configured") {
-      const freshDecisionId = await exerciseFreshDecision();
-      console.log(`✓ fresh decision ${freshDecisionId}`);
+      const fresh = await exerciseFreshDecision();
+      console.log(`✓ fresh decision ${fresh.decisionId} (${fresh.universe} universe)`);
       results.push({
         path: "/api/decisions/run",
-        followUp: `/api/decisions/${freshDecisionId}`,
+        followUp: `/api/decisions/${fresh.decisionId}`,
         scenario: "oversized",
+        universe: fresh.universe,
       });
     } else {
       console.log("○ fresh decision skipped because persistent runs require a session");

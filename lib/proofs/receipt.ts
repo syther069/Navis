@@ -62,6 +62,20 @@ export const proofReceiptDocumentSchema = z
       memo: z.string().nullable(),
       explanation: z.string().min(1),
     }),
+    /**
+     * Where the asset universe and research facts came from and when they were
+     * read. Optional so receipts issued before this field verify unchanged.
+     */
+    dataSource: z
+      .object({
+        universe: z.enum(["prestocks", "fixture"]),
+        source: z.string().min(1),
+        sourceUrl: z.url().nullable(),
+        capturedAt: z.string().datetime({ offset: true }),
+        assetCount: z.number().int().nonnegative(),
+        note: z.string().nullable(),
+      })
+      .optional(),
   })
   .superRefine((receipt, context) => {
     if (receipt.mode === "demo") {

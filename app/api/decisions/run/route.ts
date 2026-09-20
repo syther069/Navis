@@ -16,6 +16,9 @@ import { demoAgentBundle } from "@/fixtures/demo-agent";
 const requestSchema = z.object({
   agentSlug: z.string().min(2).max(48),
   scenario: z.enum(["balanced", "oversized"]),
+  // PreStocks is the default universe; the service falls back to the fixture
+  // with a visible note when the catalogue is unreachable or fails validation.
+  universe: z.enum(["prestocks", "fixture"]).default("prestocks"),
 });
 
 export async function POST(request: Request) {
@@ -45,6 +48,7 @@ export async function POST(request: Request) {
       const result = await runDecision({
         bundle: demoAgentBundle,
         scenario: parsed.data.scenario,
+        universe: parsed.data.universe,
       });
       return NextResponse.json(result, {
         headers: { "Cache-Control": "no-store" },
@@ -78,6 +82,7 @@ export async function POST(request: Request) {
     const result = await runDecision({
       bundle,
       scenario: parsed.data.scenario,
+      universe: parsed.data.universe,
       database,
     });
     return NextResponse.json(result, {
