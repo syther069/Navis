@@ -188,12 +188,14 @@ Dependency findings remain unresolved; no forced upgrade or dependency version c
 
 The public app is demo/devnet, with PreStocks and demo AI configured. Production database, wallet sessions, authentication origin, Solana RPC, ClawPump and Meteora are not configured. A 200 health response means the demo can render, not that every capability is ready.
 
-Replit itself is not published. Local remediation is **not pushed or deployed**. The existing artifact remains a server-backed Next.js app; no static-export conversion, duplicate application or database migration was introduced.
+**Update, 20 September 2026:** the remediation commit `8a34d9a62745437efe4b2df604efa33e2a90b372` was pushed to GitHub `main` (author and committer: the repository owner) and Vercel production rebuilt to `READY` on that commit. Post-deploy checks on https://navis-gilt.vercel.app: `/` 200, `/api/health` 200 (`mode: demo`, `cluster: devnet`, same service configuration as before). The production configuration itself was not changed.
+
+Replit itself is not published. The existing artifact remains a server-backed Next.js app; no static-export conversion, duplicate application or database migration was introduced.
 
 ## 10. Exact user actions still required
 
 1. Revoke the token that was exposed in chat; never paste another token here.
-2. Review the audit and local fixes. Authorize any later push/deployment separately.
+2. Review the audit and fixes now live at commit `8a34d9a`. Authorize any further push/deployment separately.
 3. Decide whether the submission will advertise only the working read-only demo or also wallet-backed persistent features; approve the necessary production configuration before claiming the latter.
 4. Choose the project's license and verify original-work/team declarations.
 5. Register for Stocklana and choose only evidence-appropriate sponsor tracks. Do not claim the ClawPump launch requirement is satisfied.
