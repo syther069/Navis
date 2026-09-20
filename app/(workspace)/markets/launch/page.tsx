@@ -37,10 +37,11 @@ async function loadPairs(): Promise<PairState> {
   if (!env.clawpumpApiKey) return { status: "not_configured" };
   try {
     return { status: "available", data: await createClawPumpClient().getPumpPairs() };
-  } catch (error) {
+  } catch {
     return {
       status: "unavailable",
-      message: error instanceof Error ? error.message : "Pair discovery failed.",
+      message:
+        "ClawPump pair discovery failed. No provider response details or credentials are exposed.",
     };
   }
 }

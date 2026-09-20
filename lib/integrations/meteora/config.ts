@@ -17,7 +17,7 @@ import { PublicKey } from "@solana/web3.js";
 
 import type { SolanaCluster } from "@/lib/env-core";
 
-export const METEORA_DBC_SDK_VERSION = "1.5.11";
+export const METEORA_DBC_SDK_VERSION = "1.5.12";
 export const METEORA_DBC_PROGRAM_ID = DYNAMIC_BONDING_CURVE_PROGRAM_ID.toBase58();
 export const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -99,11 +99,27 @@ export type MeteoraCurvePreview = Readonly<{
   };
   fees: {
     baseTradingFeeBps: number;
+    baseFeeMode: "linear scheduler";
+    endingTradingFeeBps: number;
+    feePeriods: number;
+    feeDurationSeconds: number;
     dynamicFeeEnabled: boolean;
     collectedIn: "quote token";
     creatorTradingFeeSharePercent: number;
+    poolCreationFeeLamports: string;
+    firstSwapMinimumFeeEnabled: boolean;
     migrationFeePercent: number;
     creatorMigrationFeeSharePercent: number;
+  };
+  activation: {
+    type: "timestamp";
+  };
+  vesting: {
+    totalLockedAmount: string;
+    cliffUnlockAmount: string;
+    periods: number;
+    totalDurationSeconds: number;
+    cliffDurationSeconds: number;
   };
   migration: {
     destination: "Meteora DAMM v2";
@@ -157,13 +173,29 @@ export function getNavisMeteoraCurvePreview(
     },
     fees: {
       baseTradingFeeBps: input.fee.baseFeeParams.feeSchedulerParam.startingFeeBps,
+      baseFeeMode: "linear scheduler",
+      endingTradingFeeBps: input.fee.baseFeeParams.feeSchedulerParam.endingFeeBps,
+      feePeriods: input.fee.baseFeeParams.feeSchedulerParam.numberOfPeriod,
+      feeDurationSeconds: input.fee.baseFeeParams.feeSchedulerParam.totalDuration,
       dynamicFeeEnabled: input.fee.dynamicFeeEnabled,
       collectedIn: "quote token",
       creatorTradingFeeSharePercent: input.fee.creatorTradingFeePercentage,
+      poolCreationFeeLamports: String(input.fee.poolCreationFee),
+      firstSwapMinimumFeeEnabled: input.fee.enableFirstSwapWithMinFee,
       migrationFeePercent: input.migration.migrationFee.feePercentage,
       creatorMigrationFeeSharePercent:
         input.migration.migrationFee.creatorFeePercentage,
     } as const,
+    activation: {
+      type: "timestamp",
+    } as const,
+    vesting: {
+      totalLockedAmount: String(input.lockedVesting.totalLockedVestingAmount),
+      cliffUnlockAmount: String(input.lockedVesting.cliffUnlockAmount),
+      periods: input.lockedVesting.numberOfVestingPeriod,
+      totalDurationSeconds: input.lockedVesting.totalVestingDuration,
+      cliffDurationSeconds: input.lockedVesting.cliffDurationFromMigrationTime,
+    },
     migration: {
       destination: "Meteora DAMM v2",
       partnerClaimablePercent: input.liquidityDistribution.partnerLiquidityPercentage,

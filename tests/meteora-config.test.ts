@@ -32,7 +32,25 @@ describe("Navis Meteora DBC configuration", () => {
     expect(preview.programId).toBe(METEORA_DBC_PROGRAM_ID);
     expect(preview.quoteMint).toBe(WRAPPED_SOL_MINT);
     expect(preview.pricing.migrationQuoteThresholdSol).toBe("4.82826156");
+    expect(preview.sdkVersion).toBe("1.5.12");
     expect(preview.fees.baseTradingFeeBps).toBe(100);
+    expect(preview.fees).toMatchObject({
+      baseFeeMode: "linear scheduler",
+      endingTradingFeeBps: 100,
+      feePeriods: 0,
+      feeDurationSeconds: 0,
+      collectedIn: "quote token",
+      poolCreationFeeLamports: "0",
+      firstSwapMinimumFeeEnabled: false,
+    });
+    expect(preview.activation.type).toBe("timestamp");
+    expect(preview.vesting).toEqual({
+      totalLockedAmount: "0",
+      cliffUnlockAmount: "0",
+      periods: 0,
+      totalDurationSeconds: 0,
+      cliffDurationSeconds: 0,
+    });
     expect(preview.migration.totalPermanentlyLockedPercent).toBe(10);
     expect(preview.cluster).toBe("devnet");
   });

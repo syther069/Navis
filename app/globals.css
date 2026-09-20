@@ -1388,6 +1388,36 @@ button:active:not(:disabled) {
   line-height: 1.65;
 }
 
+.owned-agent-links {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+
+.owned-agent-links a {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font-size: var(--text-label);
+  text-decoration: none;
+}
+
+.owned-agent-links a:hover {
+  color: var(--brand);
+}
+
+.owned-agent-links small {
+  color: var(--text-muted);
+  font-family: var(--font-data);
+}
+
+.agent-profile-grid > .route-panel {
+  min-width: 0;
+}
+
 .pair-catalogue {
   margin-top: var(--space-5);
 }

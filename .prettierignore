@@ -5,3 +5,10 @@ build
 dist
 drizzle/meta
 package-lock.json
+.migration-backup
+.restoration
+.local
+.agents
+attached_assets
+.config
+.cache

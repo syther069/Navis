@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { ClawPumpClient, ClawPumpError } from "../lib/integrations/clawpump/client";
+import {
+  ClawPumpClient,
+  ClawPumpError,
+  getClawPumpPublicError,
+} from "../lib/integrations/clawpump/client";
+import { buildLaunchPreflightEvidence } from "../lib/services/launch-preflight";
 
 const meta = {
   timestamp: "2026-09-17T00:00:00.000Z",
@@ -9,6 +14,73 @@ const meta = {
 };
 
 describe("ClawPump client", () => {
+  it("maps upstream errors without exposing arbitrary provider details", () => {
+    const upstream = new ClawPumpError(
+      "provider diagnostic included cpk_secret and internal host",
+      "upstream",
+      503,
+      "request-123",
+      true,
+    );
+
+    const result = getClawPumpPublicError(upstream);
+
+    expect(result).toEqual({
+      status: 502,
+      message: "ClawPump preflight is unavailable (upstream).",
+    });
+    expect(JSON.stringify(result)).not.toContain("cpk_secret");
+    expect(JSON.stringify(result)).not.toContain("internal host");
+  });
+
+  it("persists exact quote evidence with only a hash of the preflight token", () => {
+    const evidence = buildLaunchPreflightEvidence({
+      localAgentId: "11111111-1111-4111-8111-111111111111",
+      externalAgentId: "agent-123",
+      agentName: "Atlas",
+      walletAddress: "11111111111111111111111111111111",
+      name: "Navis Equity",
+      symbol: "nveq",
+      description: "A bounded test launch for exact evidence persistence.",
+      imageUrl: "https://example.com/navis.png",
+      pair: {
+        mint: "So11111111111111111111111111111111111111112",
+        symbol: "SOL",
+        name: "Wrapped SOL",
+        decimals: 9,
+        imageUrl: null,
+      },
+      creatorFeeBps: 250,
+      devBuySol: 0,
+      payment: {
+        method: "sol",
+        amountLamports: 7_510_000,
+        amountSol: 0.00751,
+        payTo: "49CfXAr58cCTGJnYsbm16fEsE5JRpdR8QQP8E1ZinGCq",
+        payFrom: "11111111111111111111111111111111",
+        validForSeconds: 900,
+        breakdown: { creationFeeSol: 0.00751, devBuySol: 0 },
+      },
+      preflightToken: "signed-preflight-token",
+      providerTimestamp: meta.timestamp,
+    });
+
+    expect(evidence).toMatchObject({
+      launchTerms: {
+        symbol: "NVEQ",
+        pumpCreatorFeeBps: 250,
+        pumpQuoteMint: "So11111111111111111111111111111111111111112",
+      },
+      payment: {
+        amountLamports: 7_510_000,
+        validForSeconds: 900,
+      },
+      providerTimestamp: meta.timestamp,
+    });
+    expect(evidence.preflightTokenSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(evidence)).not.toContain("signed-preflight-token");
+  });
+
   it("validates live pair mints, decimals, fee bounds, and refresh metadata", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

@@ -1,10 +1,10 @@
 # Navis Product Requirements Document
 
-**Status:** Planning draft for approval  
+**Status:** Restored implementation baseline under final audit  
 **Product:** Navis  
 **Event:** Stocklana Solana Hackathon  
 **Planning date:** 2026-09-16  
-**Implementation status:** Project foundation initialized; product features not started
+**Implementation status:** The canonical Next.js application is restored at the repository root. Its recorded deterministic demo is freshly verified; focused bug fixes, sponsor safety review, and final QA remain.
 
 ## 1. Product overview
 
@@ -26,7 +26,7 @@ Navis's wedge is **governed autonomous treasury management for tokenized equitie
 
 ### Deadline warning
 
-The official page is internally inconsistent as of 2026-09-16: its header shows **September 25, 2026**, while its Timeline section says submissions close **Friday, September 18 at 4:00 p.m. ET**. Treat September 18 as the operating deadline until the organizer confirms otherwise.
+Verified from the official Stocklana page on 2026-09-20: submissions close **Friday, September 25, 2026 at 4:00 p.m. ET**. The former September 18 language is obsolete.
 
 ### Official references
 
@@ -311,10 +311,10 @@ A simulation receipt uses `simulationId`, simulated logs, and `SIMULATED` status
 
 ## 23. Submission checklist
 
-- Register and submit before the earlier published deadline unless organizers clarify.
+- Register and submit before September 25, 2026 at 4:00 p.m. ET.
 - Public GitHub repository with license and attribution for open-source components.
 - Deployed demo URL.
-- Three-to-five-minute video following the judge flow.
+- Pitch video no longer than three minutes and technical walkthrough no longer than five minutes.
 - README with setup, architecture, modes, sponsor integration, and known limitations.
 - At least one of GitHub, live demo, or video is required; include all three if possible.
 - Real transaction signatures and account links verified from a clean browser.
@@ -336,7 +336,7 @@ A simulation receipt uses `simulationId`, simulated logs, and `SIMULATED` status
 - [ ] Tokenized products are described as exposure, not legal shares or guaranteed claims.
 - [ ] No investment advice, profit guarantee, fabricated performance, or false liquidity claim.
 - [ ] Privacy policy and risk disclosure are visible if collecting user data.
-- [ ] Team verifies the official deadline discrepancy with organizers.
+- [x] Official Stocklana page verified on 2026-09-20 with the September 25, 2026 at 4:00 p.m. ET deadline.
 
 ## Assumptions and decisions requiring approval
 

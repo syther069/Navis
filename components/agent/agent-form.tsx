@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
@@ -49,16 +50,18 @@ const initialValues: FormValues = {
 export function AgentForm({
   persistenceAvailable,
   clawPumpAvailable,
+  authenticated,
 }: {
   persistenceAvailable: boolean;
   clawPumpAvailable: boolean;
+  authenticated: boolean;
 }) {
+  const router = useRouter();
   const [values, setValues] = useState(initialValues);
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkClawPump, setLinkClawPump] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<CreationResult | null>(null);
 
   async function createAgent() {
     setCreating(true);
@@ -75,37 +78,13 @@ export function AgentForm({
           typeof body.error === "string" ? body.error : "Agent creation failed.",
         );
       }
-      setResult(body as unknown as CreationResult);
+      const result = body as unknown as CreationResult;
+      router.push(`/agents/${encodeURIComponent(result.agent.slug)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Agent creation failed.");
     } finally {
       setCreating(false);
     }
-  }
-
-  if (result) {
-    return (
-      <section className="agent-form route-panel" aria-labelledby="agent-created-title">
-        <span className="route-eyebrow">Local record committed</span>
-        <h2 id="agent-created-title">{result.agent.name} is a persistent draft</h2>
-        <dl className="review-list">
-          <ReviewRow label="Agent ID" value={result.agent.id} />
-          <ReviewRow label="Strategy hash" value={result.agent.strategyHash} />
-          <ReviewRow label="Policy hash" value={result.agent.riskPolicyHash} />
-          <ReviewRow label="ClawPump link" value={result.link.status} />
-          {result.link.status === "linked" ? (
-            <ReviewRow label="External wallet" value={result.link.wallet} />
-          ) : null}
-          {result.link.status === "failed" ? (
-            <ReviewRow label="Link result" value={result.link.error} />
-          ) : null}
-        </dl>
-        <p className="form-note">
-          No funding or onchain transaction was performed. External wallet evidence is
-          shown only when returned by ClawPump.
-        </p>
-      </section>
-    );
   }
 
   function update(name: keyof FormValues, value: string) {
@@ -203,7 +182,7 @@ export function AgentForm({
             <small>
               {clawPumpAvailable
                 ? "Provider failure will preserve the local draft."
-                : "ClawPump is not configured on this instance."}
+                : "External agent creation is unavailable for this safe demo draft."}
             </small>
           </span>
         </label>
@@ -214,8 +193,10 @@ export function AgentForm({
         ) : null}
         <p className="form-note">
           {persistenceAvailable
-            ? "Authenticate the connected wallet before committing this reviewed bundle."
-            : "Creation is unavailable until DATABASE_URL and SESSION_SECRET are configured."}
+            ? "The authenticated wallet will own this persistent draft."
+            : authenticated
+              ? "Creation is unavailable until persistent storage and wallet sessions are configured."
+              : "Connect and authenticate a wallet before saving. You can still review the mandate without signing in."}
         </p>
       </section>
     );

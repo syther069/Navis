@@ -1,6 +1,6 @@
 # Navis attributions
 
-Updated: 2026-09-19.
+Updated: 2026-09-20.
 
 Navis is original application work built for the Stocklana hackathon. It uses the open-source libraries and sponsor resources below; final submission materials should link this file rather than implying that framework, wallet, chain, or sponsor SDK code was authored by the Navis team.
 
@@ -13,6 +13,15 @@ Navis is original application work built for the Stocklana hackathon. It uses th
 | Meteora Dynamic Bonding Curve documentation and SDK | DBC config preview, transaction preparation/simulation/submission surfaces, and pool monitoring.                                                                                        |
 | PreStocks public API                                | Read-only catalogue discovery and economic-exposure/eligibility disclosure.                                                                                                             |
 | Stocklana hackathon brief                           | Product framing, judging constraints, and sponsor-claim evidence requirements.                                                                                                          |
+
+Official references were rechecked on 2026-09-20:
+
+- Stocklana: https://hackathons.solana.com/hackathons/stocklana
+- Stocklana submission route: https://hackathons.solana.com/hackathons/stocklana/submit
+- Hackathon submission guidance: https://hackathons.solana.com/how-it-works
+- ClawPump Partner API and docs: https://clawpump.tech/developers and https://clawpump.tech/docs
+- Meteora DBC guide and SDK: https://docs.meteora.ag/developer-guides/dbc and https://github.com/MeteoraAg/dynamic-bonding-curve-sdk
+- PreStocks products and API: https://prestocks.com/products and https://prestocks.com/api/prestocks
 
 ## Direct runtime dependencies
 

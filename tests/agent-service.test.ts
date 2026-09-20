@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { demoAgentBundle } from "../fixtures/demo-agent";
 import {
   prepareAgentCreation,
+  listPersistentAgentsForOwner,
   type CreatePersistentAgentInput,
 } from "../lib/services/agents";
 
@@ -62,5 +63,51 @@ describe("agent creation service", () => {
     expect(() => prepareAgentCreation(input)).toThrow(
       "Onchain agents cannot use demo asset identifiers",
     );
+  });
+});
+
+describe("agent read service", () => {
+  it("maps only the rows returned by the ownership-scoped query", async () => {
+    const rows = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        ownerId: "22222222-2222-4222-8222-222222222222",
+        ownerWallet: "11111111111111111111111111111111",
+        slug: "income-sentinel",
+        name: "Income Sentinel",
+        status: "draft" as const,
+        mode: "demo" as const,
+        cluster: "devnet" as const,
+        activeStrategyVersion: 1,
+        activeRiskPolicyVersion: 1,
+        integrationStatus: "not_configured" as const,
+        externalAgentId: null,
+        externalWallet: null,
+        externalRequestId: null,
+        createdAt: new Date("2026-09-20T00:00:00.000Z"),
+        updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+      },
+    ];
+    const query = {
+      from: vi.fn(),
+      where: vi.fn(),
+      orderBy: vi.fn(),
+    };
+    query.from.mockReturnValue(query);
+    query.where.mockReturnValue(query);
+    query.orderBy.mockResolvedValue(rows);
+    const database = { select: vi.fn(() => query) };
+
+    const agents = await listPersistentAgentsForOwner(
+      "11111111111111111111111111111111",
+      database as never,
+    );
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      slug: "income-sentinel",
+      ownerWallet: "11111111111111111111111111111111",
+    });
+    expect(query.where).toHaveBeenCalledOnce();
   });
 });

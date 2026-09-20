@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { z } from "zod";
 
@@ -8,9 +8,12 @@ import {
   assetSchema,
   executionModeSchema,
   riskPolicyDocumentSchema,
+  riskPolicyVersionSchema,
   solanaClusterSchema,
   solanaPublicKeySchema,
   strategyDocumentSchema,
+  strategyVersionSchema,
+  type Agent,
   type Asset,
 } from "../domain";
 import type { AgentBundle } from "../db/repositories/types";
@@ -33,6 +36,114 @@ const createAgentInputSchema = z.object({
 
 export type CreatePersistentAgentInput = z.input<typeof createAgentInputSchema>;
 type NavisDatabase = NodePgDatabase<typeof schema>;
+
+function parseAgentRow(row: typeof schema.agents.$inferSelect): Agent {
+  return agentSchema.parse({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    status: row.status,
+    mode: row.mode,
+    cluster: row.cluster,
+    ownerWallet: row.ownerWallet ?? undefined,
+    activeStrategyVersion: row.activeStrategyVersion ?? undefined,
+    activeRiskPolicyVersion: row.activeRiskPolicyVersion ?? undefined,
+    integrationStatus: row.integrationStatus,
+    externalAgentId: row.externalAgentId ?? undefined,
+    externalWallet: row.externalWallet ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+}
+
+export async function listPersistentAgentsForOwner(
+  ownerWallet: string,
+  database?: NavisDatabase,
+): Promise<readonly Agent[]> {
+  const wallet = solanaPublicKeySchema.parse(ownerWallet);
+  const db = database ?? (await import("../db/client")).getDatabase();
+  const rows = await db
+    .select()
+    .from(schema.agents)
+    .where(eq(schema.agents.ownerWallet, wallet))
+    .orderBy(desc(schema.agents.createdAt));
+
+  return rows.map(parseAgentRow);
+}
+
+export async function getPersistentAgentForOwner(
+  slug: string,
+  ownerWallet: string,
+  database?: NavisDatabase,
+): Promise<AgentBundle | null> {
+  const parsedSlug = createAgentInputSchema.shape.slug.parse(slug);
+  const wallet = solanaPublicKeySchema.parse(ownerWallet);
+  const db = database ?? (await import("../db/client")).getDatabase();
+  const [agentRow] = await db
+    .select()
+    .from(schema.agents)
+    .where(
+      and(eq(schema.agents.slug, parsedSlug), eq(schema.agents.ownerWallet, wallet)),
+    )
+    .limit(1);
+  if (!agentRow) return null;
+
+  const strategyVersion = agentRow.activeStrategyVersion ?? 1;
+  const riskPolicyVersion = agentRow.activeRiskPolicyVersion ?? 1;
+  const [strategyRows, riskPolicyRows, assetRows] = await Promise.all([
+    db
+      .select()
+      .from(schema.strategyVersions)
+      .where(
+        and(
+          eq(schema.strategyVersions.agentId, agentRow.id),
+          eq(schema.strategyVersions.version, strategyVersion),
+        ),
+      )
+      .limit(1),
+    db
+      .select()
+      .from(schema.riskPolicyVersions)
+      .where(
+        and(
+          eq(schema.riskPolicyVersions.agentId, agentRow.id),
+          eq(schema.riskPolicyVersions.version, riskPolicyVersion),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ asset: schema.assets })
+      .from(schema.agentAssetPermissions)
+      .innerJoin(
+        schema.assets,
+        eq(schema.assets.id, schema.agentAssetPermissions.assetId),
+      )
+      .where(eq(schema.agentAssetPermissions.agentId, agentRow.id)),
+  ]);
+  const strategyRow = strategyRows[0];
+  const riskPolicyRow = riskPolicyRows[0];
+  if (!strategyRow || !riskPolicyRow) {
+    throw new Error("Persistent agent has incomplete mandate versions");
+  }
+
+  return {
+    agent: parseAgentRow(agentRow),
+    strategy: strategyVersionSchema.parse({
+      ...strategyRow,
+      createdAt: strategyRow.createdAt.toISOString(),
+    }),
+    riskPolicy: riskPolicyVersionSchema.parse({
+      ...riskPolicyRow,
+      createdAt: riskPolicyRow.createdAt.toISOString(),
+    }),
+    assets: assetRows.map(({ asset }) =>
+      assetSchema.parse({
+        ...asset,
+        sourceTimestamp: asset.sourceTimestamp?.toISOString(),
+      }),
+    ),
+  };
+}
 
 export type PreparedAgentCreation = Readonly<{
   input: z.output<typeof createAgentInputSchema>;
@@ -198,20 +309,7 @@ export async function createPersistentAgent(
     }
 
     return {
-      agent: agentSchema.parse({
-        id: agentRow.id,
-        slug: agentRow.slug,
-        name: agentRow.name,
-        status: agentRow.status,
-        mode: agentRow.mode,
-        cluster: agentRow.cluster,
-        ownerWallet: agentRow.ownerWallet ?? undefined,
-        activeStrategyVersion: agentRow.activeStrategyVersion ?? undefined,
-        activeRiskPolicyVersion: agentRow.activeRiskPolicyVersion ?? undefined,
-        integrationStatus: agentRow.integrationStatus,
-        createdAt: agentRow.createdAt.toISOString(),
-        updatedAt: agentRow.updatedAt.toISOString(),
-      }),
+      agent: parseAgentRow(agentRow),
       strategy: {
         id: strategyRow.id,
         agentId: strategyRow.agentId,

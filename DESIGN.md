@@ -646,7 +646,7 @@ No hover-only action is permitted. Desktop tables must preserve keyboard row act
 
 ## 33. Visual QA plan
 
-No browser QA has been performed because the application does not exist yet. After implementation:
+The restored application exists and its automated baseline passes. The checklist below remains open because final manual visual, responsive, and accessibility QA has not yet been supplied.
 
 ### Required viewports
 

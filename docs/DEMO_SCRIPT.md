@@ -1,6 +1,8 @@
 # Navis Demo Script
 
-Target length: 3–5 minutes.
+This walkthrough is the technical-video source and must remain within five minutes. Prepare a separate pitch edit no longer than three minutes.
+
+The verified baseline is the recorded deterministic Atlas walkthrough. Fresh proposal generation is deferred and must not be narrated as implemented.
 
 ## 0:00–0:30 — Problem and wedge
 
@@ -73,3 +75,6 @@ Say: The app is deliberately conservative: external credentials, funding, RPC, d
 - Do not say a Meteora config or pool is deployed unless `docs/EVIDENCE.md` contains the real address and signature.
 - Do not call PreStocks tokens shares.
 - Do not imply mainnet execution unless mainnet evidence exists.
+- Do not imply that ClawPump funded launch is available in demo or devnet; the current product supports preflight only.
+- Do not present Meteora submission as live-ready while prepared-proposal binding remains unresolved.
+- The focused agent create/read and sponsor safety tests pass, but do not claim browser-based real-wallet authentication was verified.

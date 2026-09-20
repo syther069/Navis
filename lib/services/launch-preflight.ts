@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { z } from "zod";
 
 import * as schema from "../db/schema";
-import type { ClawPumpClient } from "../integrations/clawpump/client";
+import { ClawPumpError, type ClawPumpClient } from "../integrations/clawpump/client";
 import { solanaPublicKeySchema } from "../domain";
 
 const launchPreflightRequestSchema = z
@@ -26,6 +28,59 @@ const launchPreflightRequestSchema = z
 
 export type LaunchPreflightRequest = z.input<typeof launchPreflightRequestSchema>;
 type NavisDatabase = NodePgDatabase<typeof schema>;
+
+export function buildLaunchPreflightEvidence(input: {
+  localAgentId: string;
+  externalAgentId: string;
+  agentName: string;
+  walletAddress: string;
+  name: string;
+  symbol: string;
+  description: string;
+  imageUrl: string;
+  pair: {
+    mint: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    imageUrl: string | null;
+  };
+  creatorFeeBps: number;
+  devBuySol: number;
+  payment: {
+    method: "sol";
+    amountLamports: number;
+    amountSol: number;
+    payTo: string;
+    payFrom: string;
+    validForSeconds: number;
+    breakdown: Record<string, unknown>;
+  };
+  preflightToken: string;
+  providerTimestamp: string;
+}) {
+  return {
+    localAgentId: input.localAgentId,
+    launchTerms: {
+      name: input.name,
+      symbol: input.symbol.toUpperCase(),
+      description: input.description,
+      imageUrl: input.imageUrl,
+      externalAgentId: input.externalAgentId,
+      agentName: input.agentName,
+      walletAddress: input.walletAddress,
+      pumpQuoteMint: input.pair.mint,
+      pumpCreatorFeeBps: input.creatorFeeBps,
+      devBuySol: input.devBuySol,
+    },
+    pair: input.pair,
+    payment: input.payment,
+    preflightTokenSha256: createHash("sha256")
+      .update(input.preflightToken)
+      .digest("hex"),
+    providerTimestamp: input.providerTimestamp,
+  };
+}
 
 export async function createLaunchPreflight(
   candidate: unknown,
@@ -97,14 +152,22 @@ export async function createLaunchPreflight(
       operation: "launch_preflight",
       status: "quoted",
       latencyMs: Math.round(performance.now() - startedAt),
-      metadata: {
+      metadata: buildLaunchPreflightEvidence({
         localAgentId: agent.id,
-        quoteMint: pair.mint,
+        externalAgentId: agent.externalAgentId,
+        agentName: agent.name,
+        walletAddress: context.wallet,
+        name: input.name,
+        symbol: input.symbol,
+        description: input.description,
+        imageUrl: input.imageUrl,
+        pair,
         creatorFeeBps: input.creatorFeeBps,
         devBuySol: input.devBuySol,
-        amountLamports: quote.payment.amountLamports,
-        payTo: quote.payment.payTo,
-      },
+        payment: quote.payment,
+        preflightToken: quote.retryWith.preflightToken,
+        providerTimestamp: quote.meta.timestamp,
+      }),
     });
 
     return {
@@ -113,7 +176,6 @@ export async function createLaunchPreflight(
       creatorFeeBps: input.creatorFeeBps,
       payoutWallet: context.wallet,
       payment: quote.payment,
-      preflightToken: quote.retryWith.preflightToken,
       meta: quote.meta,
     };
   } catch (error) {
@@ -122,11 +184,15 @@ export async function createLaunchPreflight(
       operation: "launch_preflight",
       status: "failed",
       latencyMs: Math.round(performance.now() - startedAt),
-      safeError: error instanceof Error ? error.message : "Launch preflight failed",
+      safeError:
+        error instanceof ClawPumpError
+          ? `ClawPump ${error.kind}`
+          : "Launch preflight failed",
       metadata: {
         localAgentId: agent.id,
         quoteMint: pair.mint,
         creatorFeeBps: input.creatorFeeBps,
+        requestId: error instanceof ClawPumpError ? error.requestId : undefined,
       },
     });
     throw error;

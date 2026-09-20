@@ -12,8 +12,43 @@ async function checkDatabase() {
   }
 
   try {
-    await getDatabase().execute(sql`select 1`);
-    return { status: "ok" as const };
+    const result = await getDatabase().execute<{
+      schema_ready: boolean;
+      guards_ready: boolean;
+    }>(sql`
+      select
+        (select count(*) = 16 from information_schema.tables
+          where table_schema = 'public' and table_name in (
+            'users', 'agents', 'assets', 'agent_asset_permissions',
+            'strategy_versions', 'risk_policy_versions', 'treasury_accounts',
+            'portfolio_snapshots', 'decisions', 'policy_evaluations',
+            'execution_attempts', 'proof_receipts', 'market_launches',
+            'external_calls', 'auth_challenges', 'execution_events'
+          )) as schema_ready,
+        (select count(*) = 7 from pg_trigger t
+          join pg_class c on c.oid = t.tgrelid
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and not t.tgisinternal
+            and t.tgenabled in ('O', 'A') and t.tgname in (
+              'strategy_versions_immutable', 'risk_policy_versions_immutable',
+              'proof_receipts_append_only', 'portfolio_snapshots_immutable',
+              'decisions_evidence_immutable', 'execution_events_immutable',
+              'policy_evaluations_immutable'
+            )) as guards_ready
+    `);
+    const readiness = result.rows[0];
+    if (!readiness?.schema_ready || !readiness.guards_ready) {
+      return {
+        status: "schema_incomplete" as const,
+        tablesReady: Boolean(readiness?.schema_ready),
+        immutabilityGuardsReady: Boolean(readiness?.guards_ready),
+      };
+    }
+    return {
+      status: "ok" as const,
+      tablesReady: true,
+      immutabilityGuardsReady: true,
+    };
   } catch {
     return { status: "unreachable" as const };
   }
@@ -24,6 +59,7 @@ export async function GET() {
   const capabilities = getPublicCapabilities();
   const healthy =
     database.status !== "unreachable" &&
+    database.status !== "schema_incomplete" &&
     (env.executionMode === "demo" || Boolean(env.solanaRpcUrl));
 
   return NextResponse.json(
@@ -34,13 +70,15 @@ export async function GET() {
       cluster: capabilities.cluster,
       services: {
         database,
+        authenticationOrigin: {
+          status: capabilities.appOriginConfigured ? "configured" : "not_configured",
+        },
         solanaRpc: {
           status: env.solanaRpcUrl ? "configured" : "not_configured",
         },
         walletSessions: {
           status:
-            capabilities.walletAuthenticationConfigured &&
-            capabilities.persistenceConfigured
+            capabilities.walletAuthenticationConfigured && database.status === "ok"
               ? "configured"
               : "not_configured",
         },
@@ -58,6 +96,6 @@ export async function GET() {
         },
       },
     },
-    { status: healthy ? 200 : 503 },
+    { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }

@@ -85,6 +85,10 @@ export function MeteoraCurvePanel({
             <dd>{preview.token.totalSupply}</dd>
           </div>
           <div>
+            <dt>Leftover supply</dt>
+            <dd>{preview.token.leftover}</dd>
+          </div>
+          <div>
             <dt>Decimals</dt>
             <dd>
               {preview.token.baseDecimals} base / {preview.token.quoteDecimals} quote
@@ -97,6 +101,22 @@ export function MeteoraCurvePanel({
           <div>
             <dt>Creator trading share</dt>
             <dd>{preview.fees.creatorTradingFeeSharePercent}%</dd>
+          </div>
+          <div>
+            <dt>Base fee schedule</dt>
+            <dd>
+              {preview.fees.baseFeeMode}: {preview.fees.baseTradingFeeBps} to{" "}
+              {preview.fees.endingTradingFeeBps} bps over {preview.fees.feePeriods}{" "}
+              periods / {preview.fees.feeDurationSeconds} seconds
+            </dd>
+          </div>
+          <div>
+            <dt>Fee collection</dt>
+            <dd>
+              {preview.fees.collectedIn}; pool creation fee{" "}
+              {preview.fees.poolCreationFeeLamports} lamports; first-swap minimum{" "}
+              {preview.fees.firstSwapMinimumFeeEnabled ? "enabled" : "disabled"}
+            </dd>
           </div>
           <div>
             <dt>Migration fee</dt>
@@ -112,6 +132,19 @@ export function MeteoraCurvePanel({
               {preview.migration.partnerPermanentlyLockedPercent}% locked, creator{" "}
               {preview.migration.creatorClaimablePercent}% claimable /{" "}
               {preview.migration.creatorPermanentlyLockedPercent}% locked
+            </dd>
+          </div>
+          <div>
+            <dt>Activation</dt>
+            <dd>{preview.activation.type}</dd>
+          </div>
+          <div>
+            <dt>Locked vesting</dt>
+            <dd>
+              {preview.vesting.totalLockedAmount} locked /{" "}
+              {preview.vesting.cliffUnlockAmount} cliff unlock /{" "}
+              {preview.vesting.periods} periods / {preview.vesting.totalDurationSeconds}
+              s duration / {preview.vesting.cliffDurationSeconds}s cliff
             </dd>
           </div>
         </dl>

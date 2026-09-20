@@ -9,7 +9,10 @@ import { getDatabase } from "@/lib/db/client";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 import { env } from "@/lib/env";
 import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
-import { createPersistentAgent } from "@/lib/services/agents";
+import {
+  createPersistentAgent,
+  listPersistentAgentsForOwner,
+} from "@/lib/services/agents";
 import { linkClawPumpAgent } from "@/lib/services/clawpump-agents";
 
 const requestSchema = z
@@ -33,6 +36,29 @@ function slugify(name: string) {
     .replace(/^-|-$/g, "")
     .slice(0, 36);
   return `${base || "agent"}-${randomUUID().slice(0, 8)}`;
+}
+
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const session = token ? await readSessionToken(token) : null;
+  if (!session) {
+    return NextResponse.json(
+      { error: "Authenticate a connected wallet to inspect persistent agents." },
+      { status: 401 },
+    );
+  }
+  if (!env.databaseUrl) {
+    return NextResponse.json(
+      { error: "Persistent storage is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const agents = await listPersistentAgentsForOwner(session.wallet, getDatabase());
+  return NextResponse.json(
+    { agents },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -70,6 +96,15 @@ export async function POST(request: NextRequest) {
   }
 
   const input = parsed.data;
+  if (input.linkClawPump) {
+    return NextResponse.json(
+      {
+        error:
+          "ClawPump agent creation is unavailable for safe demo agents. Create the local draft without external linking.",
+      },
+      { status: 409 },
+    );
+  }
   const assets = [...demoAgentBundle.assets];
   const mints = assets.map((asset) => asset.mint);
   const database = getDatabase();

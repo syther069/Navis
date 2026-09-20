@@ -347,10 +347,12 @@ export function LaunchPreflightForm({
             Changing any launch term invalidates this review.
           </p>
           <button className="primary-button" type="button" disabled>
-            Authorize payment <ArrowRight size={17} />
+            Execution unsupported in Navis <ArrowRight size={17} />
           </button>
           <small>
-            Execution remains locked until guarded launch submission is enabled.
+            ClawPump documents this launch contract for Solana mainnet and exposes no
+            cluster selector. Navis keeps mainnet payment and launch execution disabled;
+            this quote cannot be funded or submitted here.
           </small>
         </div>
       ) : null}

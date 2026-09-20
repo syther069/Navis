@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
+  test: {
+    include: ["tests/**/*.test.ts"],
+  },
   resolve: {
     alias: {
       "@": root,

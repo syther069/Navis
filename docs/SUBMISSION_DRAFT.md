@@ -1,6 +1,6 @@
 # Navis Stocklana submission draft
 
-Updated: 2026-09-19.
+Updated: 2026-09-20.
 
 Use this draft as the source text for the final Stocklana submission form. Replace every `TODO` before submitting.
 
@@ -14,17 +14,19 @@ Navis is a governed Solana equity-agent workspace that turns AI trade proposals 
 
 ## Short description
 
-Navis demonstrates a safer pattern for agentic equity exposure on Solana: the agent can propose, but deterministic policy code decides whether an action is allowed, and the wallet still authorizes value movement. The product includes a premium proof-terminal UI, an Atlas demo agent, immutable decision/proof timelines, a transaction ledger, ClawPump launch preflight surfaces, Meteora DBC transaction builders, and a read-only PreStocks catalogue disclosure.
+Navis demonstrates a safer pattern for agentic equity exposure on Solana: the agent can propose, but deterministic policy code decides whether an action is allowed, and the wallet still authorizes value movement. The verified demo is the recorded deterministic Atlas walkthrough. Fresh proposal generation is deferred. The product includes a proof-terminal UI, decision and proof timelines, a transaction ledger, ClawPump launch preflight, Meteora DBC builder surfaces, and a read-only PreStocks catalogue disclosure.
 
 Demo receipts are explicitly labelled simulations. Real explorer links, mints, pool addresses, and signatures should appear only after Navis has stored confirmed external evidence.
 
 ## Public links
 
-| Item           | URL  |
-| -------------- | ---- |
-| Demo URL       | TODO |
-| Repository URL | TODO |
-| Demo video URL | TODO |
+| Item                | URL                                    |
+| ------------------- | -------------------------------------- |
+| Demo URL            | TODO                                   |
+| Repository URL      | https://github.com/syther069/Navis.git |
+| Demo video URL      | TODO                                   |
+| Pitch video URL     | TODO, 3 minutes maximum                |
+| Technical video URL | TODO, 5 minutes maximum                |
 
 ## Suggested demo flow
 
@@ -44,7 +46,7 @@ Only keep claims backed by the final evidence manifest.
 
 Current safe claim:
 
-> Navis integrates ClawPump server-side for agent linking, pair discovery, and self-funded launch preflight. Live launch execution is gated behind API credentials, authenticated wallet approval, funding, provider acceptance, and chain confirmation.
+> Navis integrates ClawPump server-side for agent linking, pair discovery, and self-funded launch preflight. It does not currently implement funded launch execution. The official self-funded endpoint has no documented devnet selector, so a future launch requires an explicit owner-approved mainnet release and reviewed paid-retry, signature, and persistence code.
 
 If a live launch is completed, add:
 
@@ -57,7 +59,7 @@ If a live launch is completed, add:
 
 Current safe claim:
 
-> Navis integrates the official Meteora Dynamic Bonding Curve SDK for equity-like DBC configuration preview, transaction preparation, simulation, submission, confirmation, and pool monitoring. No live pool is claimed unless a real signature and pool address are recorded.
+> Navis integrates the official Meteora Dynamic Bonding Curve SDK for equity-like DBC configuration preview and guarded builder surfaces. Live submission is not ready because signed caller input is not yet server-bound to the exact previously prepared proposal. No live pool is claimed.
 
 If a live config/pool is completed, add:
 
@@ -85,13 +87,13 @@ Current safe claim:
 
 ## Validation summary
 
-Latest local gate:
+Latest automated local gate:
 
 ```bash
 npm run check
 ```
 
-Result: passed format, lint, typecheck, 22 test files / 103 tests, production build, clean-session judge-flow smoke, and Drizzle schema validation.
+Result: fresh pass on 2026-09-20 across all eight gates, 24 test files / 113 tests, production Next.js 16.3.5 build, 11-route deterministic demo smoke including `/agents/new`, Drizzle schema validation, and submission audit.
 
 Latest deployed smoke gate:
 
@@ -107,7 +109,14 @@ Known audit status:
 npm audit --omit=dev
 ```
 
-Result: 19 production advisories remain in transitive Solana/Meteora/Anchor/Jayson dependency chains, with no non-forced fix available from the current dependency graph.
+Result: 19 production advisories, comprising 6 high and 13 moderate findings with no critical findings. Machine-readable evidence is in `docs/dependency-audit.json`. The findings remain unresolved and do not constitute security certification.
+
+## Track and timing plan
+
+- Enter the main Stocklana track.
+- Select at most three sponsor tracks: ClawPump, Meteora DBC, and PreStocks, only where final evidence supports the claim.
+- Submit before Friday, September 25, 2026 at 4:00 p.m. ET.
+- The official submit route returned only a sign-in prompt during public verification on 2026-09-20. Review form-only terms while authenticated.
 
 ## Disclosures
 
@@ -115,6 +124,6 @@ Result: 19 production advisories remain in transitive Solana/Meteora/Anchor/Jays
 - PreStocks tokens are presented as economic exposure, not legal shares.
 - Demo receipts are simulations.
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
-- Mainnet execution is blocked unless `ENABLE_MAINNET_EXECUTION=true`, `MAINNET_RELEASE_APPROVED=true`, the public cluster is `mainnet-beta`, and a human approves the wallet transaction.
+- Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump and Meteora also require their unresolved protocol and security gates to be completed and retested.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`.

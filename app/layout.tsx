@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s · Navis",
   },
   description:
-    "Autonomous onchain equity agents with capital, constraints, and a track record.",
+    "Governed Solana equity-agent workspace with policy-checked proposals, wallet authorization, and hash-verifiable receipts.",
   icons: {
     icon: "/favicon.svg",
   },

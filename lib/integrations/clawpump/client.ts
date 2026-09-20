@@ -50,6 +50,21 @@ export class ClawPumpError extends Error {
   }
 }
 
+export function getClawPumpPublicError(error: ClawPumpError) {
+  if (error.kind === "payment_required") {
+    return {
+      status: 402,
+      message:
+        "ClawPump requires a different payment path. Navis will not relay or authorize unverified payment terms.",
+    } as const;
+  }
+
+  return {
+    status: error.kind === "forbidden" ? 403 : 502,
+    message: `ClawPump preflight is unavailable (${error.kind}).`,
+  } as const;
+}
+
 type RequestOptions<T> = Readonly<{
   method?: "GET" | "POST" | "DELETE";
   body?: unknown;

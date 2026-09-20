@@ -1,6 +1,6 @@
 # Navis Architecture
 
-**Status:** Approved planning baseline; Next.js foundation initialized.  
+**Status:** Canonical Next.js implementation restored at the repository root.  
 **Goal:** A realistic, auditable end-to-end hackathon demo with safe fallback modes.
 
 ## 1. High-level system architecture
@@ -163,7 +163,7 @@ Each rule returns `ruleId`, `status`, `observed`, `limit`, and `message`. Any `f
 
 ## 11. Transaction execution model
 
-State machine:
+State machine target:
 
 ```text
 draft → proposed → validated_approved → awaiting_signature
@@ -246,7 +246,7 @@ Core entities:
 
 ## 16. Database schema suggestion
 
-Use PostgreSQL with Prisma or Drizzle; choose one during setup based on starter compatibility. Important constraints:
+Use PostgreSQL with Drizzle. The runtime pool applies a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. Important constraints:
 
 - unique `(owner_wallet, slug)` for agents;
 - unique hash for strategy and policy versions per agent;
@@ -256,7 +256,7 @@ Use PostgreSQL with Prisma or Drizzle; choose one during setup based on starter 
 - append-only proof records after finalization;
 - JSONB only for provider payload fragments and canonical version documents; queryable state remains typed columns.
 
-Local demo mode uses repository interfaces backed by versioned JSON fixtures and an in-memory write overlay. It must never share the production database URL.
+The verified demo baseline uses versioned deterministic fixtures and an in-memory write overlay. Fresh proposal wiring is deferred and archived, not part of the current runtime. Demo mode must never share the production database URL or represent fixture output as an onchain result.
 
 ## 17. API route structure
 
@@ -310,7 +310,7 @@ components/
 
 ## 20. Authentication and wallet connection
 
-Use Sign-In With Solana semantics: server-generated nonce, domain/audience, statement, wallet address, issued-at, expiry, and chain context. Verify signature server-side and issue an HTTP-only, `Secure`, `SameSite=Lax` session cookie. CSRF-protect mutations. Public proof pages require no session.
+Use Sign-In With Solana semantics: server-generated nonce, domain/audience, statement, wallet address, issued-at, expiry, and chain context. Verify signature server-side and issue an HTTP-only, `Secure`, `SameSite=Lax` session cookie. CSRF-protect mutations. Public proof pages require no session. Only in development may the origin derive from the exact runtime `REPLIT_DEV_DOMAIN`; production blocks auth until an explicit HTTPS `NEXT_PUBLIC_APP_URL` is set. Redacted settings and health responses expose only an origin-capability boolean.
 
 ## 21. Environment variables
 
@@ -326,15 +326,16 @@ OPENAI_API_KEY=
 OPENAI_MODEL=
 PRESTOCKS_API_URL=https://prestocks.com/api/prestocks
 ENABLE_DEMO_MODE=true
-ENABLE_DEVNET_EXECUTION=true
+ENABLE_DEVNET_EXECUTION=false
 ENABLE_MAINNET_EXECUTION=false
+MAINNET_RELEASE_APPROVED=false
 ```
 
 Only `NEXT_PUBLIC_*` values may enter browser bundles. Validate environment variables at startup and expose a redacted capability-status object to the UI.
 
 ## 22. Error handling
 
-Classify errors as validation, policy denial, user cancellation, insufficient funds, stale quote, sponsor/API, RPC, confirmation timeout, and internal. Return stable codes plus safe messages. Preserve provider request IDs. A timeout after submission is `unknown_pending`, not `failed`; reconcile it by signature. Error screens must offer a safe retry only when idempotency permits.
+Classify errors as validation, policy denial, user cancellation, insufficient funds, stale quote, sponsor/API, RPC, confirmation timeout, and internal. Return stable codes plus safe messages. Preserve provider request IDs. Pending/unknown confirmation handling is covered, but the original Meteora broadcast-error path does not yet guarantee that every transport timeout persists as `unknown_pending`. Do not enable that protocol until the broadcast path and server-prepared/simulation binding are fixed and retested. Error screens must offer a safe retry only when idempotency permits.
 
 ## 23. Demo-mode fallback rules
 
@@ -368,7 +369,7 @@ The UI must never mix sources silently. Each snapshot and receipt carries `mode`
 ## 25. Deployment plan
 
 - Deploy the Next.js application to a platform supporting server routes and secret storage.
-- Use managed Postgres for production; run migrations in CI/deploy.
+- Use managed Postgres for production. In Replit, production migration is handled through the user Publish flow. Do not add startup DDL or prescribe manual SQL against managed production.
 - Configure a dedicated RPC endpoint and health check.
 - Use preview environment with devnet and demo mode; production mainnet execution remains disabled until rehearsal passes.
 - Seed only public fixture data; no private keys.

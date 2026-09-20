@@ -1,0 +1,26 @@
+kind = "web"
+previewPath = "/"
+title = "Navis"
+description = "The original root Next.js Navis application, using npm."
+version = "1.0.0"
+id = "artifacts/navis"
+router = "path"
+
+[[services]]
+name = "web"
+paths = ["/"]
+localPort = 19732
+
+[services.development]
+run = "npm run dev"
+
+[services.production]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+
+[services.production.health.startup]
+path = "/api/health"
+
+[services.env]
+PORT = "19732"
+BASE_PATH = "/"

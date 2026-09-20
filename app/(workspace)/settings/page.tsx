@@ -32,6 +32,11 @@ export default function SettingsPage() {
             <FieldRow label="Demo data" value="Explicitly labelled" />
             <FieldRow label="Wallet connection" value="Wallet Standard enabled" />
             <FieldRow
+              label="Authentication origin"
+              value={capabilities.appOriginConfigured ? "Configured" : "Not configured"}
+              detail="Production wallet sessions require the exact published HTTPS origin."
+            />
+            <FieldRow
               label="Wallet sessions"
               value={
                 capabilities.walletAuthenticationConfigured &&

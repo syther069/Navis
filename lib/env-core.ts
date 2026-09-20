@@ -4,6 +4,7 @@ export type AiProvider = "demo" | "openai";
 
 export type Environment = Readonly<{
   appUrl: string;
+  appOriginConfigured: boolean;
   cluster: SolanaCluster;
   executionMode: ExecutionMode;
   enableDemoMode: boolean;
@@ -27,6 +28,7 @@ export type PublicCapabilities = Readonly<{
   devnetExecutionAvailable: boolean;
   mainnetExecutionAvailable: boolean;
   walletAuthenticationConfigured: boolean;
+  appOriginConfigured: boolean;
   persistenceConfigured: boolean;
   solanaRpcConfigured: boolean;
   clawpumpConfigured: boolean;
@@ -174,7 +176,17 @@ function validateEnvironment(candidate: Environment): Environment {
 }
 
 export function parseEnvironment(source: EnvironmentSource): Environment {
-  const appUrl = readUrl(source, "NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+  const previewHost =
+    source.NODE_ENV === "development" &&
+    /^[a-z0-9.-]+\.replit\.dev$/i.test(source.REPLIT_DEV_DOMAIN ?? "")
+      ? source.REPLIT_DEV_DOMAIN
+      : undefined;
+  const configuredOrigin = readOptional(source, "NEXT_PUBLIC_APP_URL");
+  const appUrl = readUrl(
+    source,
+    "NEXT_PUBLIC_APP_URL",
+    previewHost ? `https://${previewHost}` : "http://localhost:3000",
+  );
   const prestocksApiUrl = readUrl(
     source,
     "PRESTOCKS_API_URL",
@@ -187,6 +199,9 @@ export function parseEnvironment(source: EnvironmentSource): Environment {
 
   return validateEnvironment({
     appUrl,
+    appOriginConfigured:
+      Boolean(configuredOrigin || previewHost) &&
+      (source.NODE_ENV !== "production" || new URL(appUrl).protocol === "https:"),
     cluster: readEnum(source, "NEXT_PUBLIC_SOLANA_CLUSTER", VALID_CLUSTERS, "devnet"),
     executionMode: readEnum(
       source,
@@ -219,7 +234,9 @@ export function toPublicCapabilities(env: Environment): PublicCapabilities {
       env.enableMainnetExecution &&
       env.mainnetReleaseApproved &&
       Boolean(env.solanaRpcUrl),
-    walletAuthenticationConfigured: Boolean(env.sessionSecret),
+    walletAuthenticationConfigured:
+      Boolean(env.sessionSecret) && env.appOriginConfigured,
+    appOriginConfigured: env.appOriginConfigured,
     persistenceConfigured: Boolean(env.databaseUrl),
     solanaRpcConfigured: Boolean(env.solanaRpcUrl),
     clawpumpConfigured: Boolean(env.clawpumpApiKey),

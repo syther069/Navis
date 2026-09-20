@@ -25,9 +25,9 @@ const AUTH_STATEMENT =
   "Authenticate to Navis. This request does not authorize a transaction.";
 
 function requireAuthenticationConfiguration() {
-  if (!env.databaseUrl || !env.sessionSecret) {
+  if (!env.databaseUrl || !env.sessionSecret || !env.appOriginConfigured) {
     throw new AuthenticationError(
-      "Wallet authentication is unavailable because persistent storage or the session secret is not configured.",
+      "Wallet authentication requires persistent storage, a session secret, and the exact application origin.",
       "not_configured",
     );
   }

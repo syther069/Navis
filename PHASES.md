@@ -1,6 +1,6 @@
 # Navis Hackathon Phases
 
-**Operating assumption:** Plan against the earlier September 18, 2026 deadline shown on the official page until organizers resolve the conflict with the September 25 header. Keep every phase demoable and preserve an honest fallback.
+**Operating deadline:** The official Stocklana page was verified on 2026-09-20 and states Friday, September 25, 2026 at 4:00 p.m. ET. Keep every phase demoable and preserve an honest fallback.
 
 ## Phase 0 — Research and Setup
 
@@ -16,7 +16,7 @@ Lock one credible product wedge and sponsor path before implementation. Remove u
 - Verified ClawPump key acquisition, live pair catalogue, launch/payment flow, and account ownership model.
 - Verified Meteora SDK compatibility, network support, program ID, transaction flow, and selected DBC parameters.
 - PreStocks go/no-go decision based on API response and eligibility requirements.
-- Confirmed submission deadline from organizers.
+- Official submission deadline verified from the Stocklana page.
 - Environment/credential checklist with no secrets committed.
 
 ### Acceptance criteria
@@ -29,7 +29,7 @@ Lock one credible product wedge and sponsor path before implementation. Remove u
 
 ### Risks
 
-- Official deadline text conflicts.
+- Submission details may change before close, so recheck the official page before final submission.
 - “Using ClawPump and Meteora” may require a particular combined path not fully specified publicly.
 - Stock-paired assets in `/pump-pairs` may change.
 - PreStocks API contract or regional access may be unsuitable.
@@ -37,8 +37,7 @@ Lock one credible product wedge and sponsor path before implementation. Remove u
 
 ### Fallback plan
 
-- Work to September 18 unless organizers say otherwise.
-- Ask sponsor channels for written clarification and retain evidence.
+- Work to September 25, 2026 at 4:00 p.m. ET and retain the dated official source.
 - Query live pair support during the demo; never hard-code availability.
 - Keep PreStocks out of the execution path if verification fails.
 - Isolate Meteora integration in a server/domain adapter so version conflicts do not destabilize core UI.
@@ -226,7 +225,7 @@ Turn the working core into a legible, reliable judge experience and submit verif
 - Responsive and accessibility polish.
 - Clear product copy and risk disclosures.
 - README with architecture, setup, modes, sponsor integration, limitations, and open-source attribution.
-- Three-to-five-minute demo script and video.
+- Pitch video of at most three minutes and technical walkthrough of at most five minutes.
 - Deployed application with devnet/demo safety defaults.
 - Evidence manifest with repo, live URL, video, signatures, mints, config/pool addresses, clusters, and sponsor request IDs.
 - Final submission form and compliance checklist.
@@ -239,7 +238,7 @@ Turn the working core into a legible, reliable judge experience and submit verif
 - Every claim in the video can be verified in the app, repo, provider response, or explorer.
 - No secret or private key appears in git history, build output, logs, video, or screenshots.
 - All links work from a signed-out browser.
-- Submission occurs before the confirmed deadline; if still unconfirmed, before September 18 at 4:00 p.m. ET.
+- Submission occurs before September 25, 2026 at 4:00 p.m. ET.
 
 ### Risks
 

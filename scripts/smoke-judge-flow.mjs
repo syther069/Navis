@@ -11,6 +11,10 @@ const reportPath = process.env.NAVIS_SMOKE_REPORT;
 
 const checks = [
   {
+    path: "/agents/new",
+    includes: ["Define a mandate", "Review mandate"],
+  },
+  {
     path: "/agents/atlas",
     includes: ["Atlas", "Constraint ledger", "Demo portfolio snapshot"],
   },

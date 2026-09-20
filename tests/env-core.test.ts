@@ -3,6 +3,39 @@ import { describe, expect, it } from "vitest";
 import { parseEnvironment, toPublicCapabilities } from "../lib/env-core";
 
 describe("Navis environment safety", () => {
+  it("uses the runtime preview host only in development", () => {
+    const development = parseEnvironment({
+      NODE_ENV: "development",
+      REPLIT_DEV_DOMAIN: "navis-preview.replit.dev",
+    });
+    expect(development.appUrl).toBe("https://navis-preview.replit.dev");
+    expect(development.appOriginConfigured).toBe(true);
+    const production = parseEnvironment({
+      NODE_ENV: "production",
+      REPLIT_DEV_DOMAIN: "navis-preview.replit.dev",
+      SESSION_SECRET: "test-secret-that-is-at-least-32-characters",
+    });
+    expect(production.appUrl).toBe("http://localhost:3000");
+    expect(production.appOriginConfigured).toBe(false);
+    expect(toPublicCapabilities(production).walletAuthenticationConfigured).toBe(false);
+  });
+
+  it("requires a configured HTTPS production origin for wallet sessions", () => {
+    const production = parseEnvironment({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "https://navis.example",
+      SESSION_SECRET: "test-secret-that-is-at-least-32-characters",
+    });
+    expect(production.appOriginConfigured).toBe(true);
+    expect(toPublicCapabilities(production).walletAuthenticationConfigured).toBe(true);
+    expect(
+      parseEnvironment({
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "http://navis.example",
+      }).appOriginConfigured,
+    ).toBe(false);
+  });
+
   it("defaults to a locked demo configuration", () => {
     const env = parseEnvironment({});
     const capabilities = toPublicCapabilities(env);

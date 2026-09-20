@@ -4,7 +4,10 @@ import { ZodError } from "zod";
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
-import { ClawPumpError } from "@/lib/integrations/clawpump/client";
+import {
+  ClawPumpError,
+  getClawPumpPublicError,
+} from "@/lib/integrations/clawpump/client";
 import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import { createLaunchPreflight } from "@/lib/services/launch-preflight";
 
@@ -41,24 +44,25 @@ export async function POST(request: NextRequest) {
       );
     }
     if (error instanceof ClawPumpError && error.kind === "payment_required") {
+      const publicError = getClawPumpPublicError(error);
       return NextResponse.json(
         {
           state: "payment_required",
-          error: error.message,
+          error: publicError.message,
           requestId: error.requestId,
         },
-        { status: 402 },
+        { status: publicError.status },
       );
     }
     if (error instanceof ClawPumpError) {
-      const status = error.kind === "forbidden" ? 403 : 502;
+      const publicError = getClawPumpPublicError(error);
       return NextResponse.json(
-        { error: error.message, requestId: error.requestId },
-        { status },
+        { error: publicError.message, requestId: error.requestId },
+        { status: publicError.status },
       );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Launch preflight failed." },
+      { error: "Launch preflight could not be completed safely." },
       { status: 400 },
     );
   }
