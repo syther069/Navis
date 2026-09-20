@@ -33,14 +33,14 @@ Track selection is not evidence of sponsor eligibility.
 | Original deterministic demo        | Verified by the 11-route smoke against production                                                           |
 | Fresh decision generation          | Live on the public site: Balanced approved, Oversized rejected, receipt verified (real browser, 2026-09-20) |
 | Fresh decision detail link         | Unreliable on Vercel (memory store per serverless instance). Tracked as an open task.                       |
-| Full automated check               | Passed all 8 gates at current `main`: 32 files / 166 tests                                                  |
+| Full automated check               | Passed all 8 gates at current `main`: 44 files / 318 tests                                                  |
 | Deployed smoke report              | `docs/evidence/stocklana-v2-public-smoke.json`                                                              |
 | Same-origin mutation requests      | Fixed and verified on production: same origin 200, foreign origin 403                                       |
 | Meteora intent binding             | Implemented in code with tests; broadcast hard-blocked; not live-tested                                     |
 | Migration 0006 (execution intents) | No evidence it is applied to any database                                                                   |
 | Real wallet extension and signing  | Not tested                                                                                                  |
 | Production dependency audit        | 19: 6 high, 13 moderate, 0 critical (`docs/evidence/stocklana-v2-dependency-audit.json`)                    |
-| LICENSE file                       | Missing                                                                                                     |
+| LICENSE file                       | Present: MIT, copyright TANUJ CHANDA, `license` field set in `package.json`                                 |
 | Pitch video, at most 3 minutes     | Missing                                                                                                     |
 | Technical video, at most 5 minutes | Missing                                                                                                     |
 | ClawPump funded launch             | Unsupported in current posture                                                                              |
@@ -58,7 +58,7 @@ Track selection is not evidence of sponsor eligibility.
 
 ## Release decision
 
-Ready to submit as an honest demo once the owner completes the form items (registration, team, tracks, optional videos) and, ideally, the open tasks from `docs/STOCKLANA_JUDGE_AUDIT_V2.md`: the unreliable decision detail link, the missing LICENSE, and pushing the first-screen intro so the live site explains the product. Do not claim on-chain execution, production persistence, ClawPump launches, or Meteora transactions anywhere in the submission.
+Ready to submit as an honest demo once the owner completes the form items (registration, team, tracks, optional videos) and, ideally, the open tasks from `docs/STOCKLANA_JUDGE_AUDIT_V2.md`: the unreliable decision detail link and pushing the first-screen intro so the live site explains the product. Do not claim on-chain execution, production persistence, ClawPump launches, or Meteora transactions anywhere in the submission.
 
 ## History
 

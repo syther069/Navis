@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 
 const requiredFiles = [
+  "LICENSE",
+  "package.json",
   "README.md",
   "docs/EVIDENCE.md",
   "docs/INTEGRATIONS.md",
@@ -68,6 +70,16 @@ for (const text of requiredDisclosureText) {
   } else {
     warnings.push(`Disclosure missing: ${text}`);
   }
+}
+
+const licence = files.get("LICENSE");
+const packageLicence = JSON.parse(files.get("package.json")).license;
+if (licence.startsWith("MIT License") && packageLicence === "MIT") {
+  passes.push("Project licence: MIT in LICENSE and package.json.");
+} else {
+  warnings.push(
+    `Project licence mismatch: LICENSE starts with "${licence.split("\n")[0]}", package.json license is "${packageLicence}".`,
+  );
 }
 
 const todoCount = countMatches(submissionDraft, /\bTODO\b/g);

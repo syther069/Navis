@@ -6,7 +6,7 @@ Navis is a governed Solana equity-agent workspace for the Stocklana hackathon. I
 
 Navis is not a brokerage UI and does not claim that demo assets or PreStocks tokens are legal shares. Demo receipts are simulations. Explorer links and signatures appear only when Navis has stored real submitted transaction evidence.
 
-Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub `main` commit `a335681`). Independent reviews, newest first: [judge audit round 2](docs/STOCKLANA_JUDGE_AUDIT_V2.md) (72/100, 20 September 2026), [remediation report](docs/REMEDIATION_REPORT.md), [first judge audit](docs/STOCKLANA_JUDGE_AUDIT.md). The full local gate (`npm run check`) passes at the current commit with 166 tests in 32 files.
+Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub `main` commit `a335681`). Independent reviews, newest first: [judge audit round 2](docs/STOCKLANA_JUDGE_AUDIT_V2.md) (72/100, 20 September 2026), [remediation report](docs/REMEDIATION_REPORT.md), [first judge audit](docs/STOCKLANA_JUDGE_AUDIT.md). The full local gate (`npm run check`) passes at the current commit with 318 tests in 44 files.
 
 ## What changed since the first audit
 
@@ -15,7 +15,7 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 - Same-origin mutation requests are trusted behind the deployment proxy (`x-forwarded-host`), so public decision runs work on Vercel; foreign origins still receive 403. Wallet authentication remains unavailable in production because it needs a database, session secret and configured app origin, none of which the public demo has.
 - The Atlas page now opens with a short intro (problem, what Navis does, what to try) and an optional read-only devnet slot probe gated on `SOLANA_RPC_URL`. Both are live on the public site as of the 20 September 2026 evening push (`085e779`); production has `SOLANA_RPC_URL` set to the public devnet endpoint, execution flags stay false, and the probe only reads the current slot.
 - Repository documentation was refreshed so every claim matches the deployed commit. Historical baselines are kept in clearly labelled history sections.
-- Still open (see the round 2 audit): fresh decision detail links are unreliable on Vercel because demo runs live in one server instance's memory; nothing on the public site touches Solana; PreStocks data is displayed but not consumed by the agent; no LICENSE file, no videos.
+- Still open (see the round 2 audit): fresh decision detail links are unreliable on Vercel because demo runs live in one server instance's memory; nothing on the public site touches Solana; PreStocks data is displayed but not consumed by the agent; no videos. The code is released under the MIT licence (see `LICENSE`).
 
 ## What is implemented
 
@@ -130,7 +130,7 @@ npm run submission:audit
 
 Current result (20 September 2026, current `main`):
 
-- `npm run check` passes all eight gates: format verification, zero-warning ESLint, strict TypeScript, 32 test files / 166 tests, production Next.js build, judge smoke (11 routes, PreStocks API and a fresh oversized decision), Drizzle schema validation, and submission audit (one expected warning for the missing video rows).
+- `npm run check` passes all eight gates: format verification, zero-warning ESLint, strict TypeScript, 44 test files / 318 tests, production Next.js build, judge smoke (11 routes, PreStocks API and a fresh oversized decision), Drizzle schema validation, and submission audit (one expected warning for the missing video rows).
 - The public site was walked in a real Chromium session on 20 September 2026 at 1440 px and 375 px: Balanced run approved, Oversized run rejected on max trade bps and min reserve bps, receipt verified, no console errors, no horizontal overflow. Evidence: `docs/evidence/stocklana-v2-public-smoke.json` and the round 2 audit. Actual wallet extension signing remains unverified.
 - Vercel production is READY at GitHub `main` commit `a335681`. Public `/api/health` reports demo/devnet with PreStocks and the demo AI provider configured and everything else not configured.
 - `npm audit --omit=dev` reports 19 production advisories: 6 high, 13 moderate, no critical, all transitive through the Solana and Meteora dependency chains. Machine-readable result: `docs/evidence/stocklana-v2-dependency-audit.json`. This is not a claim that the warnings are resolved.
@@ -171,3 +171,7 @@ See:
 - [docs/SUBMISSION_DRAFT.md](docs/SUBMISSION_DRAFT.md)
 - [docs/SUBMISSION_READINESS.md](docs/SUBMISSION_READINESS.md)
 - [docs/ATTRIBUTIONS.md](docs/ATTRIBUTIONS.md)
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Third-party dependency notices are listed in [docs/ATTRIBUTIONS.md](docs/ATTRIBUTIONS.md).
