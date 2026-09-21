@@ -63,6 +63,7 @@ export class ClawPumpLinkRefused extends Error {
       | "already_linked"
       | "external_in_use"
       | "external_not_owned_by_key"
+      | "external_wallet_mismatch"
       | "no_strategy",
   ) {
     super(message);
@@ -73,6 +74,13 @@ export class ClawPumpLinkRefused extends Error {
 type LinkContext = Readonly<{
   /** Session user id; the agent must belong to this owner. */
   userId: string;
+  /**
+   * Signed-in wallet. An existing ClawPump agent may be attached only when
+   * its registered walletAddress equals this wallet: the wallet signature is
+   * the only proof that the session is entitled to that provider identity,
+   * because the Partner key is shared by every Navis user.
+   */
+  userWallet: string;
   client: Pick<ClawPumpClient, "createAgent" | "listAgents" | "getAgent">;
   database: NavisDatabase;
 }>;
@@ -156,6 +164,12 @@ export async function linkClawPumpAgent(
           "external_not_owned_by_key",
         );
       }
+      if (owned.walletAddress !== context.userWallet) {
+        throw new ClawPumpLinkRefused(
+          "That ClawPump agent's registered wallet is not the signed-in wallet. Only the wallet that owns the provider identity may attach it.",
+          "external_wallet_mismatch",
+        );
+      }
       external = { ...owned, meta: listing.meta };
     }
 
@@ -177,34 +191,44 @@ export async function linkClawPumpAgent(
     }
 
     const latencyMs = Math.round(performance.now() - startedAt);
-    await db.transaction(async (transaction) => {
-      await transaction.insert(schema.externalCalls).values({
-        provider: "clawpump",
-        requestId: external.meta.requestId,
-        operation,
-        status: "succeeded",
-        latencyMs,
-        metadata: {
-          localAgentId: local.id,
-          externalAgentId: external.id,
-          externalWallet: external.walletAddress,
-          tokenAddress: external.tokenAddress ?? null,
-          requestedSkills,
-        },
+    await db
+      .transaction(async (transaction) => {
+        await transaction.insert(schema.externalCalls).values({
+          provider: "clawpump",
+          requestId: external.meta.requestId,
+          operation,
+          status: "succeeded",
+          latencyMs,
+          metadata: {
+            localAgentId: local.id,
+            externalAgentId: external.id,
+            externalWallet: external.walletAddress,
+            tokenAddress: external.tokenAddress ?? null,
+            requestedSkills,
+          },
+        });
+        const [updated] = await transaction
+          .update(schema.agents)
+          .set({
+            integrationStatus: "linked",
+            externalAgentId: external.id,
+            externalWallet: external.walletAddress,
+            externalRequestId: external.meta.requestId,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.agents.id, local.id))
+          .returning({ id: schema.agents.id });
+        if (!updated) throw new Error("Local agent link update returned no record");
+      })
+      .catch((error: unknown) => {
+        if (isUniqueViolation(error, "agents_external_agent_id_unique")) {
+          throw new ClawPumpLinkRefused(
+            "That ClawPump agent id was linked to another Navis agent concurrently.",
+            "external_in_use",
+          );
+        }
+        throw error;
       });
-      const [updated] = await transaction
-        .update(schema.agents)
-        .set({
-          integrationStatus: "linked",
-          externalAgentId: external.id,
-          externalWallet: external.walletAddress,
-          externalRequestId: external.meta.requestId,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.agents.id, local.id))
-        .returning({ id: schema.agents.id });
-      if (!updated) throw new Error("Local agent link update returned no record");
-    });
 
     return {
       localAgentId: local.id,
@@ -334,13 +358,30 @@ export async function getClawPumpIdentity(
   }
 }
 
+function isUniqueViolation(error: unknown, constraint: string): boolean {
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 4; depth += 1) {
+    const candidate = current as {
+      code?: unknown;
+      constraint?: unknown;
+      cause?: unknown;
+    };
+    if (candidate.code === "23505" && candidate.constraint === constraint) return true;
+    current = candidate.cause;
+  }
+  return false;
+}
+
 /**
- * Agents the key owns that no Navis agent has claimed yet, for the attach
- * picker. Public identifiers only.
+ * Agents the key lists whose registered wallet is the signed-in wallet and
+ * that no Navis agent has claimed yet, for the attach picker. Other users'
+ * identities under the shared key are never disclosed. Public identifiers
+ * only.
  */
 export async function listAttachableClawPumpAgents(context: {
   client: Pick<ClawPumpClient, "listAgents">;
   database: NavisDatabase;
+  userWallet: string;
 }) {
   const listing = await context.client.listAgents();
   const claimed = new Set(
@@ -355,7 +396,9 @@ export async function listAttachableClawPumpAgents(context: {
   );
   return {
     agents: listing.agents
-      .filter((agent) => !claimed.has(agent.id))
+      .filter(
+        (agent) => agent.walletAddress === context.userWallet && !claimed.has(agent.id),
+      )
       .map((agent) => ({
         id: agent.id,
         name: agent.name,

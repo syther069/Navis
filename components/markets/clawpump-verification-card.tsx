@@ -91,7 +91,9 @@ export function ClawPumpVerificationCard({
                   ? `granted, ${record.agentCount} agent(s) under the key`
                   : record.agentAccess === "forbidden"
                     ? "refused: key not linked to an account"
-                    : "not checked"}
+                    : record.agentAccessError
+                      ? "not determined: GET /agents failed for another reason"
+                      : "not checked"}
               </dd>
             </div>
             <div>

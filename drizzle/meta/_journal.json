@@ -71,6 +71,13 @@
       "when": 1789994301494,
       "tag": "0009_public_atlas_persistence",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790009027362,
+      "tag": "0010_clawpump_external_agent_unique",
+      "breakpoints": true
     }
   ]
 }

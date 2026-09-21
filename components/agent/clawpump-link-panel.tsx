@@ -21,7 +21,7 @@ async function readJson(response: Response) {
 
 /**
  * Owner action: link this saved agent to a ClawPump identity, by creating one
- * through the Partner API or attaching one the key already owns. Refreshes the
+ * through the Partner API or attaching one registered to the signed-in wallet. Refreshes the
  * server-rendered chain on success; never runs on Atlas.
  */
 export function ClawPumpLinkPanel({
@@ -133,11 +133,14 @@ export function ClawPumpLinkPanel({
               disabled={!linkable || busy !== null}
               onClick={() => void loadAttachable()}
             >
-              {busy === "list" ? "Listing key agents…" : "Attach an existing agent"}
+              {busy === "list"
+                ? "Listing your agents…"
+                : "Attach an existing agent registered to this wallet"}
             </button>
           ) : attachable.length === 0 ? (
             <p className="form-note">
-              The Partner key owns no unclaimed ClawPump agents to attach.
+              No unclaimed ClawPump agent is registered to the signed-in wallet. Only
+              identities whose provider wallet equals your wallet can be attached.
             </p>
           ) : (
             <div className="clawpump-attach-row">

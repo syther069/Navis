@@ -154,6 +154,35 @@ describe("ClawPump provider verification", () => {
     expect(rows[0]).toMatchObject({ status: "succeeded" });
   });
 
+  it("never reports a /agents outage as a missing account link", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/agents")) {
+        return new Response("upstream error", { status: 502 });
+      }
+      return new Response(
+        JSON.stringify({
+          skills: [
+            { slug: "trading", name: "Trading", description: "d", alwaysOn: false },
+          ],
+          meta,
+        }),
+        { status: 200 },
+      );
+    });
+    const { database } = fakeDatabase();
+
+    const record = await runClawPumpVerification({ client: client(fetcher), database });
+
+    expect(record).toMatchObject({
+      result: "connected",
+      endpoint: "/skills",
+      agentAccess: "unknown",
+    });
+    expect(record.agentAccessError).not.toBeNull();
+    expect(record.agentAccessError).not.toContain("403");
+  });
+
   it("stores an unreachable failure when the provider times out on both endpoints", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(
       (_input, init) =>

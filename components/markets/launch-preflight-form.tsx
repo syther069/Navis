@@ -228,11 +228,7 @@ export function LaunchPreflightForm({
   authenticatedWallet: string | null;
   latest: LaunchPreflightResult | null;
 }) {
-  const selectable = useMemo(
-    () =>
-      pairs.filter((pair) => pair.eligible || pair.classification === "unclassified"),
-    [pairs],
-  );
+  const selectable = useMemo(() => pairs.filter((pair) => pair.eligible), [pairs]);
   const [localAgentId, setLocalAgentId] = useState(agents[0]?.id ?? "");
   const [quoteMint, setQuoteMint] = useState(selectable[0]?.mint ?? "");
   const [name, setName] = useState("");

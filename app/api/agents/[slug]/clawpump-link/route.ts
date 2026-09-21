@@ -33,6 +33,7 @@ const REFUSAL_STATUS: Record<ClawPumpLinkRefused["reason"], number> = {
   already_linked: 409,
   external_in_use: 409,
   external_not_owned_by_key: 403,
+  external_wallet_mismatch: 403,
   no_strategy: 409,
 };
 
@@ -116,6 +117,7 @@ export async function POST(
   try {
     const link = await linkClawPumpAgent(bundle.agent.id, parsed.data, {
       userId: session.userId,
+      userWallet: session.wallet,
       client: createClawPumpClient(),
       database,
     });

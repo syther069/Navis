@@ -10,7 +10,7 @@ import {
 import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import { listAttachableClawPumpAgents } from "@/lib/services/clawpump-agents";
 
-/** Key-owned ClawPump agents not yet claimed by a Navis agent. Public identifiers only. */
+/** ClawPump agents registered to the signed-in wallet and not yet claimed by a Navis agent. Public identifiers only. */
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const result = await listAttachableClawPumpAgents({
       client: createClawPumpClient(),
       database: getDatabase(),
+      userWallet: session.wallet,
     });
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

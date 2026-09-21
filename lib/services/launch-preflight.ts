@@ -50,7 +50,6 @@ export type PreflightPrerequisite = Readonly<{
     | "insufficient_funding"
     | "funding_unverified"
     | "token_program_unverified"
-    | "stock_classification_unconfirmed"
     | "cost_discovery_unavailable"
     | "execution_disabled";
   severity: "blocking" | "advisory";
@@ -434,6 +433,15 @@ export async function createLaunchPreflight(
       quoteAsset,
     );
   }
+  // Fail closed: only a pair the server itself classified as a tokenized
+  // stock (PreStocks catalogue or verified on-chain issuer metadata) may
+  // reach the provider. Unclassified assets never produce a stock preflight.
+  if (!pair.eligibleForStockPreflight || pair.classification !== "tokenized_stock") {
+    return localReject(
+      `Unsupported quote asset for a stock-paired launch: ${pair.symbol} is not confirmed as a tokenized stock. ${pair.classificationSource}`,
+      quoteAsset,
+    );
+  }
   if (
     input.creatorFeeBps < pairs.creatorFeeBps.min ||
     input.creatorFeeBps > pairs.creatorFeeBps.max
@@ -444,14 +452,6 @@ export async function createLaunchPreflight(
     );
   }
 
-  if (pair.classification === "unclassified") {
-    prerequisites.push({
-      code: "stock_classification_unconfirmed",
-      severity: "advisory",
-      origin: "local",
-      message: pair.classificationSource,
-    });
-  }
   if (pair.tokenProgram.status !== "verified") {
     prerequisites.push({
       code: "token_program_unverified",

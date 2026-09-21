@@ -187,7 +187,8 @@ export type ClawPumpAvailability =
        * /pump-pairs) yet be refused on /agents with 403 until the provider
        * links it to an account; agent create, attach and launch then fail.
        */
-      agentAccess: "granted" | "forbidden";
+      agentAccess: "granted" | "forbidden" | "unknown";
+      /** Sanitised text of the /agents failure when access was not granted. */
       agentAccessError: string | null;
     }
   | {
@@ -420,10 +421,14 @@ export class ClawPumpClient {
       };
     } catch (error) {
       const primary = toAvailabilityFailure(error, "/agents");
-      // 401 means the key itself is bad: stop. 403 means the key
-      // authenticates but is not linked to an account for agent access, so
-      // /skills still proves the credential and the refusal is recorded.
+      // 401 means the key itself is bad: stop. Any other /agents failure
+      // falls back to /skills, which still proves the credential. Only a real
+      // HTTP 403 is recorded as "forbidden" (key not linked to an account);
+      // timeouts, 5xx, 404 and schema failures stay "unknown" with their
+      // own sanitised reason so an outage is never reported as a missing
+      // account link.
       if (primary.kind === "unauthorized") return primary;
+      const agentAccess = primary.httpStatus === 403 ? "forbidden" : "unknown";
       try {
         const skills = await this.listSkills();
         return {
@@ -434,7 +439,7 @@ export class ClawPumpClient {
           httpStatus: 200,
           agentCount: 0,
           agentIds: [],
-          agentAccess: "forbidden",
+          agentAccess,
           agentAccessError: primary.safeError,
         };
       } catch (fallbackError) {

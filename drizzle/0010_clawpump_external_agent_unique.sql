@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "agents_external_agent_id_unique" ON "agents" USING btree ("external_agent_id") WHERE "agents"."external_agent_id" IS NOT NULL;

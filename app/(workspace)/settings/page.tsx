@@ -33,7 +33,9 @@ async function describeClawPump() {
       detail: `GET ${record.endpoint} answered HTTP ${record.httpStatus} at ${record.providerTimestamp ?? record.checkedAt}, request ${record.requestId}. ${
         record.agentAccess === "forbidden"
           ? "GET /agents refused (HTTP 403): key not linked to an account, so agent operations are unavailable."
-          : `${record.agentCount} agent(s) under the key.`
+          : record.agentAccess === "unknown"
+            ? "GET /agents did not answer; agent access not determined on this attempt."
+            : `${record.agentCount} agent(s) under the key.`
       }`,
     };
   }

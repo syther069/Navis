@@ -131,6 +131,11 @@ export const agents = pgTable(
       table.ownerWallet,
       table.clientRequestId,
     ),
+    // One Navis agent per ClawPump agent identity, enforced by the database
+    // so two concurrent link attempts cannot both claim the same external id.
+    uniqueIndex("agents_external_agent_id_unique")
+      .on(table.externalAgentId)
+      .where(sql`${table.externalAgentId} IS NOT NULL`),
     check(
       "agents_mode_cluster_check",
       sql`(${table.mode} = 'demo') OR (${table.mode} = 'devnet' AND ${table.cluster} = 'devnet') OR (${table.mode} = 'mainnet' AND ${table.cluster} = 'mainnet-beta')`,

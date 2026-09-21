@@ -213,7 +213,7 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
       const link = await linkClawPumpAgent(
         agent.id,
         { mode: "create" },
-        { userId, client, database: tx },
+        { userId, userWallet: ownerWallet, client, database: tx },
       );
       expect(link).toMatchObject({
         localAgentId: agent.id,
@@ -252,7 +252,7 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
         linkClawPumpAgent(
           agent.id,
           { mode: "create" },
-          { userId, client, database: tx },
+          { userId, userWallet: ownerWallet, client, database: tx },
         ),
       ).rejects.toMatchObject({ reason: "already_linked" });
       expect(
@@ -281,35 +281,76 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
     await inRollback(async (tx) => {
       const first = await createOwnedAgent(tx, ownerWallet, "First");
       const second = await createOwnedAgent(tx, ownerWallet, "Second");
-      const foreign = await createOwnedAgent(tx, otherWallet, "Foreign");
       const client = linkClient();
 
       await expect(
         linkClawPumpAgent(
           first.agent.id,
           { mode: "attach", externalAgentId: "agent_not_listed" },
-          { userId: first.userId, client, database: tx },
+          { userId: first.userId, userWallet: EXTERNAL_WALLET, client, database: tx },
         ),
       ).rejects.toMatchObject({ reason: "external_not_owned_by_key" });
+
+      // The shared Partner key lists the agent, but the session wallet is not
+      // its registered wallet: a signed-in user cannot claim someone else's identity.
+      await expect(
+        linkClawPumpAgent(
+          first.agent.id,
+          { mode: "attach", externalAgentId: "agent_ext_2" },
+          { userId: first.userId, userWallet: ownerWallet, client, database: tx },
+        ),
+      ).rejects.toMatchObject({ reason: "external_wallet_mismatch" });
+      await tx
+        .update(schema.agents)
+        .set({ integrationStatus: "not_configured" })
+        .where(eq(schema.agents.id, first.agent.id));
 
       await linkClawPumpAgent(
         first.agent.id,
         { mode: "attach", externalAgentId: "agent_ext_2" },
-        { userId: first.userId, client, database: tx },
+        { userId: first.userId, userWallet: EXTERNAL_WALLET, client, database: tx },
       );
       await expect(
         linkClawPumpAgent(
           second.agent.id,
           { mode: "attach", externalAgentId: "agent_ext_2" },
-          { userId: second.userId, client, database: tx },
+          { userId: second.userId, userWallet: EXTERNAL_WALLET, client, database: tx },
         ),
       ).rejects.toMatchObject({ reason: "external_in_use" });
+
+      // The database itself refuses a second row with the same external id.
+      await tx
+        .update(schema.agents)
+        .set({ integrationStatus: "not_configured" })
+        .where(eq(schema.agents.id, second.agent.id));
+      await expect(
+        tx
+          .update(schema.agents)
+          .set({
+            integrationStatus: "linked",
+            externalAgentId: "agent_ext_2",
+            externalWallet: EXTERNAL_WALLET,
+          })
+          .where(eq(schema.agents.id, second.agent.id)),
+      ).rejects.toSatisfy((error: unknown) => {
+        const cause = (error as { cause?: { code?: string } }).cause;
+        return cause?.code === "23505";
+      });
+    });
+  });
+
+  it("refuses to link a foreign agent or a public demo row", async () => {
+    await inRollback(async (tx) => {
+      const first = await createOwnedAgent(tx, ownerWallet, "First");
+      const second = await createOwnedAgent(tx, ownerWallet, "Second");
+      const foreign = await createOwnedAgent(tx, otherWallet, "Foreign");
+      const client = linkClient();
 
       await expect(
         linkClawPumpAgent(
           foreign.agent.id,
           { mode: "create" },
-          { userId: first.userId, client, database: tx },
+          { userId: first.userId, userWallet: ownerWallet, client, database: tx },
         ),
       ).rejects.toMatchObject({ reason: "not_owned" });
 
@@ -321,14 +362,14 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
         linkClawPumpAgent(
           second.agent.id,
           { mode: "create" },
-          { userId: second.userId, client, database: tx },
+          { userId: second.userId, userWallet: ownerWallet, client, database: tx },
         ),
       ).rejects.toBeInstanceOf(ClawPumpLinkRefused);
       await expect(
         linkClawPumpAgent(
           second.agent.id,
           { mode: "create" },
-          { userId: second.userId, client, database: tx },
+          { userId: second.userId, userWallet: ownerWallet, client, database: tx },
         ),
       ).rejects.toMatchObject({ reason: "public_demo" });
     });
@@ -351,7 +392,7 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
         linkClawPumpAgent(
           agent.id,
           { mode: "create" },
-          { userId, client, database: tx },
+          { userId, userWallet: ownerWallet, client, database: tx },
         ),
       ).rejects.toBeInstanceOf(ClawPumpError);
       const [row] = await tx
@@ -375,7 +416,12 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
       await linkClawPumpAgent(
         created.agent.id,
         { mode: "create" },
-        { userId: created.userId, client: linkClient(), database: tx },
+        {
+          userId: created.userId,
+          userWallet: ownerWallet,
+          client: linkClient(),
+          database: tx,
+        },
       );
       return created;
     }
@@ -446,6 +492,28 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
           providerValidation: { result: "not_requested" },
         });
         expect(result.rejectionReason).toContain("wrapped SOL");
+        expect(ctx.client.preflightSelfFundedLaunch).not.toHaveBeenCalled();
+      });
+    });
+
+    it("rejects an unclassified catalogue asset locally instead of quoting it as a stock pair", async () => {
+      await inRollback(async (tx) => {
+        const { agent, userId } = await linkedAgent(tx);
+        // Same mint, but neither the PreStocks catalogue nor on-chain issuer
+        // metadata confirms it: a memecoin or BTC style pair must fail closed.
+        const ctx = context(tx, userId, { prestocksMints: indexPreStocksMints([]) });
+        const result = await createLaunchPreflight(
+          preflightInput(agent.id, STOCK_MINT),
+          ctx,
+        );
+        expect(result).toMatchObject({
+          state: "rejected",
+          rejectionOrigin: "local",
+          launchSubmitted: false,
+          readyForAuthorisedExecution: false,
+          providerValidation: { result: "not_requested" },
+        });
+        expect(result.rejectionReason).toContain("not confirmed as a tokenized stock");
         expect(ctx.client.preflightSelfFundedLaunch).not.toHaveBeenCalled();
       });
     });
@@ -537,13 +605,28 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
       });
     });
 
-    it("flags a provider payer mismatch and unverified funding when the RPC is missing", async () => {
+    it("rejects locally without a mainnet RPC, and flags payer mismatch and unverified funding when only the balance read fails", async () => {
       await inRollback(async (tx) => {
         const { agent, userId } = await linkedAgent(tx);
-        const ctx = context(tx, userId, {
+        // No mainnet RPC: the token program cannot be verified, so the pair is
+        // not eligible and the provider is never called.
+        const blind = context(tx, userId, {
           mainnetRpc: null,
           mainnetRpcSource: "no mainnet rpc",
         });
+        const rejected = await createLaunchPreflight(preflightInput(agent.id), blind);
+        expect(rejected).toMatchObject({ state: "rejected", rejectionOrigin: "local" });
+        expect(blind.client.preflightSelfFundedLaunch).not.toHaveBeenCalled();
+
+        // Mint verified, but the balance read fails and the provider quotes
+        // another payer: both surface as blocking prerequisites.
+        const flaky = {
+          request: vi.fn(async (method: string) => {
+            if (method === "getBalance") throw new Error("rpc down");
+            return verifiedMintRpc.request(method);
+          }),
+        };
+        const ctx = context(tx, userId, { mainnetRpc: flaky });
         (
           ctx.client.preflightSelfFundedLaunch as ReturnType<typeof vi.fn>
         ).mockResolvedValue(quoteResponse(EXTERNAL_WALLET));
@@ -551,11 +634,7 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
         const codes = result.prerequisites.map((item) => item.code);
         expect(result.state).toBe("quoted");
         expect(codes).toEqual(
-          expect.arrayContaining([
-            "wallet_mismatch",
-            "funding_unverified",
-            "token_program_unverified",
-          ]),
+          expect.arrayContaining(["wallet_mismatch", "funding_unverified"]),
         );
         expect(result.readyForAuthorisedExecution).toBe(false);
       });
