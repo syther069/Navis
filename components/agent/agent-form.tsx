@@ -322,10 +322,11 @@ function CreationFailure({ failure }: { failure: FormFailure }) {
   if (failure.kind === "storage") {
     return (
       <div className="form-error form-error-storage" role="alert">
-        <strong>Not saved: storage unavailable.</strong>
+        <strong>Save not confirmed: storage problem.</strong>
         <p>
-          {failure.message} Nothing was stored for this mandate. You can try again with
-          the same details; a retry will not create a second agent.
+          {failure.message} Use Try again: it repeats this exact request, so it returns
+          the agent if it was stored and creates it once if it was not. It cannot create
+          a second agent. If you edit the mandate instead, check your agents list first.
         </p>
       </div>
     );

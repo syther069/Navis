@@ -145,6 +145,19 @@ No path executes onchain.
 | Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                                                                                                                                   |
 | Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                                                                                                                                     |
 
+### Public idempotent creation check (deployed commit `f1d078e`)
+
+Run on 2026-09-21 at 11:29 UTC against `https://navis-gilt.vercel.app`, whose production deployment at that time was commit `f1d078e` (Vercel deployment list; `f1d078e` differs from `49d0f7e` only in a test file). A fresh ed25519 keypair signed the server challenge and posted it from the site origin; the session cookie was then used for the agent requests. Recorded in `docs/evidence/final-public-idempotency.json`:
+
+| Step                                            | Result                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `POST /api/agents` with a new `clientRequestId` | 201, `replayed: false`, slug `replay-check-cb43d435-673cddef`                  |
+| Same request again (retry)                      | 200, `replayed: true`, same slug                                               |
+| Same key, changed name                          | 409 `duplicate_request`; body contains no SQL, host, provider or wallet text   |
+| `GET /api/agents` in a fresh request            | exactly one matching agent                                                     |
+| `GET /api/agents/<slug>` without the session    | 401 (ownership isolation)                                                      |
+| `GET /api/health`                               | `database.status = ok`, tables and guards ready, `walletSessions = configured` |
+
 A real wallet extension and signing remain unverified (the public sign-in check used a scripted keypair). See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the round 2 audit and its evidence list.
 
 ## History

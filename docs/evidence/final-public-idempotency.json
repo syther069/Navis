@@ -1,0 +1,55 @@
+{
+  "base": "https://navis-gilt.vercel.app",
+  "checkedAt": "2026-09-21T11:29:01.781Z",
+  "wallet": "Cvbn1DPgMAk77NsAiiEYic9y1igtskP1i9TT7CtppRFY",
+  "note": "Fresh ed25519 keypair signed the server challenge; session cookie omitted. Deployed commit recorded separately.",
+  "health": {
+    "database": {
+      "status": "ok",
+      "tablesReady": true,
+      "immutabilityGuardsReady": true
+    },
+    "walletSessions": {
+      "status": "configured"
+    }
+  },
+  "steps": [
+    {
+      "name": "nonce",
+      "status": 200
+    },
+    {
+      "name": "verify",
+      "status": 200,
+      "authenticated": true
+    },
+    {
+      "name": "create",
+      "status": 201,
+      "slug": "replay-check-cb43d435-673cddef",
+      "replayed": false
+    },
+    {
+      "name": "replaySameKey",
+      "status": 200,
+      "slug": "replay-check-cb43d435-673cddef",
+      "replayed": true
+    },
+    {
+      "name": "sameKeyChangedMandate",
+      "status": 409,
+      "code": "duplicate_request",
+      "leaks": []
+    },
+    {
+      "name": "listFreshRequest",
+      "status": 200,
+      "matchingAgents": 1,
+      "slugs": ["replay-check-cb43d435-673cddef"]
+    },
+    {
+      "name": "otherOwnerRead",
+      "status": 401
+    }
+  ]
+}
