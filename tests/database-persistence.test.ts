@@ -48,7 +48,12 @@ if (!databaseUrl) {
 // that is rolled back at the end: strategy and risk-policy versions are
 // immutable by trigger, so DELETE cleanup is not an option.
 describe.skipIf(!databaseUrl)("database persistence", () => {
-  const pool = new Pool({ ...buildPoolConfig(databaseUrl ?? ""), max: 2 });
+  // The describe body still runs when the suite is skipped, so the pool is
+  // only built once DATABASE_URL is known to be present.
+  const pool = new Pool({
+    ...(databaseUrl ? buildPoolConfig(databaseUrl) : {}),
+    max: 2,
+  });
   const database = drizzle(pool, { schema });
   type Tx = NodePgDatabase<typeof schema>;
 
