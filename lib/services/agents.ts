@@ -17,7 +17,7 @@ import {
   type Asset,
 } from "../domain";
 import type { AgentBundle } from "../db/repositories/types";
-import { classifyDatabaseError } from "../db/errors";
+import { classifyDatabaseError, DatabaseError } from "../db/errors";
 import { hashCanonical } from "../proofs/canonical";
 
 const createAgentInputSchema = z.object({
@@ -247,13 +247,26 @@ export async function createPersistentAgentIdempotent(
   const db = database ?? (await import("../db/client")).getDatabase();
   const key = prepared.input.clientRequestId;
 
+  // A key belongs to one mandate. Replaying it with different content is a
+  // client bug, not a retry, and must not be answered with the other agent.
+  const replay = (existing: AgentBundle): CreatePersistentAgentResult => {
+    if (
+      existing.strategy.hash !== prepared.strategyHash ||
+      existing.riskPolicy.hash !== prepared.riskPolicyHash ||
+      existing.agent.name !== prepared.input.name
+    ) {
+      throw new DatabaseError("duplicate_request");
+    }
+    return { bundle: existing, replayed: true };
+  };
+
   if (key) {
     const existing = await findAgentByClientRequest(
       db,
       prepared.input.ownerWallet,
       key,
     );
-    if (existing) return { bundle: existing, replayed: true };
+    if (existing) return replay(existing);
   }
 
   try {
@@ -267,7 +280,7 @@ export async function createPersistentAgentIdempotent(
         prepared.input.ownerWallet,
         key,
       );
-      if (winner) return { bundle: winner, replayed: true };
+      if (winner) return replay(winner);
     }
     throw error;
   }

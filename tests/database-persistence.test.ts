@@ -221,6 +221,20 @@ describe.skipIf(!databaseUrl)("database persistence", () => {
       });
     });
 
+    it("refuses to replay a key whose mandate has changed", async () => {
+      await inRolledBackTransaction(async (tx) => {
+        const clientRequestId = randomUUID();
+        await createPersistentAgentIdempotent(mandate({ clientRequestId }), tx);
+        const changed = mandate({ clientRequestId });
+        changed.name = "Renamed Agent";
+
+        const failure = await createPersistentAgentIdempotent(changed, tx)
+          .then(() => null)
+          .catch((error: unknown) => classifyDatabaseError(error));
+        expect(failure?.code).toBe("duplicate_request");
+      });
+    });
+
     it("rejects a second row for the same key at the database level", async () => {
       await inRolledBackTransaction(async (tx) => {
         const clientRequestId = randomUUID();

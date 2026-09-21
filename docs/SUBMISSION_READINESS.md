@@ -39,7 +39,7 @@ Track selection is not evidence of sponsor eligibility.
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Public application URL                   | Live: https://navis-gilt.vercel.app                                                                                                                             |
 | Live site matches GitHub `main`          | See `docs/EVIDENCE.md`, "Final state" (deployed commit after push and public smoke result)                                                                      |
-| Full automated check                     | Passed all nine gates at the final application commit: 46 files / 340 tests; submission audit with zero warnings                                                |
+| Full automated check                     | Passed all nine gates at the final application commit: 50 files / 390 tests; submission audit with zero warnings                                                |
 | Local smoke report                       | `docs/evidence/final-local-smoke.json` (fresh oversized decision on the PreStocks universe)                                                                     |
 | Screenshots                              | `docs/evidence/final-*.png`: agent run verdict and receipt hash, proof page, Markets Launch, landing, signed-in agent list, persisted decision detail           |
 | Same-origin mutation requests            | Trusted behind the proxy; foreign origin 403 (verified on production earlier on 2026-09-20)                                                                     |

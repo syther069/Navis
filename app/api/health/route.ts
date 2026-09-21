@@ -29,7 +29,10 @@ async function checkDatabase() {
           ))
           and exists (select 1 from information_schema.columns
             where table_schema = 'public' and table_name = 'agents'
-              and column_name = 'client_request_id') as schema_ready,
+              and column_name = 'client_request_id')
+          and exists (select 1 from pg_indexes
+            where schemaname = 'public' and tablename = 'agents'
+              and indexname = 'agents_owner_wallet_client_request_unique') as schema_ready,
         (select count(*) = 7 from pg_trigger t
           join pg_class c on c.oid = t.tgrelid
           join pg_namespace n on n.oid = c.relnamespace

@@ -1,3 +1,4 @@
+import { Client } from "pg";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -55,6 +56,38 @@ describe("database connection settings", () => {
     expect(buildPoolConfig("postgres://u:p@h/db?sslmode=no-verify").ssl).toEqual({
       rejectUnauthorized: false,
     });
+  });
+
+  it("is what pg actually applies, whatever sslmode the URL carried", () => {
+    // pg re-parses the connection string after explicit options; the TLS
+    // parameters are stripped so the explicit decision is the effective one.
+    const effective = (url: string) =>
+      (
+        new Client(buildPoolConfig(url)) as unknown as {
+          connectionParameters: { ssl: unknown; host: string };
+        }
+      ).connectionParameters;
+
+    expect(effective("postgres://u:p@h/db?sslmode=prefer").ssl).toEqual({
+      rejectUnauthorized: false,
+    });
+    expect(effective("postgres://u:p@h/db?ssl=no-verify").ssl).toEqual({
+      rejectUnauthorized: true,
+    });
+    expect(
+      effective("postgres://u:p@h/db?uselibpqcompat=true&sslmode=require").ssl,
+    ).toEqual({ rejectUnauthorized: true });
+    expect(effective("postgres://u:p@h/db?sslmode=disable").ssl).toBe(false);
+    expect(effective("postgres://u:p@localhost/db").ssl).toBe(false);
+    expect(
+      effective(
+        "postgres://u:p@db.example.com/db?sslmode=disable&application_name=navis",
+      ).host,
+    ).toBe("db.example.com");
+    expect(
+      buildPoolConfig("postgres://u:p@h/db?sslmode=require&application_name=navis")
+        .connectionString,
+    ).toBe("postgres://u:p@h/db?application_name=navis");
   });
 
   it("rejects a malformed URL without echoing it", () => {

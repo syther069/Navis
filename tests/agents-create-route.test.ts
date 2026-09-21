@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   } | null,
   create: vi.fn(),
   list: vi.fn(),
+  prepare: vi.fn(),
 }));
 
 vi.mock("../lib/env", async (importOriginal) => {
@@ -41,6 +42,10 @@ vi.mock("../lib/services/agents", async (importOriginal) => {
     ...actual,
     createPersistentAgentIdempotent: mocks.create,
     listPersistentAgentsForOwner: mocks.list,
+    prepareAgentCreation: (candidate: unknown) => {
+      mocks.prepare(candidate);
+      return actual.prepareAgentCreation(candidate as never);
+    },
   };
 });
 
@@ -88,6 +93,7 @@ describe("POST /api/agents", () => {
     mocks.session = { wallet: "FxNavisTest1111111111111111111111111111111" };
     mocks.create.mockReset();
     mocks.list.mockReset();
+    mocks.prepare.mockReset();
   });
 
   it("creates once and answers a replay with the same agent", async () => {
@@ -150,13 +156,38 @@ describe("POST /api/agents", () => {
     expect((await response.json()).code).toBe("database_schema_mismatch");
   });
 
-  it("keeps mandate validation failures as 400 with their own code", async () => {
-    mocks.create.mockRejectedValueOnce(
-      new Error("Strategy universe and risk-policy allowlist must match exactly"),
-    );
+  it("keeps mandate validation failures as 400 without touching storage", async () => {
+    mocks.prepare.mockImplementationOnce(() => {
+      throw new Error("Strategy universe contains an asset absent from the bundle");
+    });
     const response = await post(validBody);
     expect(response.status).toBe(400);
-    expect((await response.json()).code).toBe("invalid_mandate");
+    expect(await response.json()).toEqual({
+      error: "Strategy universe contains an asset absent from the bundle",
+      code: "invalid_mandate",
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("never returns an unclassified driver message with SQL or parameters", async () => {
+    mocks.create.mockRejectedValueOnce(
+      new Error(
+        'Failed query: insert into "agents" ... params: FxNavisTest1111111111111111111111111111111,Ledger Sentinel',
+      ),
+    );
+    const response = await post(validBody);
+    const text = await response.text();
+    expect(response.status).toBe(503);
+    expect(JSON.parse(text).code).toBe("database_error");
+    expect(text).not.toContain("Failed query");
+    expect(text).not.toContain("FxNavisTest");
+  });
+
+  it("refuses a reused request key that carries a different mandate", async () => {
+    mocks.create.mockRejectedValueOnce(new DatabaseError("duplicate_request"));
+    const response = await post(validBody);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("duplicate_request");
   });
 
   it("answers a missing DATABASE_URL with database_not_configured", async () => {

@@ -59,6 +59,18 @@ export function describeDatabaseTarget(connectionString: string): DatabaseTarget
   return Object.freeze({ host, local, tls });
 }
 
+// pg parses the connection string after the explicit options and lets its
+// own TLS parameters win. These are removed from the URL handed to pg so the
+// decision made in describeDatabaseTarget is the one that takes effect.
+const PG_TLS_PARAMS = [
+  "ssl",
+  "sslmode",
+  "sslcert",
+  "sslkey",
+  "sslrootcert",
+  "uselibpqcompat",
+];
+
 export function buildPoolConfig(connectionString: string) {
   const target = describeDatabaseTarget(connectionString);
   const ssl =
@@ -67,8 +79,10 @@ export function buildPoolConfig(connectionString: string) {
       : target.tls === "verify"
         ? { rejectUnauthorized: true }
         : { rejectUnauthorized: false };
+  const url = new URL(connectionString);
+  for (const param of PG_TLS_PARAMS) url.searchParams.delete(param);
   return {
-    connectionString,
+    connectionString: url.toString(),
     ssl,
     ...DATABASE_POOL_SETTINGS,
   };

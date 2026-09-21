@@ -127,7 +127,7 @@ export function AgentForm({
       } catch {
         setFailure({
           kind: "storage",
-          message: "The request did not reach Navis. Your agent was not saved.",
+          message: "No answer came back from Navis, so the save is unconfirmed.",
         });
         return;
       }

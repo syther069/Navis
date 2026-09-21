@@ -16,7 +16,9 @@ import { env } from "@/lib/env";
 import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import {
   createPersistentAgentIdempotent,
+  type CreatePersistentAgentInput,
   listPersistentAgentsForOwner,
+  prepareAgentCreation,
 } from "@/lib/services/agents";
 import { linkClawPumpAgent } from "@/lib/services/clawpump-agents";
 
@@ -123,41 +125,59 @@ export async function POST(request: NextRequest) {
   const assets = [...demoAgentBundle.assets];
   const mints = assets.map((asset) => asset.mint);
   const database = getDatabase();
+  const candidate: CreatePersistentAgentInput = {
+    slug: slugify(input.name),
+    name: input.name,
+    ownerWallet: session.wallet,
+    mode: "demo",
+    cluster: "devnet",
+    clientRequestId: input.clientRequestId,
+    assets,
+    strategy: {
+      objective: input.objective,
+      horizon: "monthly",
+      cadence: { kind: "manual" },
+      universe: mints,
+      signals: ["Deterministic demo relative-strength fixture"],
+      allowedActions: ["BUY", "SELL", "HOLD", "REBALANCE"],
+      riskPolicyVersion: 1,
+    },
+    riskPolicy: {
+      constraints: [
+        { type: "allowed_mints", mints },
+        { type: "max_trade_bps", value: input.maxTradeBps },
+        { type: "max_position_bps", value: input.maxPositionBps },
+        { type: "min_reserve_bps", value: input.minReserveBps },
+        { type: "max_slippage_bps", value: input.maxSlippageBps },
+        { type: "max_daily_turnover_bps", value: 2_500 },
+        { type: "cooldown_seconds", value: 3_600 },
+        { type: "max_data_age_seconds", value: 300 },
+        { type: "min_liquidity_usd_micros", value: "1000000000" },
+        { type: "allowed_modes", modes: ["demo"] },
+      ],
+    },
+  };
+
+  // Mandate validation runs before any SQL. Only its message is safe to
+  // return; everything thrown after this point is treated as storage.
+  try {
+    prepareAgentCreation(candidate);
+  } catch (error) {
+    const message =
+      error instanceof z.ZodError
+        ? (error.issues[0]?.message ?? "Invalid agent mandate.")
+        : error instanceof Error
+          ? error.message
+          : "Agent creation failed.";
+    return NextResponse.json(
+      { error: message, code: "invalid_mandate" },
+      { status: 400 },
+    );
+  }
 
   try {
     const { bundle, replayed } = await createPersistentAgentIdempotent(
-      {
-        slug: slugify(input.name),
-        name: input.name,
-        ownerWallet: session.wallet,
-        mode: "demo",
-        cluster: "devnet",
-        clientRequestId: input.clientRequestId,
-        assets,
-        strategy: {
-          objective: input.objective,
-          horizon: "monthly",
-          cadence: { kind: "manual" },
-          universe: mints,
-          signals: ["Deterministic demo relative-strength fixture"],
-          allowedActions: ["BUY", "SELL", "HOLD", "REBALANCE"],
-          riskPolicyVersion: 1,
-        },
-        riskPolicy: {
-          constraints: [
-            { type: "allowed_mints", mints },
-            { type: "max_trade_bps", value: input.maxTradeBps },
-            { type: "max_position_bps", value: input.maxPositionBps },
-            { type: "min_reserve_bps", value: input.minReserveBps },
-            { type: "max_slippage_bps", value: input.maxSlippageBps },
-            { type: "max_daily_turnover_bps", value: 2_500 },
-            { type: "cooldown_seconds", value: 3_600 },
-            { type: "max_data_age_seconds", value: 300 },
-            { type: "min_liquidity_usd_micros", value: "1000000000" },
-            { type: "allowed_modes", modes: ["demo"] },
-          ],
-        },
-      },
+      candidate,
       database,
     );
 
@@ -208,18 +228,7 @@ export async function POST(request: NextRequest) {
       { status: replayed ? 200 : 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    // Mandate validation failures come from prepareAgentCreation as plain
-    // Errors or Zod issues before any SQL runs; everything else is storage.
-    const classified = classifyDatabaseError(error);
-    if (classified.code === "database_error" && !(error instanceof DatabaseError)) {
-      return NextResponse.json(
-        {
-          error: error instanceof Error ? error.message : "Agent creation failed.",
-          code: "invalid_mandate",
-        },
-        { status: 400 },
-      );
-    }
+    // Never the raw message: Drizzle query errors carry SQL and parameters.
     return databaseFailure("agents.create", error);
   }
 }
