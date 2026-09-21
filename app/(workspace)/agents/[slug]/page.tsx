@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ClawPumpLinkPanel } from "@/components/agent/clawpump-link-panel";
 import { PersistentRunsNotice } from "@/components/decisions/persistent-runs-notice";
 import { RunDecisionPanel } from "@/components/decisions/run-decision-panel";
 import { FieldRow, RouteHeader } from "@/components/route-primitives";
@@ -11,7 +12,9 @@ import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import type { RiskConstraint } from "@/lib/domain";
+import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import { getPersistentAgentForOwner } from "@/lib/services/agents";
+import { getClawPumpIdentity } from "@/lib/services/clawpump-agents";
 import { listDecisionsForOwner } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Persistent agent" };
@@ -79,6 +82,18 @@ export default async function PersistentAgentPage({
     25,
     bundle.agent.id,
   );
+  const clawpumpIdentity = await getClawPumpIdentity(
+    {
+      id: bundle.agent.id,
+      name: bundle.agent.name,
+      slug: bundle.agent.slug,
+      integrationStatus: bundle.agent.integrationStatus,
+      externalAgentId: bundle.agent.externalAgentId ?? null,
+      externalWallet: bundle.agent.externalWallet ?? null,
+      externalRequestId: null,
+    },
+    env.clawpumpApiKey ? createClawPumpClient() : null,
+  );
 
   return (
     <>
@@ -95,6 +110,11 @@ export default async function PersistentAgentPage({
           persisted
         />
       ) : null}
+      <ClawPumpLinkPanel
+        slug={bundle.agent.slug}
+        identity={clawpumpIdentity}
+        configured={Boolean(env.clawpumpApiKey)}
+      />
       <div className="route-grid agent-profile-grid">
         <section className="route-panel">
           <span className="route-eyebrow">

@@ -37,7 +37,7 @@ export default async function NewAgentPage() {
       <div className="route-grid">
         <AgentForm
           persistenceAvailable={canPersist}
-          clawPumpAvailable={false}
+          clawPumpAvailable={Boolean(env.clawpumpApiKey)}
           authenticated={Boolean(session)}
           wallet={session?.wallet ?? null}
         />

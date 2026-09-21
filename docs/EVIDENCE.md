@@ -88,15 +88,15 @@ No path executes onchain.
 
 ### ClawPump
 
-| Item                                | Value                                                                                                                                                                                                               |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API adapter                         | Implemented under `lib/integrations/clawpump/*`                                                                                                                                                                     |
-| Local support                       | Agent creation/linking, pair discovery, launch preflight (`/api/integrations/clawpump/launch/preflight`)                                                                                                            |
-| Live launch mint                    | Not available                                                                                                                                                                                                       |
-| Live launch transaction             | Not available                                                                                                                                                                                                       |
-| Provider request ID for live launch | Not available                                                                                                                                                                                                       |
-| Public site                         | `CLAWPUMP_API_KEY` not configured; Markets Launch shows the explicit "Not configured" state                                                                                                                         |
-| Blocker                             | Preflight only. The official self-funded launch has no devnet selector; safe owner-approved mainnet execution code does not exist. The ClawPump track requires a real stock-paired launch, so it is not recommended |
+| Item                                | Value                                                                                                                                                                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API adapter                         | Implemented under `lib/integrations/clawpump/*`                                                                                                                                                                               |
+| Local support                       | Provider verification record, owner agent link (create or attach), annotated stock-pair discovery, launch preflight with prerequisites (`/api/integrations/clawpump/launch/preflight`). See `docs/TASK3_CLAWPUMP_DELIVERY.md` |
+| Live launch mint                    | Not available                                                                                                                                                                                                                 |
+| Live launch transaction             | Not available                                                                                                                                                                                                                 |
+| Provider request ID for live launch | Not available                                                                                                                                                                                                                 |
+| Public site                         | `CLAWPUMP_API_KEY` not configured; Markets Launch shows the explicit "Not configured" state                                                                                                                                   |
+| Blocker                             | Preflight only. The official self-funded launch has no devnet selector; safe owner-approved mainnet execution code does not exist. The ClawPump track requires a real stock-paired launch, so it is not recommended           |
 
 ### Meteora DBC
 

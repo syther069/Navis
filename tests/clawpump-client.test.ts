@@ -146,12 +146,15 @@ describe("ClawPump client", () => {
   ] as const)(
     "maps HTTP %s to %s with the provider request id",
     async (status, kind) => {
-      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(JSON.stringify({ error: "Safe provider message", meta }), {
-          status,
-        }),
+      // A fresh Response per call: a body can be read once and retries re-read.
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ error: "Safe provider message", meta }), {
+            status,
+          }),
       );
-      const client = new ClawPumpClient({ apiKey: "cpk_test-secret", fetcher });
+      const sleep = vi.fn(async () => {});
+      const client = new ClawPumpClient({ apiKey: "cpk_test-secret", fetcher, sleep });
 
       const error = await client
         .request("/fixture", { schema: z.unknown() })
@@ -159,8 +162,50 @@ describe("ClawPump client", () => {
       expect(error).toBeInstanceOf(ClawPumpError);
       expect(error).toMatchObject({ kind, status, requestId: "request-123" });
       expect(String(error)).not.toContain("cpk_test-secret");
+      // Only 429 and 5xx are retried (bounded); 4xx client errors are final.
+      expect(fetcher).toHaveBeenCalledTimes(status === 429 || status >= 500 ? 3 : 1);
     },
   );
+
+  it("retries an idempotent GET on 429 honouring Retry-After, then succeeds", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Slow down", meta }), {
+          status: 429,
+          headers: { "retry-after": "2" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true, meta }), { status: 200 }),
+      );
+    const sleep = vi.fn(async () => {});
+    const client = new ClawPumpClient({ apiKey: "cpk_test-secret", fetcher, sleep });
+
+    const result = await client.request("/fixture", {
+      schema: z.object({ ok: z.boolean() }),
+    });
+    expect(result.ok).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(2_000);
+  });
+
+  it("never retries a POST, even on a 5xx", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ error: "boom", meta }), { status: 503 }),
+      );
+    const sleep = vi.fn(async () => {});
+    const client = new ClawPumpClient({ apiKey: "cpk_test-secret", fetcher, sleep });
+
+    await expect(
+      client.request("/fixture", { method: "POST", body: {}, schema: z.unknown() }),
+    ).rejects.toBeInstanceOf(ClawPumpError);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
 
   it("rejects cross-host and absolute paths before sending credentials", async () => {
     const fetcher = vi.fn<typeof fetch>();

@@ -52,3 +52,17 @@ describe("truthful database readiness", () => {
     expect(body).not.toContain("test-database");
   });
 });
+
+describe("ClawPump status in health", () => {
+  it("names the missing credential and never claims connected without a key", async () => {
+    mocks.execute.mockResolvedValue({
+      rows: [{ schema_ready: true, guards_ready: true }],
+    });
+    const body = await (await GET()).json();
+    expect(body.services.clawpump).toEqual({
+      status: "not_configured",
+      credential: "CLAWPUMP_API_KEY",
+      verification: null,
+    });
+  });
+});

@@ -5,42 +5,214 @@ import { useMemo, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
+import type { LaunchPreflightResult } from "@/lib/services/launch-preflight";
 
-type Pair = Readonly<{
+export type PreflightPairOption = Readonly<{
   mint: string;
   symbol: string;
   name: string;
   decimals: number;
-  imageUrl: string | null;
+  classification: "wrapped_sol" | "stablecoin" | "tokenized_stock" | "unclassified";
+  tokenProgram: string;
+  eligible: boolean;
 }>;
 
-type LaunchAgent = Readonly<{ id: string; name: string }>;
-
-type QuoteResult = Readonly<{
-  state: "quoted";
-  pair: Pair;
-  creatorFeeBps: number;
-  payoutWallet: string;
-  payment: {
-    method: "sol";
-    amountLamports: number;
-    amountSol: number;
-    payTo: string;
-    payFrom: string;
-    validForSeconds: number;
-    breakdown: { creationFeeSol: number; devBuySol: number };
-  };
-  meta: { timestamp: string; requestId: string };
-}>;
-
-type PaymentRequiredResult = Readonly<{
-  state: "payment_required";
-  error: string;
-  requestId?: string;
-}>;
+type LaunchAgent = Readonly<{ id: string; name: string; externalAgentId: string }>;
 
 async function readJson(response: Response) {
   return (await response.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+function classificationLabel(classification: PreflightPairOption["classification"]) {
+  switch (classification) {
+    case "tokenized_stock":
+      return "tokenized stock";
+    case "wrapped_sol":
+      return "wrapped SOL, not a stock pair";
+    case "stablecoin":
+      return "stablecoin, not a stock pair";
+    default:
+      return "stock status unconfirmed";
+  }
+}
+
+export function PreflightResultView({ result }: { result: LaunchPreflightResult }) {
+  const blocking = result.prerequisites.filter((item) => item.severity === "blocking");
+  const advisory = result.prerequisites.filter((item) => item.severity === "advisory");
+  return (
+    <div
+      className="preflight-result"
+      aria-live="polite"
+      data-testid={`preflight-${result.state}`}
+    >
+      <div className="preflight-result-heading">
+        <div>
+          <span className="route-eyebrow">
+            {result.state === "quoted" ? "Provider quote" : "Preflight rejected"}
+          </span>
+          <h3>
+            {result.state === "quoted" && result.quote
+              ? `${result.quote.payment.amountSol} SOL required`
+              : result.rejectionOrigin === "local"
+                ? "Rejected by Navis before any provider call"
+                : "Rejected by the provider"}
+          </h3>
+        </div>
+        <StatusBadge tone={result.state === "quoted" ? "pending" : "block"}>
+          {result.state === "quoted" ? "Preflight successful" : "Preflight rejected"}
+        </StatusBadge>
+      </div>
+      {result.rejectionReason ? (
+        <p className="form-error" role="alert">
+          <strong>
+            {result.rejectionOrigin === "local" ? "Local: " : "Provider: "}
+          </strong>
+          {result.rejectionReason}
+        </p>
+      ) : null}
+      {result.quote ? (
+        <SourceStamp
+          source="ClawPump preflight"
+          timestamp={result.quote.meta.timestamp}
+        />
+      ) : null}
+      <dl className="preflight-breakdown">
+        <div>
+          <dt>Agent</dt>
+          <dd>
+            {result.agent.name} → {result.agent.externalAgentId}
+          </dd>
+        </div>
+        <div>
+          <dt>Token</dt>
+          <dd>
+            {result.tokenConfig.name} ({result.tokenConfig.symbol}), fee{" "}
+            {result.tokenConfig.creatorFeeBps} bps, initial buy{" "}
+            {result.tokenConfig.devBuySol} SOL
+          </dd>
+        </div>
+        <div>
+          <dt>Quote asset</dt>
+          <dd>
+            {result.quoteAsset
+              ? `${result.quoteAsset.symbol} · ${classificationLabel(result.quoteAsset.classification)} · ${
+                  result.quoteAsset.tokenProgram.status === "verified"
+                    ? result.quoteAsset.tokenProgram.program
+                    : "token program unverified"
+                }`
+              : "not in catalogue"}
+          </dd>
+        </div>
+        <div>
+          <dt>Network</dt>
+          <dd>{result.network}</dd>
+        </div>
+        <div>
+          <dt>Provider validation</dt>
+          <dd>
+            {result.providerValidation.result === "accepted"
+              ? `accepted (request ${result.providerValidation.requestId})`
+              : result.providerValidation.result === "rejected"
+                ? `rejected${result.providerValidation.httpStatus ? ` HTTP ${result.providerValidation.httpStatus}` : ""}${
+                    result.providerValidation.code
+                      ? ` [${result.providerValidation.code}]`
+                      : ""
+                  }`
+                : `not requested: ${result.providerValidation.reason}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Required wallet</dt>
+          <dd>
+            <AddressValue value={result.requiredWallet} label="Required wallet" />
+          </dd>
+        </div>
+        {result.costEstimate ? (
+          <div>
+            <dt>Cost discovery</dt>
+            <dd>
+              {result.costEstimate.standardCostSol} SOL standard (creation{" "}
+              {result.costEstimate.creationFeeSol} SOL), request{" "}
+              {result.costEstimate.requestId}
+            </dd>
+          </div>
+        ) : null}
+        {result.quote ? (
+          <>
+            <div>
+              <dt>Exact amount</dt>
+              <dd>{result.quote.payment.amountLamports.toLocaleString()} lamports</dd>
+            </div>
+            <div>
+              <dt>Pay to</dt>
+              <dd>
+                <AddressValue
+                  value={result.quote.payment.payTo}
+                  label="Payment recipient"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Pay from</dt>
+              <dd>
+                <AddressValue value={result.quote.payment.payFrom} label="Payer" />
+              </dd>
+            </div>
+            <div>
+              <dt>Validity</dt>
+              <dd>{result.quote.payment.validForSeconds} seconds</dd>
+            </div>
+            <div>
+              <dt>Breakdown</dt>
+              <dd>
+                {Object.entries(result.quote.payment.breakdown)
+                  .map(([key, value]) => `${key} ${String(value)}`)
+                  .join(", ")}
+              </dd>
+            </div>
+          </>
+        ) : null}
+        {result.walletBalanceLamports !== null ? (
+          <div>
+            <dt>Payer mainnet balance</dt>
+            <dd>{result.walletBalanceLamports.toLocaleString()} lamports</dd>
+          </div>
+        ) : null}
+      </dl>
+      <div className="preflight-prerequisites" data-testid="preflight-prerequisites">
+        <span className="route-eyebrow">Outstanding prerequisites</span>
+        {result.prerequisites.length === 0 ? (
+          <p>None outstanding.</p>
+        ) : (
+          <ul>
+            {blocking.map((item) => (
+              <li key={item.code} data-severity="blocking">
+                <StatusBadge tone="block">blocking</StatusBadge> <em>{item.origin}</em>{" "}
+                {item.message}
+              </li>
+            ))}
+            {advisory.map((item) => (
+              <li key={item.code} data-severity="advisory">
+                <StatusBadge tone="warn">advisory</StatusBadge> <em>{item.origin}</em>{" "}
+                {item.message}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <p>
+        <strong>
+          {result.readyForAuthorisedExecution
+            ? "Ready for a separate authorised execution step. Nothing launched."
+            : "Not ready for execution. Nothing launched."}
+        </strong>{" "}
+        {result.statement}
+      </p>
+      <button className="primary-button" type="button" disabled>
+        Launch not submitted <ArrowRight size={17} />
+      </button>
+    </div>
+  );
 }
 
 export function LaunchPreflightForm({
@@ -48,14 +220,21 @@ export function LaunchPreflightForm({
   creatorFeeBps,
   agents,
   authenticatedWallet,
+  latest,
 }: {
-  pairs: readonly Pair[];
+  pairs: readonly PreflightPairOption[];
   creatorFeeBps: { min: number; max: number; default: number };
   agents: readonly LaunchAgent[];
   authenticatedWallet: string | null;
+  latest: LaunchPreflightResult | null;
 }) {
+  const selectable = useMemo(
+    () =>
+      pairs.filter((pair) => pair.eligible || pair.classification === "unclassified"),
+    [pairs],
+  );
   const [localAgentId, setLocalAgentId] = useState(agents[0]?.id ?? "");
-  const [quoteMint, setQuoteMint] = useState(pairs[0]?.mint ?? "");
+  const [quoteMint, setQuoteMint] = useState(selectable[0]?.mint ?? "");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
@@ -64,15 +243,14 @@ export function LaunchPreflightForm({
   const [devBuySol, setDevBuySol] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<QuoteResult | PaymentRequiredResult | null>(
-    null,
-  );
+  const [result, setResult] = useState<LaunchPreflightResult | null>(null);
 
   const selectedPair = useMemo(
     () => pairs.find((pair) => pair.mint === quoteMint),
     [pairs, quoteMint],
   );
   const ready = Boolean(authenticatedWallet && localAgentId && selectedPair);
+  const shown = result ?? latest;
 
   function invalidate() {
     setResult(null);
@@ -101,30 +279,17 @@ export function LaunchPreflightForm({
         }),
       });
       const body = await readJson(response);
-
-      if (response.status === 402 && body.state === "payment_required") {
-        setResult({
-          state: "payment_required",
-          error:
-            typeof body.error === "string"
-              ? body.error
-              : "The provider requires payment terms to continue.",
-          requestId: typeof body.requestId === "string" ? body.requestId : undefined,
-        });
-        return;
-      }
-      if (!response.ok || body.state !== "quoted") {
+      if (!response.ok || (body.state !== "quoted" && body.state !== "rejected")) {
         throw new Error(
           typeof body.error === "string"
             ? body.error
-            : "Preflight could not be quoted.",
+            : "Preflight could not be completed.",
         );
       }
-
-      setResult(body as unknown as QuoteResult);
+      setResult(body as unknown as LaunchPreflightResult);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Preflight could not be quoted.",
+        cause instanceof Error ? cause.message : "Preflight could not be completed.",
       );
     } finally {
       setSubmitting(false);
@@ -144,7 +309,7 @@ export function LaunchPreflightForm({
 
         <div className="launch-form-grid">
           <label className="form-field">
-            <span>Navis agent</span>
+            <span>Linked Navis agent</span>
             <select
               value={localAgentId}
               onChange={(event) => {
@@ -158,7 +323,7 @@ export function LaunchPreflightForm({
               ) : (
                 agents.map((agent) => (
                   <option key={agent.id} value={agent.id}>
-                    {agent.name}
+                    {agent.name} → {agent.externalAgentId}
                   </option>
                 ))
               )}
@@ -168,17 +333,28 @@ export function LaunchPreflightForm({
             <span>Stock-paired quote asset</span>
             <select
               value={quoteMint}
+              disabled={selectable.length === 0}
               onChange={(event) => {
                 setQuoteMint(event.target.value);
                 invalidate();
               }}
             >
-              {pairs.map((pair) => (
-                <option key={pair.mint} value={pair.mint}>
-                  {pair.symbol} — {pair.name}
+              {selectable.length === 0 ? (
+                <option value="">
+                  No stock-paired quote asset in the live catalogue
                 </option>
-              ))}
+              ) : (
+                selectable.map((pair) => (
+                  <option key={pair.mint} value={pair.mint}>
+                    {pair.symbol} · {pair.name} ·{" "}
+                    {classificationLabel(pair.classification)}
+                  </option>
+                ))
+              )}
             </select>
+            <small>
+              Wrapped SOL and stablecoin pairs are excluded: they are not stock pairs.
+            </small>
           </label>
           <label className="form-field">
             <span>Token name</span>
@@ -283,15 +459,17 @@ export function LaunchPreflightForm({
             )}
           </div>
           <p>
-            The selected pair and creator fee become fixed at launch. Creator fees
-            accrue in the paired asset; the payout wallet receives the provider-defined
-            75% share. ClawPump retains creator-wallet custody.
+            Network: Solana mainnet (ClawPump exposes no cluster selector). The selected
+            pair and creator fee become fixed at launch. Creator fees accrue in the
+            paired asset; the payout wallet receives the provider-defined 75% share.
+            ClawPump retains creator-wallet custody. This form only requests a read-only
+            quote.
           </p>
         </div>
 
         {error ? (
           <p className="form-error" role="alert">
-            {error}
+            <Warning size={16} aria-hidden="true" /> {error}
           </p>
         ) : null}
         <button
@@ -306,66 +484,21 @@ export function LaunchPreflightForm({
               ? "Authenticate wallet to preflight"
               : agents.length === 0
                 ? "Link an agent to continue"
-                : "Run exact preflight"}
+                : selectable.length === 0
+                  ? "No stock pair available"
+                  : "Run exact preflight"}
         </button>
       </form>
 
-      {result?.state === "quoted" ? (
-        <div className="preflight-result" aria-live="polite">
-          <div className="preflight-result-heading">
-            <div>
-              <span className="route-eyebrow">Provider quote</span>
-              <h3>{result.payment.amountSol} SOL required</h3>
-            </div>
-            <StatusBadge tone="pending">Review only</StatusBadge>
-          </div>
-          <SourceStamp source="ClawPump preflight" timestamp={result.meta.timestamp} />
-          <dl className="preflight-breakdown">
-            <div>
-              <dt>Exact amount</dt>
-              <dd>{result.payment.amountLamports.toLocaleString()} lamports</dd>
-            </div>
-            <div>
-              <dt>Creation fee</dt>
-              <dd>{result.payment.breakdown.creationFeeSol} SOL</dd>
-            </div>
-            <div>
-              <dt>Initial buy</dt>
-              <dd>{result.payment.breakdown.devBuySol} SOL</dd>
-            </div>
-            <div>
-              <dt>Quote lifetime</dt>
-              <dd>{result.payment.validForSeconds} seconds</dd>
-            </div>
-          </dl>
-          <div className="preflight-addresses">
-            <span>Payment recipient</span>
-            <AddressValue value={result.payment.payTo} label="Payment recipient" />
-          </div>
-          <p>
-            Request {result.meta.requestId}. No transfer has been created or signed.
-            Changing any launch term invalidates this review.
-          </p>
-          <button className="primary-button" type="button" disabled>
-            Execution unsupported in Navis <ArrowRight size={17} />
-          </button>
-          <small>
-            ClawPump documents this launch contract for Solana mainnet and exposes no
-            cluster selector. Navis keeps mainnet payment and launch execution disabled;
-            this quote cannot be funded or submitted here.
-          </small>
-        </div>
-      ) : null}
-
-      {result?.state === "payment_required" ? (
-        <div className="preflight-payment-state" role="status">
-          <Warning size={20} aria-hidden="true" />
-          <div>
-            <strong>Provider returned a payment review state</strong>
-            <p>{result.error}</p>
-            {result.requestId ? <small>Request {result.requestId}</small> : null}
-          </div>
-        </div>
+      {shown ? (
+        <>
+          {!result && latest ? (
+            <small className="route-copy">
+              Latest stored preflight for this wallet.
+            </small>
+          ) : null}
+          <PreflightResultView result={shown} />
+        </>
       ) : null}
     </section>
   );

@@ -23,9 +23,12 @@ export const clawPumpAgentSchema = z.object({
   model: z.string().nullable().optional(),
   persona: z.string().nullable().optional(),
   tokenAddress: z.string().nullable().optional(),
+  isPublic: z.boolean().optional(),
   createdAt: timestampSchema.optional(),
   updatedAt: timestampSchema.optional(),
 });
+
+export type ClawPumpAgent = z.infer<typeof clawPumpAgentSchema>;
 
 export const clawPumpSkillsResponseSchema = z.object({
   skills: z.array(clawPumpSkillSchema),
@@ -37,16 +40,18 @@ export const clawPumpAgentsResponseSchema = z.object({
   meta: clawPumpMetaSchema,
 });
 
+export const clawPumpPairAssetSchema = z.object({
+  mint: solanaPublicKeySchema,
+  symbol: z.string().trim().min(1).max(16),
+  name: z.string().trim().min(1).max(120),
+  decimals: z.number().int().min(0).max(18),
+  imageUrl: z.url().nullable(),
+});
+
+export type ClawPumpPairAsset = z.infer<typeof clawPumpPairAssetSchema>;
+
 export const clawPumpPairsResponseSchema = z.object({
-  assets: z.array(
-    z.object({
-      mint: solanaPublicKeySchema,
-      symbol: z.string().trim().min(1).max(16),
-      name: z.string().trim().min(1).max(120),
-      decimals: z.number().int().min(0).max(18),
-      imageUrl: z.url().nullable(),
-    }),
-  ),
+  assets: z.array(clawPumpPairAssetSchema),
   creatorFeeBps: z.object({
     min: z.number().int().min(100).max(300),
     max: z.number().int().min(100).max(300),
@@ -55,9 +60,29 @@ export const clawPumpPairsResponseSchema = z.object({
   meta: clawPumpMetaSchema,
 });
 
+export type ClawPumpPairsResponse = z.infer<typeof clawPumpPairsResponseSchema>;
+
 export const clawPumpAgentResponseSchema = clawPumpAgentSchema.extend({
   meta: clawPumpMetaSchema,
 });
+
+/**
+ * GET /launch/self-funded?quoteMint= cost discovery. The provider documents
+ * this as an estimate; the exact amount only comes from a preflight quote.
+ */
+export const selfFundedLaunchCostResponseSchema = z.object({
+  paymentMethod: z.literal("sol"),
+  quoteMint: solanaPublicKeySchema,
+  payTo: solanaPublicKeySchema,
+  creationFeeSol: z.number().finite().nonnegative(),
+  defaultDevBuySol: z.number().finite().nonnegative(),
+  standardCostSol: z.number().finite().nonnegative(),
+  quoteValidForSeconds: z.number().int().positive(),
+  steps: z.array(z.string()).optional(),
+  meta: clawPumpMetaSchema,
+});
+
+export type SelfFundedLaunchCost = z.infer<typeof selfFundedLaunchCostResponseSchema>;
 
 export const createClawPumpAgentInputSchema = z
   .object({
@@ -119,4 +144,8 @@ export const selfFundedLaunchPreflightResponseSchema = z.object({
 
 export type SelfFundedLaunchPreflightInput = z.infer<
   typeof selfFundedLaunchPreflightInputSchema
+>;
+
+export type SelfFundedLaunchPreflightResponse = z.infer<
+  typeof selfFundedLaunchPreflightResponseSchema
 >;

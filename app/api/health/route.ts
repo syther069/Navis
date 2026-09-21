@@ -4,8 +4,48 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db/client";
 import { classifyDatabaseError, logDatabaseError } from "@/lib/db/errors";
 import { env, getPublicCapabilities } from "@/lib/env";
+import { getLatestClawPumpVerification } from "@/lib/services/clawpump-verification";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * "connected" only when the latest stored verification row came from a real
+ * authenticated 200. Health never calls the provider itself.
+ */
+async function checkClawPump(databaseReady: boolean) {
+  if (!env.clawpumpApiKey) {
+    return {
+      status: "not_configured" as const,
+      credential: "CLAWPUMP_API_KEY",
+      verification: null,
+    };
+  }
+  const record = databaseReady
+    ? await getLatestClawPumpVerification(getDatabase()).catch(() => null)
+    : null;
+  return {
+    status: record
+      ? record.result === "connected"
+        ? ("connected" as const)
+        : record.result
+      : ("configured" as const),
+    credential: "CLAWPUMP_API_KEY",
+    verification: record
+      ? {
+          result: record.result,
+          endpoint: record.endpoint,
+          httpStatus: record.httpStatus,
+          requestId: record.requestId,
+          providerTimestamp: record.providerTimestamp,
+          checkedAt: record.checkedAt,
+          agentCount: record.agentCount,
+          agentAccess: record.agentAccess,
+          network: record.network,
+          safeError: record.safeError,
+        }
+      : null,
+  };
+}
 
 async function checkDatabase() {
   if (!env.databaseUrl) {
@@ -78,6 +118,7 @@ async function checkDatabase() {
 export async function GET() {
   const database = await checkDatabase();
   const capabilities = getPublicCapabilities();
+  const clawpump = await checkClawPump(database.status === "ok");
   const healthy =
     database.status !== "unreachable" &&
     database.status !== "schema_incomplete" &&
@@ -103,9 +144,7 @@ export async function GET() {
               ? "configured"
               : "not_configured",
         },
-        clawpump: {
-          status: capabilities.clawpumpConfigured ? "configured" : "not_configured",
-        },
+        clawpump,
         meteora: {
           status: capabilities.meteoraConfigured ? "configured" : "not_configured",
         },

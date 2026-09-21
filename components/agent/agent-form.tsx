@@ -111,7 +111,9 @@ export function AgentForm({
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<FormFailure | null>(null);
-  const [linkClawPump, setLinkClawPump] = useState(false);
+  // Linking is a separate owner action on the saved agent; creation never
+  // requests it, so the request key stays stable for the mandate alone.
+  const linkClawPump = false;
   const [creating, setCreating] = useState(false);
   // One key per reviewed mandate, kept in localStorage with a fingerprint
   // of the mandate (components/agent/request-key.ts). A retry after a network
@@ -138,9 +140,10 @@ export function AgentForm({
 
   function restorePending() {
     if (!pending) return;
-    const { linkClawPump: pendingLink, ...pendingValues } = pending.mandate;
+    // The stored mandate carries the link flag; the form values do not.
+    const pendingValues = { ...pending.mandate };
+    delete (pendingValues as { linkClawPump?: boolean }).linkClawPump;
     setValues(pendingValues);
-    setLinkClawPump(pendingLink);
     setError(null);
   }
 
@@ -280,22 +283,11 @@ export function AgentForm({
             {creating ? "Saving…" : failure ? "Try again" : "Create agent"}
           </button>
         </div>
-        <label className="form-checkbox">
-          <input
-            type="checkbox"
-            checked={linkClawPump}
-            disabled={!clawPumpAvailable}
-            onChange={(event) => setLinkClawPump(event.target.checked)}
-          />
-          <span>
-            Link a ClawPump agent after local creation
-            <small>
-              {clawPumpAvailable
-                ? "Provider failure will preserve the local draft."
-                : "External agent creation is unavailable for this safe demo draft."}
-            </small>
-          </span>
-        </label>
+        <p className="form-note">
+          {clawPumpAvailable
+            ? "ClawPump is configured on this server. After saving, link this agent to a ClawPump identity from its agent page; a provider failure never touches the local draft."
+            : "ClawPump is not configured (CLAWPUMP_API_KEY, a cpk_ Partner key). Linking becomes available on the agent page once the key exists."}
+        </p>
         {failure ? <CreationFailure failure={failure} /> : null}
         <p className="form-note">
           {persistenceAvailable

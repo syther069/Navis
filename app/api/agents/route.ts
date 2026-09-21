@@ -13,14 +13,12 @@ import {
 } from "@/lib/db/errors";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 import { env } from "@/lib/env";
-import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import {
   createPersistentAgentIdempotent,
   type CreatePersistentAgentInput,
   listPersistentAgentsForOwner,
   prepareAgentCreation,
 } from "@/lib/services/agents";
-import { linkClawPumpAgent } from "@/lib/services/clawpump-agents";
 
 const requestSchema = z
   .object({
@@ -114,10 +112,13 @@ export async function POST(request: NextRequest) {
 
   const input = parsed.data;
   if (input.linkClawPump) {
+    // Linking is a separate owner action on the saved agent (POST
+    // /api/agents/{slug}/clawpump-link) so a provider failure can never
+    // interfere with local creation.
     return NextResponse.json(
       {
         error:
-          "ClawPump agent creation is unavailable for safe demo agents. Create the local draft without external linking.",
+          "Create the local draft first, then link it to ClawPump from the agent page.",
       },
       { status: 409 },
     );
@@ -181,36 +182,7 @@ export async function POST(request: NextRequest) {
       database,
     );
 
-    let link:
-      | { status: "not_requested" }
-      | { status: "linked"; externalAgentId: string; wallet: string; requestId: string }
-      | { status: "failed"; error: string } = { status: "not_requested" };
-
-    if (input.linkClawPump && !replayed) {
-      if (!env.clawpumpApiKey) {
-        link = { status: "failed", error: "ClawPump is not configured." };
-      } else {
-        try {
-          const linked = await linkClawPumpAgent(
-            bundle.agent.id,
-            createClawPumpClient(),
-            database,
-          );
-          link = {
-            status: "linked",
-            externalAgentId: linked.externalAgentId,
-            wallet: linked.externalWallet,
-            requestId: linked.requestId,
-          };
-        } catch (error) {
-          link = {
-            status: "failed",
-            error:
-              error instanceof Error ? error.message : "ClawPump agent linking failed.",
-          };
-        }
-      }
-    }
+    const link = { status: "not_requested" } as const;
 
     return NextResponse.json(
       {

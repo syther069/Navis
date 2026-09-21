@@ -3755,3 +3755,91 @@ button:active:not(:disabled) {
   color: var(--text-muted);
   line-height: 1.6;
 }
+
+/* ClawPump state model, identity chain and link actions */
+.clawpump-state-track {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.clawpump-state-current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.clawpump-state-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.clawpump-state-list li[data-reached="true"] {
+  color: var(--color-text);
+}
+
+.clawpump-state-list li span {
+  margin-right: 0.35rem;
+}
+
+.clawpump-state-track small,
+.clawpump-identities small,
+.identity-chain small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.clawpump-identities {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.identity-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  list-style: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.identity-chain li {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.identity-chain li > span:first-child {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.identity-chain code {
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+.clawpump-link-actions {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.clawpump-attach-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+}

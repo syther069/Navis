@@ -5,7 +5,13 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 
-import { LaunchPreflightForm } from "@/components/markets/launch-preflight-form";
+import { ClawPumpIdentityChain } from "@/components/markets/clawpump-identity-chain";
+import { ClawPumpStateTrack } from "@/components/markets/clawpump-state-track";
+import { ClawPumpVerificationCard } from "@/components/markets/clawpump-verification-card";
+import {
+  LaunchPreflightForm,
+  type PreflightPairOption,
+} from "@/components/markets/launch-preflight-form";
 import { MeteoraCurvePanel } from "@/components/markets/meteora-curve-panel";
 import {
   PreStocksCatalogue,
@@ -20,7 +26,29 @@ import { env } from "@/lib/env";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents } from "@/lib/db/schema";
-import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
+import {
+  buildPairCatalogueView,
+  readTokenPrograms,
+  type PairCatalogueView,
+} from "@/lib/integrations/clawpump/pairs";
+import {
+  createClawPumpClient,
+  loadClawPumpPreflightDependencies,
+} from "@/lib/integrations/clawpump/server";
+import { deriveClawPumpStates } from "@/lib/integrations/clawpump/state";
+import {
+  getClawPumpIdentity,
+  type ClawPumpIdentityView,
+} from "@/lib/services/clawpump-agents";
+import {
+  ensureClawPumpVerification,
+  type ClawPumpVerificationRecord,
+} from "@/lib/services/clawpump-verification";
+import {
+  getLatestLaunchPreflightForOwner,
+  getStoredClawPumpLaunchForOwner,
+  type LaunchPreflightResult,
+} from "@/lib/services/launch-preflight";
 import { getNavisMeteoraCurvePreviews } from "@/lib/integrations/meteora/config";
 import { listMeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
 import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
@@ -35,17 +63,61 @@ export const dynamic = "force-dynamic";
 type PairState =
   | { status: "not_configured" }
   | { status: "unavailable"; message: string }
-  | {
-      status: "available";
-      data: Awaited<
-        ReturnType<ReturnType<typeof createClawPumpClient>["getPumpPairs"]>
-      >;
-    };
+  | { status: "available"; catalogue: PairCatalogueView; prestocksSource: string };
 
-async function loadPairs(): Promise<PairState> {
-  if (!env.clawpumpApiKey) return { status: "not_configured" };
+type ClawPumpState = Readonly<{
+  configured: boolean;
+  verification: ClawPumpVerificationRecord | null;
+  pairs: PairState;
+}>;
+
+/** Reuse a stored verification younger than this before calling the provider again. */
+const VERIFICATION_MAX_AGE_MS = 10 * 60 * 1_000;
+
+async function loadClawPump(): Promise<ClawPumpState> {
+  if (!env.clawpumpApiKey) {
+    return {
+      configured: false,
+      verification: null,
+      pairs: { status: "not_configured" },
+    };
+  }
+  const client = createClawPumpClient();
+  const database = env.databaseUrl ? getDatabase() : null;
+
+  const [verification, pairs] = await Promise.all([
+    ensureClawPumpVerification({
+      client,
+      database,
+      maxAgeMs: VERIFICATION_MAX_AGE_MS,
+    }).catch(() => null),
+    loadPairs(client),
+  ]);
+  return { configured: true, verification, pairs };
+}
+
+async function loadPairs(
+  client: ReturnType<typeof createClawPumpClient>,
+): Promise<PairState> {
   try {
-    return { status: "available", data: await createClawPumpClient().getPumpPairs() };
+    const [pairs, dependencies] = await Promise.all([
+      client.getPumpPairs(),
+      loadClawPumpPreflightDependencies(),
+    ]);
+    const tokenPrograms = await readTokenPrograms(
+      pairs.assets.map((asset) => asset.mint),
+      dependencies.mainnetRpc,
+    );
+    return {
+      status: "available",
+      catalogue: buildPairCatalogueView({
+        pairs,
+        prestocks: dependencies.prestocksMints,
+        tokenPrograms,
+        tokenProgramSource: dependencies.mainnetRpcSource,
+      }),
+      prestocksSource: dependencies.prestocksSource,
+    };
   } catch {
     return {
       status: "unavailable",
@@ -76,146 +148,338 @@ async function loadPreStocks(): Promise<PreStocksState> {
 
 type LaunchContext = Readonly<{
   wallet: string | null;
-  clawpumpAgents: readonly { id: string; name: string }[];
+  userId: string | null;
+  clawpumpAgents: readonly { id: string; name: string; externalAgentId: string }[];
+  identities: readonly ClawPumpIdentityView[];
+  unlinkedAgents: readonly { slug: string; name: string }[];
+  latestPreflight: LaunchPreflightResult | null;
+  latestPreflightOutcome: "quoted" | "rejected" | null;
+  storedLaunch: {
+    transactionSignature: string | null;
+    verifiedOnchain: boolean;
+  } | null;
   meteoraAgents: readonly { id: string; name: string; mode: string; cluster: string }[];
 }>;
 
+const EMPTY_CONTEXT: LaunchContext = {
+  wallet: null,
+  userId: null,
+  clawpumpAgents: [],
+  identities: [],
+  unlinkedAgents: [],
+  latestPreflight: null,
+  latestPreflightOutcome: null,
+  storedLaunch: null,
+  meteoraAgents: [],
+};
+
+/** Live identity refreshes per page load; the client also caps concurrency. */
+const IDENTITY_REFRESH_LIMIT = 5;
+
 async function loadLaunchContext(): Promise<LaunchContext> {
-  if (!env.databaseUrl || !env.sessionSecret) {
-    return { wallet: null, clawpumpAgents: [], meteoraAgents: [] };
-  }
+  if (!env.databaseUrl || !env.sessionSecret) return EMPTY_CONTEXT;
 
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
-  if (!session) return { wallet: null, clawpumpAgents: [], meteoraAgents: [] };
+  if (!session) return EMPTY_CONTEXT;
 
-  const ownedAgents = await getDatabase()
+  const database = getDatabase();
+  const ownedAgents = await database
     .select({
       id: agents.id,
+      slug: agents.slug,
       name: agents.name,
       mode: agents.mode,
       cluster: agents.cluster,
       integrationStatus: agents.integrationStatus,
+      externalAgentId: agents.externalAgentId,
+      externalWallet: agents.externalWallet,
+      externalRequestId: agents.externalRequestId,
+      isPublicDemo: agents.isPublicDemo,
     })
     .from(agents)
     .where(eq(agents.ownerId, session.userId));
 
-  const clawpumpAgents = ownedAgents
-    .filter((agent) => agent.integrationStatus === "linked")
-    .map((agent) => ({ id: agent.id, name: agent.name }));
-  const meteoraAgents = ownedAgents
-    .filter(
-      (agent) => agent.mode === env.executionMode && agent.cluster === env.cluster,
-    )
-    .map((agent) => ({
+  const linked = ownedAgents.filter(
+    (agent) => agent.integrationStatus === "linked" && agent.externalAgentId,
+  );
+  const client = env.clawpumpApiKey ? createClawPumpClient() : null;
+  const identities = await Promise.all(
+    linked
+      .slice(0, IDENTITY_REFRESH_LIMIT)
+      .map((agent) => getClawPumpIdentity(agent, client)),
+  );
+  const [latest, storedLaunch] = await Promise.all([
+    getLatestLaunchPreflightForOwner(database, session.userId).catch(() => null),
+    getStoredClawPumpLaunchForOwner(database, session.userId).catch(() => null),
+  ]);
+
+  return {
+    wallet: session.wallet,
+    userId: session.userId,
+    clawpumpAgents: linked.map((agent) => ({
       id: agent.id,
       name: agent.name,
-      mode: agent.mode,
-      cluster: agent.cluster,
-    }));
-
-  return { wallet: session.wallet, clawpumpAgents, meteoraAgents };
+      externalAgentId: agent.externalAgentId!,
+    })),
+    identities,
+    unlinkedAgents: ownedAgents
+      .filter((agent) => agent.integrationStatus !== "linked" && !agent.isPublicDemo)
+      .map((agent) => ({ slug: agent.slug, name: agent.name })),
+    latestPreflight: latest?.result ?? null,
+    latestPreflightOutcome: latest?.outcome ?? null,
+    storedLaunch,
+    meteoraAgents: ownedAgents
+      .filter(
+        (agent) => agent.mode === env.executionMode && agent.cluster === env.cluster,
+      )
+      .map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        mode: agent.mode,
+        cluster: agent.cluster,
+      })),
+  };
 }
 
 const CLAWPUMP_NOT_CONFIGURED =
-  "Set the server-only ClawPump key to fetch exact mints, decimals, fee limits, and request evidence. No placeholder pair can be selected and no preflight can run.";
+  "Provider not configured. Set CLAWPUMP_API_KEY, a cpk_ Partner key from clawpump.tech/developers, server-side only. Without it no real request can be made, no pair can be listed and no preflight can run.";
+
+function toPairOption(pair: PairCatalogueView["pairs"][number]): PreflightPairOption {
+  return {
+    mint: pair.mint,
+    symbol: pair.symbol,
+    name: pair.name,
+    decimals: pair.decimals,
+    classification: pair.classification,
+    tokenProgram:
+      pair.tokenProgram.status === "verified"
+        ? pair.tokenProgram.program
+        : "unverified",
+    eligible: pair.eligibleForStockPreflight,
+  };
+}
 
 async function ClawPumpSection({
-  pairsPromise,
+  clawpumpPromise,
   contextPromise,
 }: {
-  pairsPromise: Promise<PairState>;
+  clawpumpPromise: Promise<ClawPumpState>;
   contextPromise: Promise<LaunchContext>;
 }) {
-  const [pairs, launchContext] = await Promise.all([pairsPromise, contextPromise]);
+  const [clawpump, launchContext] = await Promise.all([
+    clawpumpPromise,
+    contextPromise,
+  ]);
 
-  if (pairs.status === "not_configured") {
+  if (!clawpump.configured) {
     return (
       <SponsorPanelState
         provider="ClawPump"
         icon={Coins}
         status="not_configured"
-        title="Provider access is not configured."
+        title="Provider not configured."
         description={CLAWPUMP_NOT_CONFIGURED}
         headingId="clawpump-state-title"
       />
     );
   }
 
-  if (pairs.status === "unavailable") {
-    return (
-      <SponsorPanelState
-        provider="ClawPump"
-        icon={Coins}
-        status="error"
-        title="Pair discovery is temporarily unavailable."
-        description={`${pairs.message} Retry after the provider recovers; Navis does not cache or invent pairs.`}
-        headingId="clawpump-state-title"
-      />
-    );
-  }
-
-  if (pairs.data.assets.length === 0) {
-    return (
-      <SponsorPanelState
-        provider="ClawPump"
-        icon={Coins}
-        status="empty"
-        title="The provider returned no creation pairs."
-        description={`Request ${pairs.data.meta.requestId} at ${pairs.data.meta.timestamp} succeeded but listed zero pairs, so no launch can be prepared.`}
-        headingId="clawpump-state-title"
-      />
-    );
-  }
+  const catalogue =
+    clawpump.pairs.status === "available" ? clawpump.pairs.catalogue : null;
+  const states = deriveClawPumpStates({
+    configured: true,
+    verified: clawpump.verification?.result === "connected",
+    linkedAgentCount: launchContext.clawpumpAgents.length,
+    stockPairCount: catalogue?.stockPairs.length ?? 0,
+    latestPreflight: launchContext.latestPreflightOutcome
+      ? { outcome: launchContext.latestPreflightOutcome }
+      : null,
+    launch: launchContext.storedLaunch,
+  });
 
   return (
     <>
       <div className="route-grid">
-        <LaunchPreflightForm
-          pairs={pairs.data.assets}
-          creatorFeeBps={pairs.data.creatorFeeBps}
-          agents={launchContext.clawpumpAgents}
-          authenticatedWallet={launchContext.wallet}
-        />
-        <aside className="route-panel route-panel-muted">
-          <span className="route-eyebrow">Pair source</span>
-          <h2>Live catalogue received.</h2>
-          <SourceStamp
-            source="ClawPump /pump-pairs"
-            timestamp={pairs.data.meta.timestamp}
-          />
-          <p>
-            Request {pairs.data.meta.requestId}. Creator fee range{" "}
-            {pairs.data.creatorFeeBps.min / 100}%–{pairs.data.creatorFeeBps.max / 100}
-            %; default {pairs.data.creatorFeeBps.default / 100}%.
-          </p>
-        </aside>
-      </div>
-      <section
-        className="route-panel pair-catalogue"
-        aria-labelledby="pair-catalogue-title"
-      >
-        <div className="panel-heading">
-          <Coins aria-hidden="true" size={20} />
-          <div>
-            <span>Provider catalogue</span>
-            <h2 id="pair-catalogue-title">ClawPump-supported creation pairs</h2>
+        <section
+          className="route-panel"
+          aria-labelledby="clawpump-state-title"
+          data-testid="clawpump-section"
+        >
+          <div className="panel-heading">
+            <Coins aria-hidden="true" size={20} />
+            <div>
+              <span>ClawPump</span>
+              <h2 id="clawpump-state-title">Provider integration state</h2>
+            </div>
           </div>
-        </div>
-        <div className="pair-list">
-          {pairs.data.assets.map((asset) => (
-            <article className="pair-card" key={asset.mint}>
+          <ClawPumpStateTrack
+            current={states.current}
+            connection={states.connection}
+            steps={states.steps}
+          />
+          <div className="clawpump-identities">
+            <span className="route-eyebrow">Linked agents</span>
+            {launchContext.identities.length > 0 ? (
+              launchContext.identities.map((identity) => (
+                <ClawPumpIdentityChain
+                  key={identity.localAgentId}
+                  identity={identity}
+                />
+              ))
+            ) : launchContext.wallet ? (
+              <p className="route-copy">
+                No agent of this wallet is linked to a ClawPump identity.{" "}
+                {launchContext.unlinkedAgents.length > 0 ? (
+                  <>
+                    Link one from its agent page:{" "}
+                    {launchContext.unlinkedAgents.map((agent, index) => (
+                      <span key={agent.slug}>
+                        {index > 0 ? ", " : ""}
+                        <Link href={`/agents/${agent.slug}`}>{agent.name}</Link>
+                      </span>
+                    ))}
+                    .
+                  </>
+                ) : (
+                  <>
+                    <Link href="/agents/new">Create an agent</Link> first. Atlas is
+                    never linked.
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="route-copy">
+                Authenticate a wallet to see and link its agents. Atlas is never linked.
+              </p>
+            )}
+          </div>
+        </section>
+        <ClawPumpVerificationCard
+          record={clawpump.verification}
+          authenticated={Boolean(launchContext.wallet)}
+        />
+      </div>
+
+      {clawpump.pairs.status === "unavailable" ? (
+        <SponsorPanelState
+          provider="ClawPump"
+          icon={Coins}
+          status="error"
+          title="Pair discovery is temporarily unavailable."
+          description={`${clawpump.pairs.message} Retry after the provider recovers; Navis does not cache or invent pairs.`}
+          headingId="clawpump-pairs-title"
+        />
+      ) : null}
+
+      {catalogue && catalogue.pairs.length === 0 ? (
+        <SponsorPanelState
+          provider="ClawPump"
+          icon={Coins}
+          status="empty"
+          title="The provider returned no creation pairs."
+          description={`Request ${catalogue.meta.requestId} at ${catalogue.meta.timestamp} succeeded but listed zero pairs, so no launch can be prepared.`}
+          headingId="clawpump-pairs-title"
+        />
+      ) : null}
+
+      {catalogue && catalogue.pairs.length > 0 ? (
+        <>
+          <section
+            className="route-panel pair-catalogue"
+            aria-labelledby="clawpump-pairs-title"
+          >
+            <div className="panel-heading">
+              <Coins aria-hidden="true" size={20} />
               <div>
-                <strong>{asset.symbol}</strong>
-                <span>{asset.name}</span>
+                <span>Provider catalogue</span>
+                <h2 id="clawpump-pairs-title">Stock-paired creation pairs</h2>
               </div>
-              <AddressValue value={asset.mint} label={`${asset.symbol} mint`} />
-              <span>{asset.decimals} decimals</span>
-              <StatusBadge tone="active">Provider listed</StatusBadge>
-            </article>
-          ))}
-        </div>
-      </section>
+              <StatusBadge tone={catalogue.stockPairs.length > 0 ? "pass" : "neutral"}>
+                {catalogue.stockPairs.length} stock pair
+                {catalogue.stockPairs.length === 1 ? "" : "s"}
+              </StatusBadge>
+            </div>
+            <SourceStamp
+              source="ClawPump /pump-pairs"
+              timestamp={catalogue.meta.timestamp}
+            />
+            <p className="route-copy">
+              Request {catalogue.meta.requestId}. These are {catalogue.venue}; a Meteora
+              DBC pool needs the launched base mint, so none is linked before a launch.
+              Cluster: mainnet-beta by provider contract. Token programs read from{" "}
+              {catalogue.tokenProgramSource}; stock classification from{" "}
+              {clawpump.pairs.status === "available"
+                ? clawpump.pairs.prestocksSource
+                : ""}{" "}
+              and from on-chain Token-2022 metadata whose URI host and update authority
+              match a recognised tokenized-stock issuer (Backed xStocks, Backpack
+              Securities). Symbols alone classify nothing. Creator fee range{" "}
+              {catalogue.creatorFeeBps.min / 100}%–
+              {catalogue.creatorFeeBps.max / 100}%; default{" "}
+              {catalogue.creatorFeeBps.default / 100}%.
+            </p>
+            {catalogue.stockPairs.length === 0 ? (
+              <p className="form-note" data-testid="clawpump-no-stock-pair">
+                No qualifying stock pair: none of the listed quote assets is confirmed
+                as a tokenized stock. The wrapped SOL pair and any stablecoin pair are
+                not presented as stock pairs.
+              </p>
+            ) : null}
+            <div className="pair-list">
+              {catalogue.pairs.map((asset) => (
+                <article
+                  className="pair-card"
+                  key={asset.mint}
+                  data-classification={asset.classification}
+                >
+                  <div>
+                    <strong>{asset.symbol}</strong>
+                    <span>{asset.name}</span>
+                    <span>{asset.classificationSource}</span>
+                  </div>
+                  <AddressValue value={asset.mint} label={`${asset.symbol} mint`} />
+                  <span>
+                    {asset.decimals} decimals ·{" "}
+                    {asset.tokenProgram.status === "verified"
+                      ? asset.tokenProgram.program
+                      : "token program unverified"}{" "}
+                    · {asset.cluster}
+                    {asset.prestocks ? ` · PreStocks ${asset.prestocks.symbol}` : ""}
+                    {asset.onchainMetadata
+                      ? ` · on-chain "${asset.onchainMetadata.name}" (${asset.onchainMetadata.symbol})`
+                      : ""}
+                  </span>
+                  <StatusBadge
+                    tone={
+                      asset.classification === "tokenized_stock"
+                        ? "pass"
+                        : asset.classification === "unclassified"
+                          ? "warn"
+                          : "neutral"
+                    }
+                  >
+                    {asset.classification === "tokenized_stock"
+                      ? "Tokenized stock"
+                      : asset.classification === "wrapped_sol"
+                        ? "Wrapped SOL pair"
+                        : asset.classification === "stablecoin"
+                          ? "Stablecoin"
+                          : "Unconfirmed"}
+                  </StatusBadge>
+                </article>
+              ))}
+            </div>
+          </section>
+          <LaunchPreflightForm
+            pairs={catalogue.pairs.map(toPairOption)}
+            creatorFeeBps={catalogue.creatorFeeBps}
+            agents={launchContext.clawpumpAgents}
+            authenticatedWallet={launchContext.wallet}
+            latest={launchContext.latestPreflight}
+          />
+        </>
+      ) : null}
     </>
   );
 }
@@ -316,7 +580,7 @@ async function PreStocksSection({
 export default function MarketLaunchPage() {
   // Each sponsor surface resolves independently so a slow or failing provider
   // shows its own loading and error state instead of blanking the whole page.
-  const pairsPromise = loadPairs();
+  const clawpumpPromise = loadClawPump();
   const prestocksPromise = loadPreStocks();
   const contextPromise = loadLaunchContext();
 
@@ -334,13 +598,16 @@ export default function MarketLaunchPage() {
             provider="ClawPump"
             icon={Coins}
             status="loading"
-            title="Fetching creation pairs"
-            description="Requesting the live pair catalogue and creator fee limits from ClawPump."
+            title="Verifying provider and fetching creation pairs"
+            description="Running a real authenticated read-only request and requesting the live pair catalogue from ClawPump."
             headingId="clawpump-state-title"
           />
         }
       >
-        <ClawPumpSection pairsPromise={pairsPromise} contextPromise={contextPromise} />
+        <ClawPumpSection
+          clawpumpPromise={clawpumpPromise}
+          contextPromise={contextPromise}
+        />
       </Suspense>
       <Suspense
         fallback={

@@ -57,9 +57,7 @@
           "name": "listFreshRequest",
           "status": 200,
           "matchingAgents": 1,
-          "slugs": [
-            "browser-replay-reload-6e0b4d-e98332dc"
-          ]
+          "slugs": ["browser-replay-reload-6e0b4d-e98332dc"]
         }
       ],
       "passed": true
@@ -126,9 +124,7 @@
           "name": "listFreshRequest",
           "status": 200,
           "matchingAgents": 1,
-          "slugs": [
-            "browser-replay-restart-34c1ab-8993d5e0"
-          ]
+          "slugs": ["browser-replay-restart-34c1ab-8993d5e0"]
         }
       ],
       "passed": true
@@ -226,9 +222,7 @@
           "name": "listFreshRequest",
           "status": 200,
           "matchingAgents": 1,
-          "slugs": [
-            "browser-replay-resignin-9b0b2a-13b6bf40"
-          ]
+          "slugs": ["browser-replay-resignin-9b0b2a-13b6bf40"]
         }
       ],
       "passed": true

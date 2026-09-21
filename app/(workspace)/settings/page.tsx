@@ -2,13 +2,50 @@ import { CheckCircle, MinusCircle, ShieldCheck } from "@phosphor-icons/react/dis
 import type { Metadata } from "next";
 
 import { FieldRow, RouteHeader } from "@/components/route-primitives";
-import { getPublicCapabilities } from "@/lib/env";
+import { env, getPublicCapabilities } from "@/lib/env";
+import { getDatabase } from "@/lib/db/client";
+import { getLatestClawPumpVerification } from "@/lib/services/clawpump-verification";
 
 export const metadata: Metadata = { title: "Capabilities" };
 export const dynamic = "force-dynamic";
 
-export default function SettingsPage() {
+async function describeClawPump() {
+  if (!env.clawpumpApiKey) {
+    return {
+      value: "Provider not configured",
+      detail:
+        "Set CLAWPUMP_API_KEY, a cpk_ Partner key from clawpump.tech/developers, server-side only.",
+    };
+  }
+  const record = env.databaseUrl
+    ? await getLatestClawPumpVerification(getDatabase()).catch(() => null)
+    : null;
+  if (!record) {
+    return {
+      value: "Key present, not yet verified",
+      detail:
+        "No stored verification record. Open Markets to run a real read-only request.",
+    };
+  }
+  if (record.result === "connected") {
+    return {
+      value: "Provider connected",
+      detail: `GET ${record.endpoint} answered HTTP ${record.httpStatus} at ${record.providerTimestamp ?? record.checkedAt}, request ${record.requestId}. ${
+        record.agentAccess === "forbidden"
+          ? "GET /agents refused (HTTP 403): key not linked to an account, so agent operations are unavailable."
+          : `${record.agentCount} agent(s) under the key.`
+      }`,
+    };
+  }
+  return {
+    value: record.result === "unauthorised" ? "Key rejected" : "Provider unreachable",
+    detail: `${record.safeError ?? "Verification failed."} Checked ${record.checkedAt}.`,
+  };
+}
+
+export default async function SettingsPage() {
   const capabilities = getPublicCapabilities();
+  const clawpump = await describeClawPump();
   return (
     <>
       <RouteHeader
@@ -66,7 +103,8 @@ export default function SettingsPage() {
             />
             <FieldRow
               label="ClawPump"
-              value={capabilities.clawpumpConfigured ? "Configured" : "Unavailable"}
+              value={clawpump.value}
+              detail={clawpump.detail}
             />
             <FieldRow
               label="Meteora DBC"
