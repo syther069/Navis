@@ -1,6 +1,6 @@
 # Navis submission readiness
 
-Updated: 2026-09-20 (late evening IST), current `main`. Public site: https://navis-gilt.vercel.app. The deployed commit and the public smoke result are recorded in `docs/EVIDENCE.md` under "Final state".
+Updated: 2026-09-21 (IST), GitHub `main` at `a41c10a`. Public site: https://navis-gilt.vercel.app. The deployed commit and the public smoke result are recorded in `docs/EVIDENCE.md` under "Final state".
 
 ## Official rules verified
 
@@ -75,4 +75,4 @@ Ready to submit as an honest demo once the owner completes the form items (regis
 - Hardening, fresh decision flow, intent binding and origin fix pushed and deployed at `a335681`.
 - First-screen intro plus read-only devnet slot probe live at `085e779`; production `SOLANA_RPC_URL` points at the public devnet endpoint.
 - CI pipeline, agent list, persisted runs, landing screen, assurance badges, MIT licence and real 404s deployed at `6aa5f32` (44 files / 318 tests at that point).
-- Final: PreStocks verified asset universe, 46 files / 340 tests, evidence sync.
+- Final (2026-09-21): PreStocks verified asset universe, evidence sync, 46 files / 340 tests; deployed at `a41c10a`, public smoke passed.

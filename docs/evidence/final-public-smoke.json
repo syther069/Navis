@@ -1,0 +1,158 @@
+{
+  "checkedAt": "2026-09-21T10:38:05.349Z",
+  "baseUrl": "https://navis-gilt.vercel.app",
+  "health": {
+    "status": "ok",
+    "checkedAt": "2026-09-21T10:38:01.674Z",
+    "mode": "demo",
+    "cluster": "devnet",
+    "services": {
+      "database": {
+        "status": "not_configured"
+      },
+      "authenticationOrigin": {
+        "status": "not_configured"
+      },
+      "solanaRpc": {
+        "status": "configured"
+      },
+      "walletSessions": {
+        "status": "not_configured"
+      },
+      "clawpump": {
+        "status": "not_configured"
+      },
+      "meteora": {
+        "status": "configured"
+      },
+      "prestocks": {
+        "status": "configured"
+      },
+      "ai": {
+        "status": "configured"
+      }
+    }
+  },
+  "results": [
+    {
+      "path": "/",
+      "includes": [
+        "Navis lets an AI equity agent propose Solana actions, but only deterministic policy checks and wallet approval can turn those proposals into verifiable receipts.",
+        "The agent cannot bypass policy",
+        "Demo and live evidence are labelled differently",
+        "Wallet approval remains required for value movement",
+        "Atlas demo",
+        "Create an agent",
+        "Markets Launch",
+        "Offchain integrity",
+        "Wallet authorization",
+        "Onchain settlement"
+      ],
+      "excludes": []
+    },
+    {
+      "path": "/agents",
+      "includes": ["Agents", "Atlas", "Create an agent"],
+      "excludes": []
+    },
+    {
+      "path": "/agents/new",
+      "includes": ["Define a mandate", "Review mandate"],
+      "excludes": []
+    },
+    {
+      "path": "/agents/atlas",
+      "includes": [
+        "What Navis is",
+        "Run a decision",
+        "Verify a receipt",
+        "No live execution",
+        "Atlas",
+        "Constraint ledger",
+        "Demo portfolio snapshot"
+      ],
+      "excludes": []
+    },
+    {
+      "path": "/decisions",
+      "includes": ["Decisions", "Atlas bounded one-unit rebalance", "Simulated"],
+      "excludes": []
+    },
+    {
+      "path": "/agents/atlas/decisions/demo-decision",
+      "includes": ["Demo decision", "policy evaluation", "Open public verifier"],
+      "excludes": []
+    },
+    {
+      "path": "/proofs",
+      "includes": [
+        "Proofs",
+        "DEMO RECEIPT",
+        "Simulation",
+        "Offchain integrity",
+        "Demo simulation"
+      ],
+      "excludes": []
+    },
+    {
+      "path": "/proofs/demo-proof",
+      "includes": [
+        "Public verifier",
+        "Transaction signature",
+        "None",
+        "Offchain only",
+        "deterministic demo receipt",
+        "Why this passed",
+        "Offchain integrity",
+        "Demo simulation"
+      ],
+      "matchedAlternative": "Hashes and references match",
+      "excludes": ["explorer.solana.com/tx/"]
+    },
+    {
+      "path": "/markets/launch",
+      "includes": ["Market launch preflight", "Meteora DBC", "PreStocks"],
+      "excludes": []
+    },
+    {
+      "path": "/settings",
+      "includes": ["Capabilities", "Meteora DBC", "Execution posture"],
+      "excludes": []
+    },
+    {
+      "path": "/disclosures",
+      "includes": [
+        "Risk and privacy disclosures",
+        "Not brokerage or investment advice",
+        "PreStocks action path",
+        "Offchain only",
+        "Private keys"
+      ],
+      "excludes": []
+    },
+    {
+      "path": "/transactions",
+      "includes": ["Transactions", "Execution ledger"],
+      "excludes": []
+    },
+    {
+      "path": "/api/assets/prestocks",
+      "includes": ["readOnly", "valueMovementAvailable", "PreStocks"],
+      "excludes": ["private upstream trace", "CLAWPUMP_API_KEY", "SESSION_SECRET"]
+    },
+    {
+      "path": "/decisions/unknown-decision-id",
+      "status": 404
+    },
+    {
+      "path": "/proofs/unknown-proof-id",
+      "status": 404
+    },
+    {
+      "path": "/api/decisions/run",
+      "followUp": "/api/decisions/31c9a606-325d-432d-b90d-5b4e4a83a02d",
+      "scenario": "oversized",
+      "universe": "prestocks"
+    }
+  ]
+}
