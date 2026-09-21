@@ -73,9 +73,12 @@ export default async function PersistentAgentPage({
   const database = getDatabase();
   const bundle = await getPersistentAgentForOwner(slug, session.wallet, database);
   if (!bundle) notFound();
-  const storedDecisions = (
-    await listDecisionsForOwner(session.wallet, database)
-  ).filter((decision) => decision.agent.id === bundle.agent.id);
+  const storedDecisions = await listDecisionsForOwner(
+    session.wallet,
+    database,
+    25,
+    bundle.agent.id,
+  );
 
   return (
     <>

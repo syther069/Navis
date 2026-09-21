@@ -15,7 +15,14 @@ import {
   createPersistentAgent,
   getPersistentAgentForOwner,
 } from "../lib/services/agents";
-import { listDecisions, listProofs, loadProof } from "../lib/services/decision-records";
+import {
+  listDecisions,
+  listDecisionsForOwner,
+  listProofs,
+  listProofsForOwner,
+  loadProof,
+  loadProofForOwner,
+} from "../lib/services/decision-records";
 import {
   ensurePublicAtlasAgent,
   PUBLIC_ATLAS_SLUG,
@@ -436,6 +443,24 @@ describe.skipIf(!databaseUrl)("public Atlas persistence", () => {
       expect(anonymousList.some((d) => d.decisionId === publicRun.decisionId)).toBe(
         true,
       );
+
+      // Owner-only views (agent history, owner ledgers) never carry public
+      // Atlas records, and a public record is not readable as an owner record.
+      const ownerOnly = await listDecisionsForOwner(ownerWallet, tx);
+      expect(ownerOnly.every((d) => d.visibility === "owner")).toBe(true);
+      expect(ownerOnly.some((d) => d.decisionId === owned.decisionId)).toBe(true);
+      expect(ownerOnly.some((d) => d.decisionId === publicRun.decisionId)).toBe(false);
+      const perAgent = await listDecisionsForOwner(
+        ownerWallet,
+        tx,
+        25,
+        bundle!.agent.id,
+      );
+      expect(perAgent.map((d) => d.decisionId)).toEqual([owned.decisionId]);
+      const ownerProofs = await listProofsForOwner(ownerWallet, tx);
+      expect(ownerProofs.every((p) => p.visibility === "owner")).toBe(true);
+      expect(ownerProofs.some((p) => p.proofId === publicRun.proofId)).toBe(false);
+      expect(await loadProofForOwner(publicRun.proofId!, ownerWallet, tx)).toBeNull();
     });
   });
 

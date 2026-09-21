@@ -34,6 +34,16 @@ function readableBy(reader: StoredRecordReader): SQL {
   return or(eq(schema.agents.isPublicDemo, true), owned) as SQL;
 }
 
+/** Owner-only scope: never includes public Atlas records. */
+type OwnerScope = Readonly<{ ownerWallet: string; agentId?: string }>;
+
+function ownedBy(scope: OwnerScope): SQL {
+  const owner = eq(schema.agents.ownerWallet, scope.ownerWallet);
+  return scope.agentId
+    ? (and(owner, eq(schema.agents.id, scope.agentId)) as SQL)
+    : owner;
+}
+
 const agentSelection = {
   id: schema.agents.id,
   slug: schema.agents.slug,
@@ -71,10 +81,18 @@ export type StoredDecisionSummary = Readonly<{
 }>;
 
 /** Stored decisions the reader may see (public Atlas plus own), newest first. */
-export async function listDecisions(
+export function listDecisions(
   reader: StoredRecordReader,
   database: NavisDatabase,
   limit = 25,
+): Promise<readonly StoredDecisionSummary[]> {
+  return queryDecisions(readableBy(reader), database, limit);
+}
+
+async function queryDecisions(
+  where: SQL,
+  database: NavisDatabase,
+  limit: number,
 ): Promise<readonly StoredDecisionSummary[]> {
   const rows = await database
     .select({
@@ -102,7 +120,7 @@ export async function listDecisions(
       schema.executionAttempts,
       eq(schema.executionAttempts.id, schema.proofReceipts.executionAttemptId),
     )
-    .where(readableBy(reader))
+    .where(where)
     .orderBy(desc(schema.decisions.createdAt))
     .limit(limit);
 
@@ -119,13 +137,18 @@ export async function listDecisions(
   }));
 }
 
-/** Owner-scoped list, kept for callers that always have a session. */
+/**
+ * Owner-only list: the wallet's own decisions and nothing else (public Atlas
+ * records are excluded). `agentId` narrows it to one owned agent, applied in
+ * the query so the limit counts that agent's decisions.
+ */
 export function listDecisionsForOwner(
   ownerWallet: string,
   database: NavisDatabase,
   limit = 25,
+  agentId?: string,
 ) {
-  return listDecisions({ ownerWallet }, database, limit);
+  return queryDecisions(ownedBy({ ownerWallet, agentId }), database, limit);
 }
 
 export type StoredProofSummary = Readonly<{
@@ -181,10 +204,18 @@ function summarise(row: {
 }
 
 /** Stored receipts the reader may see (public Atlas plus own), newest first. */
-export async function listProofs(
+export function listProofs(
   reader: StoredRecordReader,
   database: NavisDatabase,
   limit = 25,
+): Promise<readonly StoredProofRecord[]> {
+  return queryProofs(readableBy(reader), database, limit);
+}
+
+async function queryProofs(
+  where: SQL,
+  database: NavisDatabase,
+  limit: number,
 ): Promise<readonly StoredProofRecord[]> {
   const rows = await database
     .select(proofSelection)
@@ -194,19 +225,19 @@ export async function listProofs(
       eq(schema.decisions.id, schema.proofReceipts.decisionId),
     )
     .innerJoin(schema.agents, eq(schema.agents.id, schema.decisions.agentId))
-    .where(readableBy(reader))
+    .where(where)
     .orderBy(desc(schema.proofReceipts.finalizedAt))
     .limit(limit);
   return rows.map(summarise);
 }
 
-/** Owner-scoped list, kept for callers that always have a session. */
+/** Owner-only list: the wallet's own receipts, public Atlas records excluded. */
 export function listProofsForOwner(
   ownerWallet: string,
   database: NavisDatabase,
   limit = 25,
 ) {
-  return listProofs({ ownerWallet }, database, limit);
+  return queryProofs(ownedBy({ ownerWallet }), database, limit);
 }
 
 /**
@@ -232,11 +263,22 @@ export async function loadProof(
   return row ? summarise(row) : null;
 }
 
-/** Owner-scoped read, kept for callers that always have a session. */
-export function loadProofForOwner(
+/** Owner-only read: null for anything the wallet does not own, public Atlas included. */
+export async function loadProofForOwner(
   proofId: string,
   ownerWallet: string,
   database: NavisDatabase,
-) {
-  return loadProof(proofId, { ownerWallet }, database);
+): Promise<StoredProofRecord | null> {
+  if (!UUID_PATTERN.test(proofId)) return null;
+  const [row] = await database
+    .select(proofSelection)
+    .from(schema.proofReceipts)
+    .innerJoin(
+      schema.decisions,
+      eq(schema.decisions.id, schema.proofReceipts.decisionId),
+    )
+    .innerJoin(schema.agents, eq(schema.agents.id, schema.decisions.agentId))
+    .where(and(eq(schema.proofReceipts.id, proofId), ownedBy({ ownerWallet })))
+    .limit(1);
+  return row ? summarise(row) : null;
 }
