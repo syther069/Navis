@@ -135,13 +135,15 @@ NAVIS_SMOKE_BASE_URL=https://your-deployed-origin.example npm run smoke:judge
 
 Set `NAVIS_SMOKE_REPORT=docs/deployed-smoke-report.json` to write a JSON evidence report for submission review.
 
-To confirm in a real browser that a reload in the middle of an agent save, followed by "Restore that mandate" and a second create, replays the first agent instead of creating a second one (needs a deployed origin with a database and wallet sessions configured, plus a local `chromium`):
+To confirm in a real browser that an interrupted agent save, followed by "Restore that mandate" and a second create, replays the first agent instead of creating a second one (needs a deployed origin with a database and wallet sessions configured, plus a local `chromium`):
 
 ```bash
 NAVIS_REPLAY_BASE_URL=https://your-deployed-origin.example npm run check:browser-replay
+# subset, and a profile directory kept between Chromium processes:
+NAVIS_REPLAY_BASE_URL=... node scripts/browser-replay-check.mjs --scenarios=restart,resignin --user-data-dir=/tmp/navis-profile
 ```
 
-It signs in with a throwaway keypair, creates one agent named `browser-replay-<hex>` under that wallet and writes `docs/evidence/browser-replay-check.json` plus two screenshots.
+It runs three scenarios (page reload, browser closed and reopened on the same profile, browser closed then a different wallet and the same wallet signing in again), each with a throwaway keypair and one agent named `browser-replay-<scenario>-<hex>`, and writes `docs/evidence/browser-replay-check.json` plus the screenshots.
 
 To inspect the submission package for missing evidence rows, TODO markers, and unsupported live claims:
 

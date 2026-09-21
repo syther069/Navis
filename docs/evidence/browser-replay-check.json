@@ -1,58 +1,237 @@
 {
   "base": "https://navis-gilt.vercel.app",
-  "checkedAt": "2026-09-21T14:28:26.886Z",
-  "note": "Headless Chromium over CDP with a real session cookie and real localStorage against the live /api/agents route. Sign-in used a scripted ed25519 keypair. The first POST reached the server; its response was held and the page reloaded mid-save.",
-  "wallet": "EnWxtnr9ER7sm8c2NrtD2yYRuCg3E4k4ji6ccDJNZzGF",
-  "agentName": "browser-replay-e5c4d8",
-  "steps": [
+  "checkedAt": "2026-09-21T15:10:34.960Z",
+  "note": "Headless Chromium over CDP with a real session cookie and real localStorage against the live /api/agents route. Sign-in used scripted ed25519 keypairs. In every scenario the first POST reached the server and its response was held while the browser was interrupted mid-save.",
+  "scenarios": [
     {
-      "name": "nonce",
-      "status": 200
+      "name": "reload",
+      "wallet": "DXv5FNGWpehwgSyboS8aC62SFcieUn2XkREfnSBeuKav",
+      "agentName": "browser-replay-reload-6e0b4d",
+      "steps": [
+        {
+          "name": "signIn",
+          "wallet": "DXv5FNGWpehwgSyboS8aC62SFcieUn2XkREfnSBeuKav",
+          "nonceStatus": 200,
+          "verifyStatus": 200,
+          "authenticated": true
+        },
+        {
+          "name": "openForm",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "review",
+          "pendingKeyStored": true,
+          "pendingWalletMatches": true
+        },
+        {
+          "name": "firstCreateHeld",
+          "serverStatus": 201,
+          "clientRequestId": "79bcd599-6fd5-4d9e-a0e9-ad6e231d8703",
+          "savingShown": true
+        },
+        {
+          "name": "reloadMidSave",
+          "samePid": 3057
+        },
+        {
+          "name": "restoreOffer",
+          "noticeShown": true,
+          "restoreVisible": true,
+          "pendingRecordPresent": true,
+          "pendingRecordWallet": "DXv5FNGWpehwgSyboS8aC62SFcieUn2XkREfnSBeuKav"
+        },
+        {
+          "name": "secondCreate",
+          "status": 200,
+          "replayed": true,
+          "slug": "browser-replay-reload-6e0b4d-e98332dc",
+          "sameClientRequestId": true
+        },
+        {
+          "name": "landedOnAgent",
+          "path": "/agents/browser-replay-reload-6e0b4d-e98332dc",
+          "pendingCleared": true
+        },
+        {
+          "name": "listFreshRequest",
+          "status": 200,
+          "matchingAgents": 1,
+          "slugs": [
+            "browser-replay-reload-6e0b4d-e98332dc"
+          ]
+        }
+      ],
+      "passed": true
     },
     {
-      "name": "verify",
-      "status": 200,
-      "authenticated": true
+      "name": "restart",
+      "wallet": "2oQGfY4DWB5jBRCbKY7Fb7Zfv1NYffUNATXXEqzEsYNF",
+      "agentName": "browser-replay-restart-34c1ab",
+      "steps": [
+        {
+          "name": "signIn",
+          "wallet": "2oQGfY4DWB5jBRCbKY7Fb7Zfv1NYffUNATXXEqzEsYNF",
+          "nonceStatus": 200,
+          "verifyStatus": 200,
+          "authenticated": true
+        },
+        {
+          "name": "openForm",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "review",
+          "pendingKeyStored": true,
+          "pendingWalletMatches": true
+        },
+        {
+          "name": "firstCreateHeld",
+          "serverStatus": 201,
+          "clientRequestId": "2e19961f-420e-457f-b154-3e008e9f16df",
+          "savingShown": true
+        },
+        {
+          "name": "browserRestarted",
+          "closedPid": 3189,
+          "closedCleanly": true,
+          "newPid": 3319,
+          "sameProfile": true,
+          "userDataDir": "/tmp/navis-replay-L9Sqq7"
+        },
+        {
+          "name": "openFormAfterRestart",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "restoreOffer",
+          "noticeShown": true,
+          "restoreVisible": true,
+          "pendingRecordPresent": true,
+          "pendingRecordWallet": "2oQGfY4DWB5jBRCbKY7Fb7Zfv1NYffUNATXXEqzEsYNF"
+        },
+        {
+          "name": "secondCreate",
+          "status": 200,
+          "replayed": true,
+          "slug": "browser-replay-restart-34c1ab-8993d5e0",
+          "sameClientRequestId": true
+        },
+        {
+          "name": "landedOnAgent",
+          "path": "/agents/browser-replay-restart-34c1ab-8993d5e0",
+          "pendingCleared": true
+        },
+        {
+          "name": "listFreshRequest",
+          "status": 200,
+          "matchingAgents": 1,
+          "slugs": [
+            "browser-replay-restart-34c1ab-8993d5e0"
+          ]
+        }
+      ],
+      "passed": true
     },
     {
-      "name": "openForm",
-      "authenticatedHeader": true
-    },
-    {
-      "name": "review",
-      "pendingKeyStored": true,
-      "pendingWalletMatches": true
-    },
-    {
-      "name": "firstCreateHeld",
-      "serverStatus": 201,
-      "clientRequestId": "35568a86-016b-4127-a505-f714fabc6bf5",
-      "savingShown": true
-    },
-    {
-      "name": "reloadMidSave",
-      "noticeShown": true,
-      "restoreVisible": true
-    },
-    {
-      "name": "secondCreate",
-      "status": 200,
-      "replayed": true,
-      "slug": "browser-replay-e5c4d8-07507669",
-      "sameClientRequestId": true
-    },
-    {
-      "name": "landedOnAgent",
-      "path": "/agents/browser-replay-e5c4d8-07507669",
-      "pendingCleared": true
-    },
-    {
-      "name": "listFreshRequest",
-      "status": 200,
-      "matchingAgents": 1,
-      "slugs": [
-        "browser-replay-e5c4d8-07507669"
-      ]
+      "name": "resignin",
+      "wallet": "BpxNaov5zYC6nRe3bKSJVM546jqvj1ZvyMmS8JUDUcmV",
+      "agentName": "browser-replay-resignin-9b0b2a",
+      "steps": [
+        {
+          "name": "signIn",
+          "wallet": "BpxNaov5zYC6nRe3bKSJVM546jqvj1ZvyMmS8JUDUcmV",
+          "nonceStatus": 200,
+          "verifyStatus": 200,
+          "authenticated": true
+        },
+        {
+          "name": "openForm",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "review",
+          "pendingKeyStored": true,
+          "pendingWalletMatches": true
+        },
+        {
+          "name": "firstCreateHeld",
+          "serverStatus": 201,
+          "clientRequestId": "69e7b2a2-2731-42f5-94b9-232818fb0e7c",
+          "savingShown": true
+        },
+        {
+          "name": "browserRestarted",
+          "closedPid": 3426,
+          "closedCleanly": true,
+          "newPid": 3554,
+          "sameProfile": true,
+          "userDataDir": "/tmp/navis-replay-L9Sqq7"
+        },
+        {
+          "name": "signIn",
+          "wallet": "CB18oEPgPZyx6TLbKkBiRmxqUz4u2YRmfSYMwPiFQn2i",
+          "nonceStatus": 200,
+          "verifyStatus": 200,
+          "authenticated": true
+        },
+        {
+          "name": "openFormAsOtherWallet",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "otherWalletSeesNoOffer",
+          "otherWallet": "CB18oEPgPZyx6TLbKkBiRmxqUz4u2YRmfSYMwPiFQn2i",
+          "noticeShown": false,
+          "restoreVisible": false,
+          "pendingRecordPresent": true,
+          "pendingRecordWallet": "BpxNaov5zYC6nRe3bKSJVM546jqvj1ZvyMmS8JUDUcmV"
+        },
+        {
+          "name": "signIn",
+          "wallet": "BpxNaov5zYC6nRe3bKSJVM546jqvj1ZvyMmS8JUDUcmV",
+          "nonceStatus": 200,
+          "verifyStatus": 200,
+          "authenticated": true
+        },
+        {
+          "name": "freshSession",
+          "sameWallet": true,
+          "cookieChanged": true
+        },
+        {
+          "name": "openFormAfterResignin",
+          "authenticatedHeader": true
+        },
+        {
+          "name": "restoreOffer",
+          "noticeShown": true,
+          "restoreVisible": true,
+          "pendingRecordPresent": true,
+          "pendingRecordWallet": "BpxNaov5zYC6nRe3bKSJVM546jqvj1ZvyMmS8JUDUcmV"
+        },
+        {
+          "name": "secondCreate",
+          "status": 200,
+          "replayed": true,
+          "slug": "browser-replay-resignin-9b0b2a-13b6bf40",
+          "sameClientRequestId": true
+        },
+        {
+          "name": "landedOnAgent",
+          "path": "/agents/browser-replay-resignin-9b0b2a-13b6bf40",
+          "pendingCleared": true
+        },
+        {
+          "name": "listFreshRequest",
+          "status": 200,
+          "matchingAgents": 1,
+          "slugs": [
+            "browser-replay-resignin-9b0b2a-13b6bf40"
+          ]
+        }
+      ],
+      "passed": true
     }
   ],
   "passed": true,
@@ -66,5 +245,7 @@
       "status": "configured"
     },
     "deployment": null
-  }
+  },
+  "userDataDir": "/tmp/navis-replay-L9Sqq7",
+  "userDataDirTemporary": true
 }
