@@ -206,6 +206,27 @@ async function main() {
     join(outDir, `${prefix}-agent-run-full.png`),
   );
 
+  // 1b. Stored Atlas run: follow the panel's own links in a fresh, cookie-less
+  // context so the decision and proof pages are proven readable without a
+  // session and straight from the database (only when the run was stored).
+  const storedLinks = await session.evaluate(
+    "(() => { const d = document.querySelector('[data-testid=decision-run-open-decision]'); const p = document.querySelector('[data-testid=decision-run-view-proof]'); return d && p ? { decision: d.getAttribute('href'), proof: p.getAttribute('href') } : null; })()",
+  );
+  if (storedLinks) {
+    console.log(`stored run links: ${storedLinks.decision} ${storedLinks.proof}`);
+    await session.send("Network.clearBrowserCookies");
+    await session.navigate(`${baseUrl}${storedLinks.decision}`);
+    await session.waitFor(
+      "document.body.textContent.includes('Public Atlas record') || document.body.textContent.includes('public Atlas record')",
+    );
+    await session.screenshot(join(outDir, `${prefix}-stored-decision.png`));
+    await session.navigate(`${baseUrl}${storedLinks.proof}`);
+    await session.waitFor("document.body.textContent.includes('Public verifier')");
+    await session.screenshot(join(outDir, `${prefix}-stored-proof.png`));
+  } else {
+    console.log("run was not stored (no database); skipping stored-page captures");
+  }
+
   // 2. Proof page.
   await session.navigate(`${baseUrl}/proofs/demo-proof`);
   await session.waitFor("document.body.textContent.includes('Public verifier')");

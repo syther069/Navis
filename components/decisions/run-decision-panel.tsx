@@ -77,7 +77,7 @@ export function DecisionRunResultView({
   const proposalLine =
     run.proposal.action === "HOLD"
       ? "HOLD: no asset moves."
-      : `${run.proposal.action} ${describeMint(run.proposal.inputMint)} into ${describeMint(run.proposal.outputMint)}, input ${run.proposal.inputAmount} base units, max slippage ${run.proposal.maxSlippageBps} bps.`;
+      : `${run.proposal.action} ${describeMint(run.proposal.inputMint)} into ${describeMint(run.proposal.outputMint)}, amount ${run.proposal.inputAmount.uiAmount} ${describeMint(run.proposal.inputMint).split(" ")[0]} (${run.proposal.inputAmount.rawAmount} base units at ${run.proposal.inputAmount.decimals} decimals), max slippage ${run.proposal.maxSlippageBps} bps.`;
   const executionState = run.receipt.execution.state;
   const simulationLine =
     executionState === "simulated"
