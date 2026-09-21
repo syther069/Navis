@@ -1,0 +1,70 @@
+{
+  "base": "https://navis-gilt.vercel.app",
+  "checkedAt": "2026-09-21T14:28:26.886Z",
+  "note": "Headless Chromium over CDP with a real session cookie and real localStorage against the live /api/agents route. Sign-in used a scripted ed25519 keypair. The first POST reached the server; its response was held and the page reloaded mid-save.",
+  "wallet": "EnWxtnr9ER7sm8c2NrtD2yYRuCg3E4k4ji6ccDJNZzGF",
+  "agentName": "browser-replay-e5c4d8",
+  "steps": [
+    {
+      "name": "nonce",
+      "status": 200
+    },
+    {
+      "name": "verify",
+      "status": 200,
+      "authenticated": true
+    },
+    {
+      "name": "openForm",
+      "authenticatedHeader": true
+    },
+    {
+      "name": "review",
+      "pendingKeyStored": true,
+      "pendingWalletMatches": true
+    },
+    {
+      "name": "firstCreateHeld",
+      "serverStatus": 201,
+      "clientRequestId": "35568a86-016b-4127-a505-f714fabc6bf5",
+      "savingShown": true
+    },
+    {
+      "name": "reloadMidSave",
+      "noticeShown": true,
+      "restoreVisible": true
+    },
+    {
+      "name": "secondCreate",
+      "status": 200,
+      "replayed": true,
+      "slug": "browser-replay-e5c4d8-07507669",
+      "sameClientRequestId": true
+    },
+    {
+      "name": "landedOnAgent",
+      "path": "/agents/browser-replay-e5c4d8-07507669",
+      "pendingCleared": true
+    },
+    {
+      "name": "listFreshRequest",
+      "status": 200,
+      "matchingAgents": 1,
+      "slugs": [
+        "browser-replay-e5c4d8-07507669"
+      ]
+    }
+  ],
+  "passed": true,
+  "health": {
+    "database": {
+      "status": "ok",
+      "tablesReady": true,
+      "immutabilityGuardsReady": true
+    },
+    "walletSessions": {
+      "status": "configured"
+    },
+    "deployment": null
+  }
+}

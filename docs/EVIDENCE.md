@@ -160,6 +160,22 @@ Run on 2026-09-21 at 11:29 UTC against `https://navis-gilt.vercel.app`, whose pr
 
 A real wallet extension and signing remain unverified (the public sign-in check used a scripted keypair). See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the round 2 audit and its evidence list.
 
+### Browser reload mid-save check (deployed commit `047e989`)
+
+The check above exercised the API directly. This one drives the real create-agent form in headless Chromium (`npm run check:browser-replay`, `scripts/browser-replay-check.mjs`, DevTools protocol, no Playwright) so the browser's own localStorage record, the session cookie and the live route are all involved. Run on 2026-09-21 at 14:28 UTC against `https://navis-gilt.vercel.app`, production deployment `047e989`. Sign-in again used a scripted ed25519 keypair whose session cookie was placed in the browser's cookie jar; everything after that was clicks in the page. Recorded in `docs/evidence/browser-replay-check.json`, screenshots `docs/evidence/browser-replay-restore-offer.png` and `browser-replay-agent-page.png`:
+
+| Step                                                           | Result                                                                                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Open `/agents/new` with the session cookie                     | Header reports "Wallet-authenticated draft"                                                                                |
+| Fill a unique mandate, press "Review mandate"                  | `localStorage` holds a pending record with a request key scoped to the signed-in wallet                                    |
+| Press "Create agent"; response held at the network layer       | `POST /api/agents` reached the server and answered 201; the browser showed "Saving…" and never received the answer         |
+| Reload the page while the save was pending                     | Form shows "An earlier save of browser-replay-e5c4d8 was not confirmed" with a "Restore that mandate" button               |
+| "Restore that mandate", "Review mandate", "Create agent" again | Second `POST /api/agents` carried the same `clientRequestId`; 200, `replayed: true`, slug `browser-replay-e5c4d8-07507669` |
+| After the answer                                               | Browser navigated to `/agents/browser-replay-e5c4d8-07507669`; the pending record was removed from `localStorage`          |
+| `GET /api/agents` in a fresh request with the same session     | exactly one agent with that name, same slug                                                                                |
+
+The held first response is the worst case for duplication: the server had already committed the agent when the page reloaded. A blocked or failed first request is a weaker case of the same path (no agent yet, same key on the retry) and is covered by the unit tests in `tests/agent-request-key.test.ts`.
+
 ### Public Atlas decisions and proofs (Task 2)
 
 Every Atlas run on the public site is now stored in PostgreSQL as a public record (portfolio snapshot, decision, policy evaluation, simulated or rejected execution attempt and proof receipt, written in one transaction) and readable at `/decisions/<id>` and `/proofs/<id>` with no wallet session. Private owner records still need the owner's session and are otherwise a real 404. Details, design and test list: `docs/TASK2_ATLAS_PERSISTENCE_DELIVERY.md`.
