@@ -9,7 +9,7 @@ import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { verifyProofReceipt } from "@/lib/proofs/receipt";
 import { projectProofTimeline } from "@/lib/proofs/timeline";
-import { loadProofForOwner } from "@/lib/services/decision-records";
+import { loadProof } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Proof receipt" };
 
@@ -18,10 +18,11 @@ const DEMO_NOTE =
 
 async function loadStoredProof(proofId: string) {
   if (!env.databaseUrl) return null;
+  // Public Atlas receipts open without a session; owner receipts need the
+  // owner's session and anything else is an indistinguishable 404.
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
-  if (!session) return null;
-  return loadProofForOwner(proofId, session.wallet, getDatabase());
+  return loadProof(proofId, { ownerWallet: session?.wallet }, getDatabase());
 }
 
 export default async function ProofDetailPage({
@@ -80,7 +81,10 @@ export default async function ProofDetailPage({
       timeline={timeline}
       origin={{
         label: `stored ${receipt.mode} simulation`,
-        note: `Stored demo simulation receipt for the connected wallet, generated ${stored.finalizedAt}. It is offchain only: no signature, no paid fees and no onchain transaction. The portfolio it references is a labelled demo fixture.`,
+        note:
+          stored.visibility === "public"
+            ? `Stored public Atlas receipt, generated ${stored.finalizedAt} and read back from the database. It is offchain integrity evidence only: no wallet signed anything, no fees were paid and no onchain transaction exists. The portfolio it references is a labelled demo fixture.`
+            : `Stored demo simulation receipt for the connected wallet, generated ${stored.finalizedAt}. It is offchain integrity evidence only: no signature, no paid fees and no onchain transaction. The portfolio it references is a labelled demo fixture.`,
       }}
       links={{
         decisionHref: `/decisions/${stored.decisionId}`,

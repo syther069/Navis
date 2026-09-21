@@ -12,15 +12,16 @@ import { loadDecisionRun } from "@/lib/services/run-decision";
 export const metadata: Metadata = { title: "Decision detail" };
 
 async function resolveDecisionRun(decisionId: string) {
-  const remembered = await loadDecisionRun({ decisionId });
-  if (remembered || !env.databaseUrl) return remembered;
+  // Without a database only this process's in-memory Atlas runs exist. With
+  // one, public Atlas records open for anyone and owner records only for the
+  // owner's session; everything else is an indistinguishable 404.
+  if (!env.databaseUrl) return loadDecisionRun({ decisionId });
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
-  if (!session) return null;
   return loadDecisionRun({
     decisionId,
     database: getDatabase(),
-    ownerWallet: session.wallet,
+    ownerWallet: session?.wallet,
   });
 }
 
@@ -37,8 +38,12 @@ export default async function DecisionDetailPage({
       <RouteHeader
         eyebrow="Decision detail"
         title={`Decision ${decisionId.slice(0, 8)}`}
-        description="Fresh proposal, policy evaluation, execution eligibility, and locally verifiable receipt."
-        meta={run.persisted.store}
+        description="Stored proposal, policy evaluation, execution eligibility, and locally verifiable receipt."
+        meta={
+          run.persisted.store === "database"
+            ? `stored · ${run.persisted.visibility === "public" ? "public Atlas record" : "owner record"}`
+            : "memory only"
+        }
       />
       <section className="route-panel">
         <DecisionRunResultView run={run} showDetailLink={false} />

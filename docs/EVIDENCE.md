@@ -138,12 +138,12 @@ No path executes onchain.
 
 ## Database evidence
 
-| Item                 | Verified value                                                                                                                                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Development database | Migrations `0000` through `0008` applied with journal SHA tracking (verified by the real-database test suite); logical backup taken before `0006`                                                                                   |
-| Production database  | Neon PostgreSQL attached to the public Vercel demo on 2026-09-21 with migrations `0000` through `0008` applied; wallet sign-in, agent creation and a persisted demo run with a working detail link verified there ("Public health") |
-| Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                                                                                                                                   |
-| Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                                                                                                                                     |
+| Item                 | Verified value                                                                                                                                                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Development database | Migrations `0000` through `0009` applied with journal SHA tracking (verified by the real-database test suite); logical backup taken before `0006`                                                                                                                                   |
+| Production database  | Neon PostgreSQL attached to the public Vercel demo on 2026-09-21 with migrations `0000` through `0009` applied (`0009` on 2026-09-21 via `npm run db:migrate`); wallet sign-in, agent creation and a persisted demo run with a working detail link verified there ("Public health") |
+| Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                                                                                                                                                                                   |
+| Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                                                                                                                                                                                     |
 
 ### Public idempotent creation check (deployed commit `f1d078e`)
 
@@ -159,6 +159,12 @@ Run on 2026-09-21 at 11:29 UTC against `https://navis-gilt.vercel.app`, whose pr
 | `GET /api/health`                               | `database.status = ok`, tables and guards ready, `walletSessions = configured` |
 
 A real wallet extension and signing remain unverified (the public sign-in check used a scripted keypair). See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the round 2 audit and its evidence list.
+
+### Public Atlas decisions and proofs (Task 2)
+
+Every Atlas run on the public site is now stored in PostgreSQL as a public record (portfolio snapshot, decision, policy evaluation, simulated or rejected execution attempt and proof receipt, written in one transaction) and readable at `/decisions/<id>` and `/proofs/<id>` with no wallet session. Private owner records still need the owner's session and are otherwise a real 404. Details, design and test list: `docs/TASK2_ATLAS_PERSISTENCE_DELIVERY.md`.
+
+Production check: pending (filled in by the docs commit that follows the deployment of the application commit).
 
 ## History
 

@@ -21,6 +21,12 @@ export function describeDecisionDetailAccess(
       note: "This is the complete decision record. Demo runs without a database are not stored, so there is no separate page to open; run again to produce a fresh one.",
     };
   }
+  if (persisted.visibility === "public") {
+    return {
+      linkable: true,
+      note: "Stored as a public Atlas record; the decision and proof pages reload it from the database in any browser, with no wallet.",
+    };
+  }
   return {
     linkable: true,
     note: "Stored for the connected wallet; the detail page reloads it from the database.",

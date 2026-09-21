@@ -9,7 +9,7 @@ import { demoProof } from "@/fixtures/demo-proof";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
-import { listDecisionsForOwner } from "@/lib/services/decision-records";
+import { listDecisions } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Decisions" };
 export const dynamic = "force-dynamic";
@@ -17,17 +17,18 @@ export const dynamic = "force-dynamic";
 export default async function DecisionsPage() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
-  const stored =
-    session && env.databaseUrl
-      ? await listDecisionsForOwner(session.wallet, getDatabase())
-      : [];
+  // Public Atlas runs are listed for everyone; owner records only for the
+  // session that owns them.
+  const stored = env.databaseUrl
+    ? await listDecisions({ ownerWallet: session?.wallet }, getDatabase())
+    : [];
+  const publicCount = stored.filter((item) => item.visibility === "public").length;
+  const ownedCount = stored.length - publicCount;
   const note = !env.databaseUrl
     ? "This instance has no database, so only the prepared Atlas example is listed. Fresh Atlas runs are shown inline on the Atlas page and are not stored."
     : !session
-      ? "Authenticate a connected wallet to list the decisions stored for it. Fresh Atlas runs are shown inline on the Atlas page and are not stored."
-      : stored.length === 0
-        ? "No stored decisions for this wallet yet. Open one of your agents and generate a decision to create the first record."
-        : `${stored.length} stored decision${stored.length === 1 ? "" : "s"} for the connected wallet, newest first, plus the prepared Atlas example.`;
+      ? `${publicCount} stored public Atlas run${publicCount === 1 ? "" : "s"}, newest first, plus the prepared Atlas example. Authenticate a connected wallet to also list the decisions stored for it.`
+      : `${publicCount} public Atlas run${publicCount === 1 ? "" : "s"} and ${ownedCount} decision${ownedCount === 1 ? "" : "s"} for the connected wallet, newest first, plus the prepared Atlas example.`;
 
   return (
     <>
@@ -53,6 +54,7 @@ export default async function DecisionsPage() {
               <span>
                 {decision.action} · {decision.agent.mode.toUpperCase()} ·{" "}
                 {decision.agent.name}
+                {decision.visibility === "public" ? " · public record" : ""}
               </span>
               <h2>
                 {decision.approved

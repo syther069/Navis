@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import type { AgentBundle } from "../db/repositories/types";
@@ -63,6 +63,11 @@ import {
 } from "./decisions";
 import { getRememberedDecisionRun, rememberDecisionRun } from "./decision-run-store";
 import { createExecutionAttempt, transitionExecutionAttempt } from "./execution";
+import {
+  findPublicAtlasDecisionByRequestKey,
+  PUBLIC_ATLAS_SLUG,
+  resolvePublicAtlasBundle,
+} from "./public-atlas";
 import { persistPortfolioSnapshot } from "./treasury";
 
 export { decisionScenarios, type DecisionScenario } from "../decisions/scenarios";
@@ -123,11 +128,40 @@ export type DecisionRunResult = Readonly<{
   receipt: ProofReceiptDocument;
   receiptHash: string;
   receiptVerified: boolean;
-  persisted: Readonly<{ store: "database" | "memory"; note: string }>;
+  persisted: Readonly<{
+    store: "database" | "memory";
+    note: string;
+    /** Who may read the stored record; absent for in-memory runs. */
+    visibility?: "public" | "owner";
+  }>;
 }>;
 
 export const DATABASE_PERSISTENCE_NOTE =
   "Stored in the database for the connected wallet: decision, policy evaluation, simulated execution attempt and proof receipt.";
+export const PUBLIC_PERSISTENCE_NOTE =
+  "Stored in the database as a public Atlas record: portfolio snapshot, decision, policy evaluation, simulated execution attempt and proof receipt. No wallet was involved and the links stay valid across deployments.";
+export const MEMORY_PERSISTENCE_NOTE =
+  "Not stored: this instance has no database, so the run is kept in memory for this server process only.";
+
+/** Upper bound on the live PreStocks catalogue read for one run. */
+export const PRESTOCKS_FETCH_TIMEOUT_MS = 6_000;
+
+/** Thrown when a database is configured but the evidence chain was not committed. */
+export class DecisionNotStoredError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super(
+      "The decision could not be stored. Nothing was saved; please run it again.",
+      options,
+    );
+    this.name = "DecisionNotStoredError";
+  }
+}
+
+function persistedFor(isPublicDemo: boolean): DecisionRunResult["persisted"] {
+  return isPublicDemo
+    ? { store: "database", note: PUBLIC_PERSISTENCE_NOTE, visibility: "public" }
+    : { store: "database", note: DATABASE_PERSISTENCE_NOTE, visibility: "owner" };
+}
 
 export async function loadDecisionRun({
   decisionId,
@@ -138,9 +172,10 @@ export async function loadDecisionRun({
   database?: NavisDatabase;
   ownerWallet?: string;
 }): Promise<DecisionRunResult | null> {
-  const remembered = getRememberedDecisionRun(decisionId);
-  if (remembered) return remembered;
-  if (!database || !ownerWallet) return null;
+  // Without a database the only records are this process's own memory map.
+  // With one, memory is never consulted: a public Atlas record is readable by
+  // anyone, every other record only by its owner wallet.
+  if (!database) return getRememberedDecisionRun(decisionId);
   if (!UUID_PATTERN.test(decisionId)) return null;
 
   const [row] = await database
@@ -153,6 +188,7 @@ export async function loadDecisionRun({
         slug: schema.agents.slug,
         name: schema.agents.name,
         mode: schema.agents.mode,
+        isPublicDemo: schema.agents.isPublicDemo,
       },
     })
     .from(schema.decisions)
@@ -168,7 +204,10 @@ export async function loadDecisionRun({
     .where(
       and(
         eq(schema.decisions.id, decisionId),
-        eq(schema.agents.ownerWallet, ownerWallet),
+        or(
+          eq(schema.agents.isPublicDemo, true),
+          ownerWallet ? eq(schema.agents.ownerWallet, ownerWallet) : sql`false`,
+        ),
       ),
     )
     .limit(1);
@@ -182,7 +221,12 @@ export async function loadDecisionRun({
   return {
     decisionId,
     proofId: row.proof.id,
-    agent: row.agent,
+    agent: {
+      id: row.agent.id,
+      slug: row.agent.slug,
+      name: row.agent.name,
+      mode: row.agent.mode,
+    },
     scenario: modelMetadata.scenario ?? null,
     universe: modelMetadata.universe ?? FIXTURE_UNIVERSE_SUMMARY,
     generatedAt: row.proof.finalizedAt.toISOString(),
@@ -201,10 +245,7 @@ export async function loadDecisionRun({
     receipt,
     receiptHash: row.proof.receiptHash,
     receiptVerified,
-    persisted: {
-      store: "database",
-      note: DATABASE_PERSISTENCE_NOTE,
-    },
+    persisted: persistedFor(row.agent.isPublicDemo),
   };
 }
 
@@ -1004,13 +1045,25 @@ function toResult(
  * failure (network, schema, fewer than two usable assets) falls back to the
  * fixture universe with the reason recorded on the run. No value is invented.
  */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function resolveUniverse(
   requested: DecisionUniverseSource,
   loadCatalogue: () => Promise<PreStocksCatalogueLike>,
 ): Promise<ResolvedUniverse> {
   if (requested === "fixture") return FIXTURE_RESOLVED;
   try {
-    const catalogue = await loadCatalogue();
+    const catalogue = await withTimeout(
+      loadCatalogue(),
+      PRESTOCKS_FETCH_TIMEOUT_MS,
+      "the PreStocks catalogue did not answer in time",
+    );
     const universe = buildPreStocksUniverse(catalogue);
     const note =
       universe.excluded.length > 0
@@ -1066,7 +1119,7 @@ async function runInMemory(
     run,
     { decisionId, proofId: null },
     receipt,
-    { store: "memory", note: "Kept in memory for this server instance only." },
+    { store: "memory", note: MEMORY_PERSISTENCE_NOTE },
     scenario,
   );
   rememberDecisionRun(result);
@@ -1081,40 +1134,55 @@ async function runInMemory(
 const PERSISTED_UNIVERSE_NOTE =
   "Stored agents evaluate against their own immutable policy allowlist, so the PreStocks universe is not applied to this run. It is available on the Atlas demo run.";
 
+type PersistedRunOptions = Readonly<{
+  /** Universe already resolved by the caller (the bundle must match it). */
+  resolved: ResolvedUniverse;
+  /** Browser request key stored on the decision for retry de-duplication. */
+  clientRequestId?: string;
+  persisted: DecisionRunResult["persisted"];
+}>;
+
 async function runPersisted(
   bundle: AgentBundle,
   scenario: DecisionScenario,
   provider: DecisionProvider | undefined,
   database: NavisDatabase,
-  requestedUniverse: DecisionUniverseSource,
+  options: PersistedRunOptions,
 ): Promise<DecisionRunResult> {
   if (bundle.agent.mode !== "demo") throw new PersistentDecisionRunsNotEnabledError();
   if (!UUID_PATTERN.test(bundle.agent.id)) {
     throw new Error("Only persisted agents can store decision runs.");
   }
+  const { resolved } = options;
   const generatedAt = freshGeneratedAt();
   const snapshotId = randomUUID();
-  const document = demoPortfolio(bundle, generatedAt);
+  const document = demoPortfolio(bundle, generatedAt, resolved.prestocks ?? undefined);
   const contentHash = hashCanonical(document);
-  const context = buildDecisionContext(bundle, generatedAt, {
-    id: snapshotId,
-    contentHash,
-    document,
-  });
+  const context = buildDecisionContext(
+    bundle,
+    generatedAt,
+    { id: snapshotId, contentHash, document },
+    resolved.prestocks ?? undefined,
+  );
   // The provider (live AI or deterministic demo) runs before any write so the
   // transaction never waits on a network call.
-  const run = await evaluateRun(bundle, context, scenario, provider, generatedAt, {
-    requested: requestedUniverse,
-    prestocks: null,
-    note: requestedUniverse === "prestocks" ? PERSISTED_UNIVERSE_NOTE : null,
-  });
+  const run = await evaluateRun(
+    bundle,
+    context,
+    scenario,
+    provider,
+    generatedAt,
+    resolved,
+  );
 
   return database.transaction(async (transaction) => {
     await persistPortfolioSnapshot(
       { id: snapshotId, custodyType: "watch_only", document, contentHash },
       transaction,
     );
-    const decision = await persistPreparedDecision(run.prepared, transaction);
+    const decision = await persistPreparedDecision(run.prepared, transaction, {
+      clientRequestId: options.clientRequestId,
+    });
     await transaction.insert(schema.policyEvaluations).values({
       decisionId: decision.id,
       approved: run.policyEvaluation.approved,
@@ -1189,10 +1257,77 @@ async function runPersisted(
       run,
       { decisionId: decision.id, proofId: proof.id },
       receipt,
-      { store: "database", note: DATABASE_PERSISTENCE_NOTE },
+      options.persisted,
       scenario,
     );
   });
+}
+
+function isPublicAtlasFixture(bundle: AgentBundle) {
+  return (
+    bundle.agent.slug === PUBLIC_ATLAS_SLUG &&
+    bundle.agent.mode === "demo" &&
+    !UUID_PATTERN.test(bundle.agent.id)
+  );
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; cause?: unknown };
+  if (candidate.code === "23505") return true;
+  return candidate.cause !== error && isUniqueViolation(candidate.cause);
+}
+
+/**
+ * Public Atlas run with a database: the fixture documents are resolved to
+ * database rows (seeded on first use), the universe and provider are resolved
+ * outside any transaction, and the evidence chain is written atomically. A
+ * request key that was already stored returns that record unchanged; any
+ * failure inside the write leaves no rows and surfaces as "not stored".
+ */
+export async function runPublicAtlasDecision({
+  scenario,
+  provider,
+  database,
+  universe = "fixture",
+  clientRequestId,
+  loadCatalogue = getPreStocksCatalogue,
+}: {
+  scenario: DecisionScenario;
+  provider?: DecisionProvider;
+  database: NavisDatabase;
+  universe?: DecisionUniverseSource;
+  clientRequestId?: string;
+  loadCatalogue?: () => Promise<PreStocksCatalogueLike>;
+}): Promise<DecisionRunResult> {
+  const replay = async () => {
+    if (!clientRequestId) return null;
+    const decisionId = await findPublicAtlasDecisionByRequestKey(
+      database,
+      clientRequestId,
+    );
+    return decisionId ? loadDecisionRun({ decisionId, database }) : null;
+  };
+  const existing = await replay();
+  if (existing) return existing;
+
+  const resolved = await resolveUniverse(universe, loadCatalogue);
+  const bundle = await resolvePublicAtlasBundle(database, resolved.prestocks);
+  try {
+    return await runPersisted(bundle, scenario, provider, database, {
+      resolved,
+      clientRequestId,
+      persisted: persistedFor(true),
+    });
+  } catch (error) {
+    if (clientRequestId && isUniqueViolation(error)) {
+      // A concurrent twin with the same key committed first; return its record.
+      const twin = await replay();
+      if (twin) return twin;
+    }
+    if (error instanceof PersistentDecisionRunsNotEnabledError) throw error;
+    throw new DecisionNotStoredError({ cause: error });
+  }
 }
 
 export async function runDecision({
@@ -1202,6 +1337,7 @@ export async function runDecision({
   provider,
   database,
   universe = "fixture",
+  clientRequestId,
   loadCatalogue = getPreStocksCatalogue,
 }: {
   bundle: AgentBundle;
@@ -1211,11 +1347,34 @@ export async function runDecision({
   database?: NavisDatabase;
   /** Asset universe; callers default to "prestocks" when the catalogue may be reachable. */
   universe?: DecisionUniverseSource;
+  /** Browser request key; only public Atlas runs de-duplicate on it. */
+  clientRequestId?: string;
   /** Catalogue loader, injectable for tests; defaults to the live PreStocks client. */
   loadCatalogue?: () => Promise<PreStocksCatalogueLike>;
 }): Promise<DecisionRunResult> {
-  if (database) return runPersisted(bundle, scenario, provider, database, universe);
-  if (bundle.agent.slug !== "atlas" || bundle.agent.mode !== "demo") {
+  if (database) {
+    // The public Atlas fixture is stored as the system-owned public agent.
+    if (isPublicAtlasFixture(bundle)) {
+      return runPublicAtlasDecision({
+        scenario,
+        provider,
+        database,
+        universe,
+        clientRequestId,
+        loadCatalogue,
+      });
+    }
+    // Stored owner agents evaluate against their own immutable allowlist.
+    return runPersisted(bundle, scenario, provider, database, {
+      resolved: {
+        requested: universe,
+        prestocks: null,
+        note: universe === "prestocks" ? PERSISTED_UNIVERSE_NOTE : null,
+      },
+      persisted: persistedFor(false),
+    });
+  }
+  if (bundle.agent.slug !== PUBLIC_ATLAS_SLUG || bundle.agent.mode !== "demo") {
     // Without a database only the public Atlas fixture may run in memory.
     throw new PersistentDecisionRunsNotEnabledError();
   }

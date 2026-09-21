@@ -4,6 +4,10 @@ const mocks = vi.hoisted(() => ({
   databaseUrl: undefined as string | undefined,
   databaseRows: [] as unknown[],
   persistentBundle: null as unknown,
+  sharedAllowed: true,
+  sharedCalls: [] as unknown[],
+  publicRuns: [] as unknown[],
+  publicRunError: null as unknown,
 }));
 
 vi.mock("../lib/env", async (importOriginal) => {
@@ -51,6 +55,48 @@ vi.mock("../lib/db/client", () => ({
   },
 }));
 
+// The shared limiter and the public Atlas writer need a real database; the
+// route tests stand them in and assert how the route drives them.
+vi.mock("../lib/auth/shared-rate-limit", () => ({
+  consumeSharedRateLimit: vi.fn(async (_db: unknown, input: unknown) => {
+    mocks.sharedCalls.push(input);
+    return {
+      allowed: mocks.sharedAllowed,
+      hits: mocks.sharedAllowed ? 1 : 99,
+      limit: 12,
+      retryAfterSeconds: 42,
+    };
+  }),
+}));
+
+vi.mock("../lib/services/run-decision", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/services/run-decision")>();
+  return {
+    ...actual,
+    runPublicAtlasDecision: vi.fn(
+      async (input: { scenario: string; clientRequestId?: string }) => {
+        mocks.publicRuns.push(input);
+        if (mocks.publicRunError) throw mocks.publicRunError;
+        const run = await actual.runDecision({
+          bundle: (await import("../fixtures/demo-agent")).demoAgentBundle,
+          scenario: input.scenario as "balanced" | "oversized",
+          universe: "fixture",
+        });
+        return {
+          ...run,
+          decisionId: "33333333-3333-4333-8333-333333333333",
+          proofId: "44444444-4444-4444-8444-444444444444",
+          persisted: {
+            store: "database",
+            note: actual.PUBLIC_PERSISTENCE_NOTE,
+            visibility: "public",
+          },
+        };
+      },
+    ),
+  };
+});
+
 vi.mock("../lib/services/agents", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/services/agents")>();
   return {
@@ -83,6 +129,10 @@ describe("decision run routes", () => {
   beforeEach(() => {
     mocks.databaseUrl = undefined;
     mocks.databaseRows = [];
+    mocks.sharedAllowed = true;
+    mocks.sharedCalls = [];
+    mocks.publicRuns = [];
+    mocks.publicRunError = null;
   });
 
   it("returns a fresh, distinct decision for a replayed identical request", async () => {
@@ -164,20 +214,82 @@ describe("decision run routes", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("lets an anonymous visitor run the Atlas demo even when a database is configured", async () => {
+  it("stores an anonymous Atlas run as a public record when a database is configured", async () => {
     mocks.databaseUrl = "postgres://configured";
-    const response = await post({ agentSlug: "atlas", scenario: "oversized" });
+    const response = await post({
+      agentSlug: "atlas",
+      scenario: "oversized",
+      requestKey: "browser-key-0001",
+    });
     expect(response.status).toBe(200);
     const run = await response.json();
     expect(run.policyEvaluation.approved).toBe(false);
-    expect(run.persisted.store).toBe("memory");
+    expect(run.persisted).toMatchObject({ store: "database", visibility: "public" });
+    expect(run.proofId).toBe("44444444-4444-4444-8444-444444444444");
     expect(run.executionEligibility.eligible).toBe(false);
+    // The public writer got the browser key and never a wallet or session.
+    expect(mocks.publicRuns).toEqual([
+      expect.objectContaining({
+        scenario: "oversized",
+        clientRequestId: "browser-key-0001",
+      }),
+    ]);
+    expect(JSON.stringify(mocks.publicRuns[0])).not.toMatch(/wallet|session/i);
+    // The shared limiter ran with a hashed-client scope for the public route.
+    expect(mocks.sharedCalls).toEqual([
+      expect.objectContaining({ scope: "decisions.run.public", limit: 12 }),
+    ]);
+  });
 
-    const found = await GET(
-      new Request(`http://localhost:3000/api/decisions/${run.decisionId}`),
-      { params: Promise.resolve({ decisionId: run.decisionId }) },
+  it("answers 429 with Retry-After when the shared limit is exhausted", async () => {
+    mocks.databaseUrl = "postgres://configured";
+    mocks.sharedAllowed = false;
+    const response = await post({ agentSlug: "atlas", scenario: "balanced" });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("42");
+    expect(mocks.publicRuns).toEqual([]);
+  });
+
+  it("rejects malformed request keys, unknown fields and oversized bodies", async () => {
+    mocks.databaseUrl = "postgres://configured";
+    const badKey = await post({
+      agentSlug: "atlas",
+      scenario: "balanced",
+      requestKey: "short",
+    });
+    expect(badKey.status).toBe(400);
+    const extra = await post({
+      agentSlug: "atlas",
+      scenario: "balanced",
+      ownerWallet: "x",
+    });
+    expect(extra.status).toBe(400);
+    const huge = await post({
+      agentSlug: "atlas",
+      scenario: "balanced",
+      requestKey: "a".repeat(100),
+      padding: "x".repeat(4_000),
+    });
+    expect(huge.status).toBe(413);
+    expect(mocks.publicRuns).toEqual([]);
+  });
+
+  it("reports an explicit not-stored error without leaking database detail", async () => {
+    mocks.databaseUrl = "postgres://configured";
+    const { DecisionNotStoredError } = await import("../lib/services/run-decision");
+    const driverError = Object.assign(
+      new Error("connect ECONNREFUSED db.internal:5432"),
+      {
+        code: "ECONNREFUSED",
+      },
     );
-    expect(found.status).toBe(200);
+    mocks.publicRunError = new DecisionNotStoredError({ cause: driverError });
+    const response = await post({ agentSlug: "atlas", scenario: "balanced" });
+    expect(response.status).toBeGreaterThanOrEqual(500);
+    const body = await response.json();
+    expect(body.stored).toBe(false);
+    expect(body.error).toContain("Nothing was saved");
+    expect(JSON.stringify(body)).not.toMatch(/db\.internal|ECONNREFUSED|5432/);
   });
 
   it("still requires a wallet session for persistent agents", async () => {

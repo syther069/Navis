@@ -2,60 +2,172 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
-import { allowMutationRequest } from "@/lib/auth/rate-limit";
+import { allowMutationRequest, clientIdentifier } from "@/lib/auth/rate-limit";
+import { consumeSharedRateLimit } from "@/lib/auth/shared-rate-limit";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
+import {
+  classifyDatabaseError,
+  DatabaseError,
+  logDatabaseError,
+} from "@/lib/db/errors";
 import { env } from "@/lib/env";
 import { getPersistentAgentForOwner } from "@/lib/services/agents";
+import { PUBLIC_ATLAS_SLUG } from "@/lib/services/public-atlas";
 import {
+  DecisionNotStoredError,
   PersistentDecisionRunsNotEnabledError,
   runDecision,
+  runPublicAtlasDecision,
 } from "@/lib/services/run-decision";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 
-const requestSchema = z.object({
-  agentSlug: z.string().min(2).max(48),
-  scenario: z.enum(["balanced", "oversized"]),
-  // PreStocks is the default universe; the service falls back to the fixture
-  // with a visible note when the catalogue is unreachable or fails validation.
-  universe: z.enum(["prestocks", "fixture"]).default("prestocks"),
-});
+/** Upper bound for one run: catalogue read, provider, one write transaction. */
+export const maxDuration = 30;
+
+/** Largest accepted request body; the real payload is well under 200 bytes. */
+const MAX_BODY_BYTES = 2_048;
+
+/** Public runs per client per minute, shared across every instance. */
+const PUBLIC_RUN_LIMIT = 12;
+const PUBLIC_RUN_WINDOW_MS = 60_000;
+
+const requestSchema = z
+  .object({
+    agentSlug: z.string().min(2).max(48),
+    scenario: z.enum(["balanced", "oversized"]),
+    // PreStocks is the default universe; the service falls back to the fixture
+    // with a visible note when the catalogue is unreachable or fails validation.
+    universe: z.enum(["prestocks", "fixture"]).default("prestocks"),
+    // Browser-generated key for one submission; a retry reuses it and gets the
+    // stored run back instead of a twin.
+    requestKey: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{8,128}$/)
+      .optional(),
+  })
+  .strict();
+
+const NOT_STORED_MESSAGE =
+  "The decision could not be stored. Nothing was saved; please run it again.";
+
+function json(body: unknown, status: number, cacheControl = "no-store") {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": cacheControl },
+  });
+}
+
+async function readBody(request: Request): Promise<unknown | typeof TOO_LARGE> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return TOO_LARGE;
+  const text = await request.text().catch(() => "");
+  if (text.length > MAX_BODY_BYTES) return TOO_LARGE;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+const TOO_LARGE = Symbol("too-large");
+
+/**
+ * Maps a failure to a response that never carries driver text, SQL, hosts or
+ * constraint names. Known application errors keep their own message.
+ */
+function failureResponse(error: unknown, stored: boolean) {
+  if (error instanceof PersistentDecisionRunsNotEnabledError) {
+    return json({ error: error.message }, 409);
+  }
+  if (error instanceof DecisionNotStoredError) {
+    const classified = classifyDatabaseError(error.cause);
+    logDatabaseError("decisions.run", classified);
+    return json(
+      { error: NOT_STORED_MESSAGE, code: classified.code, stored: false },
+      classified.code === "database_error" ? 500 : classified.status,
+    );
+  }
+  if (error instanceof DatabaseError) {
+    logDatabaseError("decisions.run", error);
+    return json({ ...error.toJSON(), stored: false }, error.status);
+  }
+  const classified = classifyDatabaseError(error);
+  logDatabaseError("decisions.run", classified);
+  if (classified.code !== "database_error") {
+    return json({ ...classified.toJSON(), stored: false }, classified.status);
+  }
+  console.error(
+    "[navis:decisions.run] unexpected failure:",
+    error instanceof Error ? error.name : typeof error,
+  );
+  return json(
+    {
+      error: stored ? NOT_STORED_MESSAGE : "The decision run could not finish.",
+      stored: false,
+    },
+    500,
+  );
+}
 
 export async function POST(request: Request) {
   if (!hasTrustedMutationOrigin(request)) {
-    return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+    return json({ error: "Untrusted request origin." }, 403);
   }
   if (!allowMutationRequest(request)) {
-    return NextResponse.json(
-      { error: "Too many decision requests. Try again shortly." },
-      { status: 429 },
-    );
+    return json({ error: "Too many decision requests. Try again shortly." }, 429);
   }
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  const body = await readBody(request);
+  if (body === TOO_LARGE) {
+    return json({ error: "Request body is too large." }, 413);
+  }
+  const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "agentSlug and a valid scenario are required." },
-      { status: 400 },
-    );
+    return json({ error: "agentSlug and a valid scenario are required." }, 400);
   }
 
   try {
-    // The Atlas fixture is the public demo. It is always served from the
-    // fixture (never from the database), runs in memory, and never executes,
-    // so it does not need a wallet session even when a database is configured.
-    // Persistent agents below still require an authenticated session.
-    if (parsed.data.agentSlug === demoAgentBundle.agent.slug) {
-      const result = await runDecision({
-        bundle: demoAgentBundle,
+    // The Atlas fixture is the public demo: no wallet session, never executes.
+    // With a database every run is stored as a public record; without one it
+    // runs in memory and says so.
+    if (parsed.data.agentSlug === PUBLIC_ATLAS_SLUG) {
+      if (!env.databaseUrl) {
+        const result = await runDecision({
+          bundle: demoAgentBundle,
+          scenario: parsed.data.scenario,
+          universe: parsed.data.universe,
+        });
+        return json(result, 200);
+      }
+      const database = getDatabase();
+      const shared = await consumeSharedRateLimit(database, {
+        scope: "decisions.run.public",
+        client: clientIdentifier(request),
+        limit: PUBLIC_RUN_LIMIT,
+        windowMs: PUBLIC_RUN_WINDOW_MS,
+        secret: env.sessionSecret,
+      });
+      if (!shared.allowed) {
+        return NextResponse.json(
+          { error: "Too many decision requests. Try again shortly." },
+          {
+            status: 429,
+            headers: {
+              "Cache-Control": "no-store",
+              "Retry-After": String(shared.retryAfterSeconds),
+            },
+          },
+        );
+      }
+      const result = await runPublicAtlasDecision({
         scenario: parsed.data.scenario,
         universe: parsed.data.universe,
+        clientRequestId: parsed.data.requestKey,
+        database,
       });
-      return NextResponse.json(result, {
-        headers: { "Cache-Control": "no-store" },
-      });
+      return json(result, 200);
     }
     if (!env.databaseUrl) {
-      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+      return json({ error: "Agent not found." }, 404);
     }
 
     const token = request.headers
@@ -63,10 +175,7 @@ export async function POST(request: Request) {
       ?.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
     const session = token ? await readSessionToken(token) : null;
     if (!session) {
-      return NextResponse.json(
-        { error: "Authenticate a connected wallet to run this agent." },
-        { status: 401 },
-      );
+      return json({ error: "Authenticate a connected wallet to run this agent." }, 401);
     }
     const database = getDatabase();
     const bundle = await getPersistentAgentForOwner(
@@ -75,7 +184,7 @@ export async function POST(request: Request) {
       database,
     );
     if (!bundle) {
-      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+      return json({ error: "Agent not found." }, 404);
     }
     // Demo-mode persisted agents store the full run. Devnet and mainnet
     // agents still refuse until they have real snapshots and market data.
@@ -85,19 +194,8 @@ export async function POST(request: Request) {
       universe: parsed.data.universe,
       database,
     });
-    return NextResponse.json(result, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
+    return json(result, 200, "private, no-store");
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "The decision run could not finish.",
-      },
-      {
-        status: error instanceof PersistentDecisionRunsNotEnabledError ? 409 : 500,
-        headers: { "Cache-Control": "no-store" },
-      },
-    );
+    return failureResponse(error, Boolean(env.databaseUrl));
   }
 }

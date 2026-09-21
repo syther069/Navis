@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import {
+  browserSessionStorage,
+  clearPendingRun,
+  runRequestKeyFor,
+} from "@/components/decisions/run-request-key";
+
 import { PreStocksResearchView } from "@/components/markets/prestocks/prestocks-research";
 import { AssuranceBadge } from "@/components/shared/assurance-badge";
 import { StatusBadge } from "@/components/shared/domain-primitives";
@@ -60,6 +66,38 @@ export function DecisionRunResultView({
   const universeLabel =
     decisionUniverses.find((item) => item.value === universe.used)?.label ??
     universe.used;
+  const stored = run.persisted.store === "database";
+  const assetsByMint = new Map(
+    run.receipt.decision.context.assets.map((asset) => [asset.mint, asset]),
+  );
+  const describeMint = (mint: string) => {
+    const asset = assetsByMint.get(mint);
+    return asset ? `${asset.symbol} (${asset.name})` : mint;
+  };
+  const proposalLine =
+    run.proposal.action === "HOLD"
+      ? "HOLD: no asset moves."
+      : `${run.proposal.action} ${describeMint(run.proposal.inputMint)} into ${describeMint(run.proposal.outputMint)}, input ${run.proposal.inputAmount} base units, max slippage ${run.proposal.maxSlippageBps} bps.`;
+  const executionState = run.receipt.execution.state;
+  const simulationLine =
+    executionState === "simulated"
+      ? "Simulated: a demo execution attempt was recorded. No transaction was built, signed or sent."
+      : executionState === "rejected"
+        ? "Rejected: the execution attempt was closed by the policy result. Nothing was executed."
+        : `${executionState}`;
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
+  const proofPath = run.proofId ? `/proofs/${run.proofId}` : null;
+
+  async function copyProofLink() {
+    if (!proofPath) return;
+    try {
+      const url = new URL(proofPath, window.location.origin).toString();
+      await navigator.clipboard.writeText(url);
+      setCopied("copied");
+    } catch {
+      setCopied("failed");
+    }
+  }
 
   return (
     <div className="decision-run-result" data-testid="decision-run-result">
@@ -115,6 +153,39 @@ export function DecisionRunResultView({
       ) : null}
       <dl className="decision-run-facts">
         <div>
+          <dt>Decision ID</dt>
+          <dd data-testid="decision-run-id">{run.decisionId}</dd>
+        </div>
+        <div>
+          <dt>Generated at</dt>
+          <dd>{run.generatedAt}</dd>
+        </div>
+        <div>
+          <dt>Asset and proposed action</dt>
+          <dd data-testid="decision-run-proposal">{proposalLine}</dd>
+        </div>
+        <div>
+          <dt>Policy result</dt>
+          <dd>
+            {run.policyEvaluation.approved
+              ? "Approved by the deterministic policy checks."
+              : "Rejected by the deterministic policy checks."}{" "}
+            This is policy approval only; it is not wallet authorization and not onchain
+            execution.
+          </dd>
+        </div>
+        <div>
+          <dt>Simulation status</dt>
+          <dd data-testid="decision-run-simulation">{simulationLine}</dd>
+        </div>
+        <div>
+          <dt>What the receipt proves</dt>
+          <dd data-testid="decision-run-assurance">
+            Offchain integrity evidence: {assurance.explanation} Wallet authorization:
+            not requested. Onchain settlement: none.
+          </dd>
+        </div>
+        <div>
           <dt>Asset universe</dt>
           <dd>
             {universeLabel}
@@ -136,8 +207,14 @@ export function DecisionRunResultView({
         </div>
         <div>
           <dt>Persistence</dt>
-          <dd>{run.persisted.note}</dd>
+          <dd data-testid="decision-run-persistence">{run.persisted.note}</dd>
         </div>
+        {run.proofId ? (
+          <div>
+            <dt>Proof ID</dt>
+            <dd data-testid="decision-run-proof-id">{run.proofId}</dd>
+          </div>
+        ) : null}
         {run.modelMetadata.fallback ? (
           <div>
             <dt>Provider fallback</dt>
@@ -153,16 +230,43 @@ export function DecisionRunResultView({
           {verified ? "Receipt verified" : "Receipt invalid"}
         </StatusBadge>
         {showDetailLink && access.linkable ? (
-          <Link className="secondary-button" href={`/decisions/${run.decisionId}`}>
-            Open decision detail
+          <Link
+            className="secondary-button"
+            href={`/decisions/${run.decisionId}`}
+            data-testid="decision-run-open-decision"
+          >
+            Open Decision
           </Link>
         ) : null}
-        {access.linkable && run.proofId ? (
-          <Link className="secondary-button" href={`/proofs/${run.proofId}`}>
-            Open proof receipt
+        {access.linkable && proofPath ? (
+          <Link
+            className="secondary-button"
+            href={proofPath}
+            data-testid="decision-run-view-proof"
+          >
+            View Proof
           </Link>
         ) : null}
-        <small>{access.note}</small>
+        {access.linkable && proofPath ? (
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={copyProofLink}
+            data-testid="decision-run-copy-proof-link"
+          >
+            {copied === "copied"
+              ? "Proof link copied"
+              : copied === "failed"
+                ? "Copy failed, use View Proof"
+                : "Copy Proof Link"}
+          </button>
+        ) : null}
+        <small>
+          {access.note}
+          {stored
+            ? " Receipt verification status above was recomputed in this browser from the stored document."
+            : ""}
+        </small>
       </div>
     </div>
   );
@@ -193,14 +297,27 @@ export function RunDecisionPanel({
     event.preventDefault();
     setPending(true);
     setError(null);
+    // One key per submission. It survives a failed or interrupted request so
+    // a retry returns the stored run instead of a twin; a confirmed run
+    // clears it so the next click produces a fresh decision.
+    const store = browserSessionStorage();
+    const requestKey = persisted
+      ? undefined
+      : runRequestKeyFor(store, { agentSlug, scenario, universe });
     try {
       const response = await fetch("/api/decisions/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentSlug, scenario, universe }),
+        body: JSON.stringify({
+          agentSlug,
+          scenario,
+          universe,
+          ...(requestKey ? { requestKey } : {}),
+        }),
       });
       const body = (await response.json()) as DecisionRunResult & { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Decision run failed.");
+      if (requestKey) clearPendingRun(store);
       setRun(body);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Decision run failed.");
@@ -221,7 +338,7 @@ export function RunDecisionPanel({
           <p>
             {persisted
               ? "Generate a fresh proposal, let the policy code approve or reject it, and store the decision, evaluation and receipt for this wallet. Demo mode never submits an onchain transaction."
-              : "Generate a fresh proposal and receipt. Demo mode never submits an onchain transaction."}
+              : "Generate a fresh proposal, let the policy code approve or reject it, and store the decision, evaluation and receipt as a public record with stable links. Demo mode never submits an onchain transaction."}
           </p>
         </div>
       </div>

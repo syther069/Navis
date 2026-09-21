@@ -352,11 +352,19 @@ describe.skipIf(!databaseUrl)("persisted decision runs", () => {
     });
   });
 
-  it("refuses to persist runs for the Atlas fixture or live-mode agents", async () => {
+  it("routes the Atlas fixture to the public record and refuses live-mode agents", async () => {
     await withScratchAgent(async (tx, agent) => {
-      await expect(
-        runDecision({ bundle: demoAgentBundle, scenario: "balanced", database: tx }),
-      ).rejects.toThrow("Only persisted agents can store decision runs.");
+      // The Atlas fixture is no longer refused: with a database it is stored
+      // as the system-owned public Atlas record (see public-atlas tests).
+      const atlas = await runDecision({
+        bundle: demoAgentBundle,
+        scenario: "balanced",
+        database: tx,
+      });
+      expect(atlas.persisted).toMatchObject({
+        store: "database",
+        visibility: "public",
+      });
       const bundle = await ownedBundle(tx, agent.slug);
       await expect(
         runDecision({

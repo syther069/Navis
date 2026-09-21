@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import * as schema from "../db/schema";
@@ -15,10 +15,53 @@ type NavisDatabase = NodePgDatabase<typeof schema>;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Who may read a stored record. */
+export type RecordVisibility = "public" | "owner";
+
+export type StoredRecordReader = Readonly<{
+  /** Wallet of the authenticated session, when there is one. */
+  ownerWallet?: string | null;
+}>;
+
+/**
+ * Rows the reader may see: every public Atlas record, plus the records owned
+ * by the reader's wallet when a session exists. Anyone else's records are
+ * indistinguishable from unknown ids.
+ */
+function readableBy(reader: StoredRecordReader): SQL {
+  const wallet = reader.ownerWallet ?? null;
+  const owned = wallet ? eq(schema.agents.ownerWallet, wallet) : sql`false`;
+  return or(eq(schema.agents.isPublicDemo, true), owned) as SQL;
+}
+
+const agentSelection = {
+  id: schema.agents.id,
+  slug: schema.agents.slug,
+  name: schema.agents.name,
+  mode: schema.agents.mode,
+  isPublicDemo: schema.agents.isPublicDemo,
+};
+
+type AgentRow = {
+  id: string;
+  slug: string;
+  name: string;
+  mode: string;
+  isPublicDemo: boolean;
+};
+
+function describeAgent(agent: AgentRow) {
+  return {
+    agent: { id: agent.id, slug: agent.slug, name: agent.name, mode: agent.mode },
+    visibility: (agent.isPublicDemo ? "public" : "owner") as RecordVisibility,
+  };
+}
+
 export type StoredDecisionSummary = Readonly<{
   decisionId: string;
   proofId: string | null;
   agent: Readonly<{ id: string; slug: string; name: string; mode: string }>;
+  visibility: RecordVisibility;
   action: TradeProposal["action"];
   status: (typeof schema.decisions.$inferSelect)["status"];
   approved: boolean | null;
@@ -27,9 +70,9 @@ export type StoredDecisionSummary = Readonly<{
   createdAt: string;
 }>;
 
-/** Owner-scoped list of stored decisions, newest first. */
-export async function listDecisionsForOwner(
-  ownerWallet: string,
+/** Stored decisions the reader may see (public Atlas plus own), newest first. */
+export async function listDecisions(
+  reader: StoredRecordReader,
   database: NavisDatabase,
   limit = 25,
 ): Promise<readonly StoredDecisionSummary[]> {
@@ -37,12 +80,7 @@ export async function listDecisionsForOwner(
     .select({
       decisionId: schema.decisions.id,
       proofId: schema.proofReceipts.id,
-      agent: {
-        id: schema.agents.id,
-        slug: schema.agents.slug,
-        name: schema.agents.name,
-        mode: schema.agents.mode,
-      },
+      agent: agentSelection,
       proposal: schema.decisions.proposal,
       status: schema.decisions.status,
       approved: schema.policyEvaluations.approved,
@@ -64,14 +102,14 @@ export async function listDecisionsForOwner(
       schema.executionAttempts,
       eq(schema.executionAttempts.id, schema.proofReceipts.executionAttemptId),
     )
-    .where(eq(schema.agents.ownerWallet, ownerWallet))
+    .where(readableBy(reader))
     .orderBy(desc(schema.decisions.createdAt))
     .limit(limit);
 
   return rows.map((row) => ({
     decisionId: row.decisionId,
     proofId: row.proofId,
-    agent: row.agent,
+    ...describeAgent(row.agent),
     action: row.proposal.action,
     status: row.status,
     approved: row.approved,
@@ -81,10 +119,20 @@ export async function listDecisionsForOwner(
   }));
 }
 
+/** Owner-scoped list, kept for callers that always have a session. */
+export function listDecisionsForOwner(
+  ownerWallet: string,
+  database: NavisDatabase,
+  limit = 25,
+) {
+  return listDecisions({ ownerWallet }, database, limit);
+}
+
 export type StoredProofSummary = Readonly<{
   proofId: string;
   decisionId: string;
   agent: Readonly<{ id: string; slug: string; name: string; mode: string }>;
+  visibility: RecordVisibility;
   mode: string;
   receiptHash: string;
   executionState: string;
@@ -101,12 +149,7 @@ export type StoredProofRecord = StoredProofSummary &
 const proofSelection = {
   proofId: schema.proofReceipts.id,
   decisionId: schema.proofReceipts.decisionId,
-  agent: {
-    id: schema.agents.id,
-    slug: schema.agents.slug,
-    name: schema.agents.name,
-    mode: schema.agents.mode,
-  },
+  agent: agentSelection,
   mode: schema.proofReceipts.mode,
   receiptHash: schema.proofReceipts.receiptHash,
   document: schema.proofReceipts.document,
@@ -116,7 +159,7 @@ const proofSelection = {
 function summarise(row: {
   proofId: string;
   decisionId: string;
-  agent: StoredProofSummary["agent"];
+  agent: AgentRow;
   mode: string;
   receiptHash: string;
   document: unknown;
@@ -126,7 +169,7 @@ function summarise(row: {
   return {
     proofId: row.proofId,
     decisionId: row.decisionId,
-    agent: row.agent,
+    ...describeAgent(row.agent),
     mode: row.mode,
     receiptHash: row.receiptHash,
     executionState: receipt.execution.state,
@@ -137,9 +180,9 @@ function summarise(row: {
   };
 }
 
-/** Owner-scoped list of stored proof receipts, newest first. */
-export async function listProofsForOwner(
-  ownerWallet: string,
+/** Stored receipts the reader may see (public Atlas plus own), newest first. */
+export async function listProofs(
+  reader: StoredRecordReader,
   database: NavisDatabase,
   limit = 25,
 ): Promise<readonly StoredProofRecord[]> {
@@ -151,16 +194,28 @@ export async function listProofsForOwner(
       eq(schema.decisions.id, schema.proofReceipts.decisionId),
     )
     .innerJoin(schema.agents, eq(schema.agents.id, schema.decisions.agentId))
-    .where(eq(schema.agents.ownerWallet, ownerWallet))
+    .where(readableBy(reader))
     .orderBy(desc(schema.proofReceipts.finalizedAt))
     .limit(limit);
   return rows.map(summarise);
 }
 
-/** Loads one stored receipt by row id; null when unknown or owned by another wallet. */
-export async function loadProofForOwner(
-  proofId: string,
+/** Owner-scoped list, kept for callers that always have a session. */
+export function listProofsForOwner(
   ownerWallet: string,
+  database: NavisDatabase,
+  limit = 25,
+) {
+  return listProofs({ ownerWallet }, database, limit);
+}
+
+/**
+ * Loads one stored receipt by row id. Public Atlas receipts need no session;
+ * any other receipt is null unless the reader's wallet owns the agent.
+ */
+export async function loadProof(
+  proofId: string,
+  reader: StoredRecordReader,
   database: NavisDatabase,
 ): Promise<StoredProofRecord | null> {
   if (!UUID_PATTERN.test(proofId)) return null;
@@ -172,12 +227,16 @@ export async function loadProofForOwner(
       eq(schema.decisions.id, schema.proofReceipts.decisionId),
     )
     .innerJoin(schema.agents, eq(schema.agents.id, schema.decisions.agentId))
-    .where(
-      and(
-        eq(schema.proofReceipts.id, proofId),
-        eq(schema.agents.ownerWallet, ownerWallet),
-      ),
-    )
+    .where(and(eq(schema.proofReceipts.id, proofId), readableBy(reader)))
     .limit(1);
   return row ? summarise(row) : null;
+}
+
+/** Owner-scoped read, kept for callers that always have a session. */
+export function loadProofForOwner(
+  proofId: string,
+  ownerWallet: string,
+  database: NavisDatabase,
+) {
+  return loadProof(proofId, { ownerWallet }, database);
 }

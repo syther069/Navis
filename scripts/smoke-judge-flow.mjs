@@ -179,7 +179,9 @@ async function readJsonRoute(path, allowedStatuses) {
   return response.text();
 }
 
-async function exerciseFreshDecision() {
+async function exerciseFreshDecision(databaseStatus) {
+  const stored = databaseStatus === "ok";
+  const requestKey = `smoke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   const response = await fetch(`${baseUrl}/api/decisions/run`, {
     method: "POST",
     headers: {
@@ -188,7 +190,11 @@ async function exerciseFreshDecision() {
       origin: baseUrl,
       "user-agent": "Navis judge-flow smoke test",
     },
-    body: JSON.stringify({ agentSlug: "atlas", scenario: "oversized" }),
+    body: JSON.stringify({
+      agentSlug: "atlas",
+      scenario: "oversized",
+      ...(stored ? { requestKey } : {}),
+    }),
   });
   if (!response.ok) {
     throw new Error(`/api/decisions/run returned HTTP ${response.status}`);
@@ -206,11 +212,61 @@ async function exerciseFreshDecision() {
   ) {
     throw new Error("Fresh decision did not report an honest asset universe");
   }
-  const stored = await fetch(`${baseUrl}/api/decisions/${run.decisionId}`);
-  if (!stored.ok) {
-    throw new Error(`Fresh decision GET returned HTTP ${stored.status}`);
+  if (stored) {
+    // With a database the run is a public record: stored, with a proof page,
+    // readable without any session, and a retried key returns the same row.
+    if (run.persisted?.store !== "database" || run.persisted?.visibility !== "public") {
+      throw new Error("Fresh Atlas decision was not stored as a public record");
+    }
+    if (typeof run.proofId !== "string") {
+      throw new Error("Stored Atlas decision has no proof id");
+    }
+    if (
+      run.receipt?.execution?.transactionSignature ||
+      run.receipt?.execution?.explorerUrl
+    ) {
+      throw new Error("Stored Atlas receipt claims onchain evidence");
+    }
+    for (const path of [`/decisions/${run.decisionId}`, `/proofs/${run.proofId}`]) {
+      const page = await fetch(`${baseUrl}${path}`, {
+        headers: { accept: "text/html", "user-agent": "Navis judge-flow smoke test" },
+        redirect: "manual",
+      });
+      if (page.status !== 200) {
+        throw new Error(`${path} returned HTTP ${page.status} for an anonymous reader`);
+      }
+    }
+    const replay = await fetch(`${baseUrl}/api/decisions/run`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        origin: baseUrl,
+        "user-agent": "Navis judge-flow smoke test",
+      },
+      body: JSON.stringify({ agentSlug: "atlas", scenario: "oversized", requestKey }),
+    });
+    const twin = await replay.json();
+    if (
+      !replay.ok ||
+      twin.decisionId !== run.decisionId ||
+      twin.proofId !== run.proofId
+    ) {
+      throw new Error("Retried Atlas request key did not return the stored record");
+    }
+  } else if (run.persisted?.store !== "memory") {
+    throw new Error("Without a database the Atlas run must say it is memory only");
   }
-  return { decisionId: run.decisionId, universe: run.universe.used };
+  const found = await fetch(`${baseUrl}/api/decisions/${run.decisionId}`);
+  if (!found.ok) {
+    throw new Error(`Fresh decision GET returned HTTP ${found.status}`);
+  }
+  return {
+    decisionId: run.decisionId,
+    proofId: run.proofId ?? null,
+    universe: run.universe.used,
+    store: run.persisted?.store ?? null,
+  };
 }
 
 async function run() {
@@ -313,17 +369,23 @@ async function run() {
     console.log("✓ /proofs/unknown-proof-id -> 404");
     results.push({ path: "/proofs/unknown-proof-id", status: 404 });
 
-    if (health.services?.database?.status === "not_configured") {
-      const fresh = await exerciseFreshDecision();
-      console.log(`✓ fresh decision ${fresh.decisionId} (${fresh.universe} universe)`);
+    const databaseStatus = health.services?.database?.status;
+    if (databaseStatus === "not_configured" || databaseStatus === "ok") {
+      const fresh = await exerciseFreshDecision(databaseStatus);
+      console.log(
+        `✓ fresh decision ${fresh.decisionId} (${fresh.universe} universe, ${fresh.store})` +
+          (fresh.proofId ? ` proof ${fresh.proofId}` : ""),
+      );
       results.push({
         path: "/api/decisions/run",
         followUp: `/api/decisions/${fresh.decisionId}`,
+        proof: fresh.proofId ? `/proofs/${fresh.proofId}` : null,
         scenario: "oversized",
         universe: fresh.universe,
+        store: fresh.store,
       });
     } else {
-      console.log("○ fresh decision skipped because persistent runs require a session");
+      console.log(`○ fresh decision skipped because the database is ${databaseStatus}`);
     }
 
     if (reportPath) {

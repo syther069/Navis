@@ -117,10 +117,16 @@ export const agents = pgTable(
     // Client-generated key for one Create Agent submission. A retry or a
     // double-click carrying the same key returns this row instead of a twin.
     clientRequestId: text("client_request_id"),
+    // The one system-owned public demo agent (Atlas). It has no owner, so the
+    // owner/slug index cannot make it unique; the partial index below does.
+    isPublicDemo: boolean("is_public_demo").default(false).notNull(),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("agents_owner_wallet_slug_unique").on(table.ownerWallet, table.slug),
+    uniqueIndex("agents_public_demo_slug_unique")
+      .on(table.slug)
+      .where(sql`${table.isPublicDemo} = true`),
     uniqueIndex("agents_owner_wallet_client_request_unique").on(
       table.ownerWallet,
       table.clientRequestId,
@@ -296,9 +302,39 @@ export const decisions = pgTable(
     modelMetadata: jsonb("model_metadata").notNull(),
     decisionHash: text("decision_hash").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // Client-generated key for one run request. A retry or a concurrent twin
+    // carrying the same key for the same agent returns this row.
+    clientRequestId: text("client_request_id"),
     ...timestamps,
   },
-  (table) => [index("decisions_agent_created_idx").on(table.agentId, table.createdAt)],
+  (table) => [
+    index("decisions_agent_created_idx").on(table.agentId, table.createdAt),
+    uniqueIndex("decisions_agent_client_request_unique").on(
+      table.agentId,
+      table.clientRequestId,
+    ),
+  ],
+);
+
+/**
+ * Shared rate-limit counters for public endpoints. Serverless instances do not
+ * share memory, so the per-process limiter is backed by one row per hashed
+ * client identifier and fixed window. Rows are disposable and pruned as they
+ * age out; nothing here is evidence.
+ */
+export const rateLimitWindows = pgTable(
+  "rate_limit_windows",
+  {
+    scope: text("scope").notNull(),
+    clientHash: text("client_hash").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    hits: integer("hits").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.clientHash, table.windowStart] }),
+    index("rate_limit_windows_scope_window_idx").on(table.scope, table.windowStart),
+  ],
 );
 
 export const policyEvaluations = pgTable("policy_evaluations", {

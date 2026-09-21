@@ -56,6 +56,7 @@ export async function createDecision(
 export async function persistPreparedDecision(
   prepared: PreparedDecision,
   db: NavisDatabase,
+  options: { clientRequestId?: string } = {},
 ): Promise<DecisionRecord> {
   return db.transaction(async (transaction) => {
     const [agent] = await transaction
@@ -64,9 +65,13 @@ export async function persistPreparedDecision(
       .where(eq(schema.agents.id, prepared.context.agentId))
       .limit(1);
     if (!agent) throw new Error("Decision agent does not exist");
+    // Devnet and mainnet agents are bound to one cluster. A demo agent is
+    // cluster-agnostic (see agents_mode_cluster_check): the public Atlas row
+    // records fixture runs on devnet and PreStocks runs on mainnet-beta, and
+    // the run's own cluster is stored on the snapshot, attempt and receipt.
     if (
       agent.mode !== prepared.context.mode ||
-      agent.cluster !== prepared.context.cluster
+      (agent.mode !== "demo" && agent.cluster !== prepared.context.cluster)
     ) {
       throw new Error("Decision mode or cluster does not match the persisted agent");
     }
@@ -128,6 +133,7 @@ export async function persistPreparedDecision(
         modelMetadata: prepared.modelMetadata,
         decisionHash: prepared.decisionHash,
         expiresAt: new Date(prepared.proposal.expiresAt),
+        clientRequestId: options.clientRequestId ?? null,
       })
       .returning();
     if (!created) throw new Error("Decision persistence returned no record");

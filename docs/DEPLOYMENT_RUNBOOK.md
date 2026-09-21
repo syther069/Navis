@@ -44,7 +44,7 @@ Provision these before a public deployment:
 | `ENABLE_MAINNET_EXECUTION`                        | Mainnet signing/submission                                         | Must stay false until final approval.                                                                                                                                 |
 | `MAINNET_RELEASE_APPROVED`                        | Mainnet release gate                                               | Must stay false until an owner has completed all live checks.                                                                                                         |
 | `SOLANA_RPC_URL`                                  | Treasury reads, transaction simulation/submission, Meteora monitor | Use a rate-limited production-grade endpoint for a public demo.                                                                                                       |
-| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0008`; Replit production migrates through Publish; Vercel: section 6a. Remote hosts use verified TLS unless `sslmode` says otherwise. |
+| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0009`; Replit production migrates through Publish; Vercel: section 6a. Remote hosts use verified TLS unless `sslmode` says otherwise. |
 | `SESSION_SECRET`                                  | Wallet-auth sessions                                               | At least 32 characters; server-only.                                                                                                                                  |
 | `CLAWPUMP_API_KEY`                                | ClawPump agent/pair/preflight/launch calls                         | Server-only; expected `cpk_` prefix.                                                                                                                                  |
 | `PRESTOCKS_API_URL`                               | PreStocks read-only catalogue                                      | Defaults to `https://prestocks.com/api/prestocks`.                                                                                                                    |
@@ -64,7 +64,7 @@ Do not deploy it as a static-only site unless the API routes, database-backed le
 
 ## 5. Database setup
 
-The repository ships migrations `0000` through `0008`, all additive: `0006` (execution intents), `0007` (Meteora submitting status) and `0008` (`agents.client_request_id` plus a per-owner unique index for idempotent creation). The development database has all of them applied in order with journal SHA tracking; a logical `pg_dump` was taken before `0006`. The public site's Neon database also has `0000` through `0008` (applied on 2026-09-21; section 6a). The pool keeps at most 8 connections per instance with a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. TLS is decided from `DATABASE_URL`: verified certificates for any non-localhost host unless `sslmode` says otherwise (`disable` turns it off, `no-verify` keeps it on without verification). For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
+The repository ships migrations `0000` through `0009`, all additive: `0006` (execution intents), `0007` (Meteora submitting status), `0008` (`agents.client_request_id` plus a per-owner unique index for idempotent creation) and `0009` (public Atlas persistence: `agents.is_public_demo` with a partial unique index so only one public `atlas` row exists, `decisions.client_request_id` with a per-agent unique index for retry de-duplication, and the `rate_limit_windows` table for the shared public rate limit; no trigger or immutability rule changes). The development database has all of them applied in order with journal SHA tracking; a logical `pg_dump` was taken before `0006`. The public site's Neon database also has `0000` through `0009` (`0009` applied on 2026-09-21; section 6a). The pool keeps at most 8 connections per instance with a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. TLS is decided from `DATABASE_URL`: verified certificates for any non-localhost host unless `sslmode` says otherwise (`disable` turns it off, `no-verify` keeps it on without verification). For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
 
 To migrate any database you control:
 
@@ -102,7 +102,7 @@ The public demo is the Vercel deployment at https://navis-gilt.vercel.app, built
 
 ## 6a. Vercel: persistence and wallet sessions on the public site
 
-Enabled on 2026-09-21. The Vercel project (Production) holds a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint, set by the owner), a 64-character `SESSION_SECRET` and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app`; migrations `0000` through `0008` are applied to that database and `GET /api/health` reports `database` ok, `authenticationOrigin` and `walletSessions` configured (`docs/EVIDENCE.md`, "Public health"). Before that date the three names existed on Vercel with empty values, which the health route reports as `not_configured`.
+Enabled on 2026-09-21. The Vercel project (Production) holds a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint, set by the owner), a 64-character `SESSION_SECRET` and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app`; migrations `0000` through `0009` are applied to that database and `GET /api/health` reports `database` ok, `authenticationOrigin` and `walletSessions` configured (`docs/EVIDENCE.md`, "Public health"). Before that date the three names existed on Vercel with empty values, which the health route reports as `not_configured`.
 
 To repeat this on a fresh Vercel project, or after rotating the database:
 
@@ -118,7 +118,7 @@ To repeat this on a fresh Vercel project, or after rotating the database:
    DATABASE_URL='<the same connection string>' npm run db:check
    ```
 
-   This applies `0000` through `0008`; re-running it is a no-op. Navis never runs DDL at startup. If the app is redeployed before the migrations run, `/api/health` shows `schema_incomplete` and agent creation answers `database_schema_mismatch` until they are applied.
+   This applies `0000` through `0009`; re-running it is a no-op. Navis never runs DDL at startup. If the app is redeployed before the migrations run, `/api/health` shows `schema_incomplete` and agent creation answers `database_schema_mismatch` until they are applied.
 
 4. Confirm `GET https://navis-gilt.vercel.app/api/health` reports `database` ok and `authenticationOrigin` and `walletSessions` configured, then run the public smoke:
 

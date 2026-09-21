@@ -11,7 +11,7 @@ import { demoProof } from "@/fixtures/demo-proof";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
-import { listProofsForOwner } from "@/lib/services/decision-records";
+import { listProofs } from "@/lib/services/decision-records";
 
 export const metadata: Metadata = { title: "Proofs" };
 export const dynamic = "force-dynamic";
@@ -19,17 +19,18 @@ export const dynamic = "force-dynamic";
 export default async function ProofsPage() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
-  const stored =
-    session && env.databaseUrl
-      ? await listProofsForOwner(session.wallet, getDatabase())
-      : [];
+  // Public Atlas receipts are listed for everyone; owner receipts only for
+  // the session that owns them.
+  const stored = env.databaseUrl
+    ? await listProofs({ ownerWallet: session?.wallet }, getDatabase())
+    : [];
+  const publicCount = stored.filter((item) => item.visibility === "public").length;
+  const ownedCount = stored.length - publicCount;
   const note = !env.databaseUrl
     ? "This instance has no database, so only the prepared Atlas receipt is listed."
     : !session
-      ? "Authenticate a connected wallet to list the receipts stored for it."
-      : stored.length === 0
-        ? "No stored receipts for this wallet yet. Generate a decision on one of your agents to create the first one."
-        : `${stored.length} stored receipt${stored.length === 1 ? "" : "s"} for the connected wallet, newest first, plus the prepared Atlas receipt. Every stored receipt is a demo simulation with no signature or onchain evidence.`;
+      ? `${publicCount} stored public Atlas receipt${publicCount === 1 ? "" : "s"}, newest first, plus the prepared Atlas receipt. Authenticate a connected wallet to also list the receipts stored for it. Every stored receipt is offchain integrity evidence from a demo simulation, with no signature or onchain transaction.`
+      : `${publicCount} public Atlas receipt${publicCount === 1 ? "" : "s"} and ${ownedCount} receipt${ownedCount === 1 ? "" : "s"} for the connected wallet, newest first, plus the prepared Atlas receipt. Every stored receipt is offchain integrity evidence from a demo simulation, with no signature or onchain transaction.`;
 
   return (
     <>
@@ -56,6 +57,7 @@ export default async function ProofsPage() {
             <div>
               <span>
                 {proof.mode.toUpperCase()} RECEIPT · {proof.agent.name}
+                {proof.visibility === "public" ? " · public record" : ""}
               </span>
               <h2>
                 {proof.approved

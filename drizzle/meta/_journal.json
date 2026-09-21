@@ -64,6 +64,13 @@
       "when": 1789987992703,
       "tag": "0008_agent_request_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789994301494,
+      "tag": "0009_public_atlas_persistence",
+      "breakpoints": true
     }
   ]
 }
