@@ -1,0 +1,72 @@
+{
+  "checkedAt": "2026-09-21T13:10:58.688Z",
+  "baseUrl": "https://navis-gilt.vercel.app",
+  "runs": [
+    {
+      "scenario": "balanced",
+      "status": 200,
+      "decisionId": "06e530b8-f75f-4fcc-b8bb-8e7dfd32f06d",
+      "proofId": "663a59af-9865-4d4b-a237-69cff03d5a49",
+      "generatedAt": "2026-09-21T13:10:58.987Z",
+      "approved": true,
+      "execution": "simulated",
+      "signature": null,
+      "explorerUrl": null,
+      "anchoring": "offchain_only",
+      "universe": "prestocks",
+      "persisted": {
+        "store": "database",
+        "note": "Stored in the database as a public Atlas record: portfolio snapshot, decision, policy evaluation, simulated execution attempt and proof receipt. No wallet was involved and the links stay valid across deployments.",
+        "visibility": "public"
+      },
+      "receiptHash": "4223c1e144df51c5ceb141ac1df2c70b890d6cee2be4cb7b2849fa6029cbcac9",
+      "replaySameDecision": true,
+      "anonymousPages": {
+        "/decisions/06e530b8-f75f-4fcc-b8bb-8e7dfd32f06d": 200,
+        "/proofs/663a59af-9865-4d4b-a237-69cff03d5a49": 200
+      },
+      "anonymousApiStatus": 200,
+      "reloadedHashMatches": true,
+      "reloadedVerified": true,
+      "decisionUrl": "https://navis-gilt.vercel.app/decisions/06e530b8-f75f-4fcc-b8bb-8e7dfd32f06d",
+      "proofUrl": "https://navis-gilt.vercel.app/proofs/663a59af-9865-4d4b-a237-69cff03d5a49"
+    },
+    {
+      "scenario": "oversized",
+      "status": 200,
+      "decisionId": "edfaaa08-8d29-4a28-86f7-5d1873007502",
+      "proofId": "d8e92904-9c98-4b97-9046-a8b80505d21c",
+      "generatedAt": "2026-09-21T13:10:59.890Z",
+      "approved": false,
+      "execution": "rejected",
+      "signature": null,
+      "explorerUrl": null,
+      "anchoring": "offchain_only",
+      "universe": "prestocks",
+      "persisted": {
+        "store": "database",
+        "note": "Stored in the database as a public Atlas record: portfolio snapshot, decision, policy evaluation, simulated execution attempt and proof receipt. No wallet was involved and the links stay valid across deployments.",
+        "visibility": "public"
+      },
+      "receiptHash": "58ed53d4d16148546bcc1d8c0e46ef9c4e2163295b003e3a81e403ff81e0f184",
+      "replaySameDecision": true,
+      "anonymousPages": {
+        "/decisions/edfaaa08-8d29-4a28-86f7-5d1873007502": 200,
+        "/proofs/d8e92904-9c98-4b97-9046-a8b80505d21c": 200
+      },
+      "anonymousApiStatus": 200,
+      "reloadedHashMatches": true,
+      "reloadedVerified": true,
+      "decisionUrl": "https://navis-gilt.vercel.app/decisions/edfaaa08-8d29-4a28-86f7-5d1873007502",
+      "proofUrl": "https://navis-gilt.vercel.app/proofs/d8e92904-9c98-4b97-9046-a8b80505d21c"
+    }
+  ],
+  "unknownIds": {
+    "/decisions/00000000-0000-4000-8000-000000000000": 404,
+    "/proofs/00000000-0000-4000-8000-000000000000": 404,
+    "/decisions/not-a-uuid": 404,
+    "/proofs/not-a-uuid": 404
+  },
+  "malformedKeyStatus": 400,
+  "oversizedBodyStatus": 413
+}

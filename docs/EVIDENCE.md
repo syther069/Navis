@@ -1,6 +1,6 @@
 # Navis Evidence Manifest
 
-Updated: 2026-09-21 (afternoon IST): public database, wallet sessions and origin enabled and verified; see "Public health".
+Updated: 2026-09-21 (evening IST): public Atlas decisions and proofs are stored in PostgreSQL and publicly readable; see "Public Atlas decisions and proofs (Task 2)".
 
 This manifest records what can be proven from the current `main` and the public deployment, and what remains externally blocked. Everything in the "Final state" section was measured on 2026-09-20 against the commit named there. Earlier baselines are listed under History at the end.
 
@@ -31,7 +31,7 @@ All gates were run on 2026-09-20 at the final application commit.
 | `npm run check:lockfile`    | Passed: every `package-lock.json` resolved URL is on `registry.npmjs.org`                                                                                                                                                                                             |
 | `npm run build`             | Passed: production Next.js 16.3.5 build                                                                                                                                                                                                                               |
 | `npm run smoke:judge`       | Passed against a local `next start` in the locked demo posture with no database: 12 page routes, PreStocks API, real 404 for unknown decision and proof ids, and a fresh oversized decision on the PreStocks universe. Report: `docs/evidence/final-local-smoke.json` |
-| `npm run db:check`          | Passed (Drizzle schema matches migrations `0000` to `0008`)                                                                                                                                                                                                           |
+| `npm run db:check`          | Passed (Drizzle schema matches migrations `0000` to `0009`)                                                                                                                                                                                                           |
 | `npm run submission:audit`  | Passed with zero warnings                                                                                                                                                                                                                                             |
 | `npm run check`             | Passed: all nine gates in sequence                                                                                                                                                                                                                                    |
 | Production dependency audit | `npm audit --omit=dev`: 19 advisories (6 high, 13 moderate, 0 critical), all transitive through the Solana and Meteora chains: `docs/evidence/stocklana-v2-dependency-audit.json`. Unresolved; not a security certification                                           |
@@ -65,7 +65,7 @@ Public persistence and wallet sign-in were then exercised end to end against htt
 
 `POST /api/decisions/run` creates a fresh proposal, runs the deterministic policy engine, and returns every check, the execution eligibility, and a receipt that the browser verifies locally with the same code as `/proofs/<id>`. Three paths exist:
 
-- **Atlas (public demo).** No wallet or database is needed. The default asset universe is the live PreStocks catalogue (allowlist from the validated `contract_address` values, token price as the research price, freshness from the read time, liquidity left unavailable so the rule warns instead of inventing a figure). Balanced is approved with 10 of 11 checks passed and 1 warned; Oversized is rejected on max trade bps and min reserve bps. When no database is configured the run is kept in bounded process memory only, the panel says so, and no detail link is offered (on Vercel a later request can land on another instance).
+- **Atlas (public demo).** No wallet or database is needed. The default asset universe is the live PreStocks catalogue (allowlist from the validated `contract_address` values, token price as the research price, freshness from the read time, liquidity left unavailable so the rule warns instead of inventing a figure). Balanced is approved with 10 of 11 checks passed and 1 warned; Oversized is rejected on max trade bps and min reserve bps. With a database (the public site) every run is stored as a public record with stable `/decisions/<id>` and `/proofs/<id>` links that need no wallet; without one the run is kept in bounded process memory only, the panel says so, and no detail link is offered.
 - **Owner-created agents in demo mode.** With `DATABASE_URL`, `SESSION_SECRET` and a wallet session, a run is persisted in one transaction: portfolio snapshot, decision, policy evaluation, execution attempt (simulated) and proof receipt. The decision and proof pages are owner-scoped; unknown ids return a real HTTP 404. Exercised on the public site on 2026-09-21 (see "Public health").
 - **Owner-created agents in devnet or mainnet mode.** Refused with HTTP 409, because a persisted snapshot does not hold every market fact an honest evaluation needs and Navis will not invent them.
 
@@ -164,7 +164,15 @@ A real wallet extension and signing remain unverified (the public sign-in check 
 
 Every Atlas run on the public site is now stored in PostgreSQL as a public record (portfolio snapshot, decision, policy evaluation, simulated or rejected execution attempt and proof receipt, written in one transaction) and readable at `/decisions/<id>` and `/proofs/<id>` with no wallet session. Private owner records still need the owner's session and are otherwise a real 404. Details, design and test list: `docs/TASK2_ATLAS_PERSISTENCE_DELIVERY.md`.
 
-Production check: pending (filled in by the docs commit that follows the deployment of the application commit).
+Verified on the public site on 2026-09-21 without a session, at application commit `d1684dd` and again after the deployment of `c715042` (log: `docs/evidence/task2-atlas-persistence-production.json`; screenshots `docs/evidence/task2-*.png`):
+
+| Item                           | Value                                                                                                                                                                                                |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Balanced (approved, simulated) | https://navis-gilt.vercel.app/decisions/06e530b8-f75f-4fcc-b8bb-8e7dfd32f06d and https://navis-gilt.vercel.app/proofs/663a59af-9865-4d4b-a237-69cff03d5a49; receipt hash `4223c1e1...cbcac9`         |
+| Oversized (rejected)           | https://navis-gilt.vercel.app/decisions/edfaaa08-8d29-4a28-86f7-5d1873007502 and https://navis-gilt.vercel.app/proofs/d8e92904-9c98-4b97-9046-a8b80505d21c; receipt hash `58ed53d4...e0f184`         |
+| Fresh session, after redeploy  | All four URLs 200 with the same stored receipt hash and a passing verification; unknown ids 404 on both routes; same request key replays the same record; 400 on a malformed key, 413 on a 5 KB body |
+| Assurance                      | Offchain integrity evidence, demo simulation; no signature, no explorer link, `hashAnchoring = offchain_only`                                                                                        |
+| Migration `0009`               | Applied to the development and the Neon production database                                                                                                                                          |
 
 ## History
 
