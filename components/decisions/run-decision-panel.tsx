@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import {
-  browserSessionStorage,
+  browserStorage,
   clearPendingRun,
   runRequestKeyFor,
 } from "@/components/decisions/run-request-key";
@@ -300,7 +300,7 @@ export function RunDecisionPanel({
     // One key per submission. It survives a failed or interrupted request so
     // a retry returns the stored run instead of a twin; a confirmed run
     // clears it so the next click produces a fresh decision.
-    const store = browserSessionStorage();
+    const store = browserStorage();
     const requestKey = persisted
       ? undefined
       : runRequestKeyFor(store, { agentSlug, scenario, universe });

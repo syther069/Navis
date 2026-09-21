@@ -1,7 +1,8 @@
 // Client-side request key for idempotent agent creation.
 //
-// The key is written to sessionStorage together with a fingerprint of the
-// mandate it belongs to. If the tab is reloaded after a failed or
+// The key is written to localStorage together with a fingerprint of the
+// mandate it belongs to. localStorage, not sessionStorage, because the record
+// must outlive a closed tab or browser: if the owner comes back after an
 // unconfirmed save, reviewing the same mandate again reuses the key and the
 // server replays the first agent instead of creating a second one. A changed
 // mandate produces a new key, so a key can never be sent with different
@@ -11,9 +12,9 @@
 // same key would create a new agent, not replay. The ClawPump link flag is
 // stored only so the form can be restored after a reload.
 //
-// If sessionStorage is blocked or full, the record lives in module memory so
-// that retries within the same page load still share one key; only reload
-// safety is lost in that case.
+// If localStorage is blocked or full, the record lives in module memory so
+// that retries within the same page load still share one key; only
+// reload and reopen safety is lost in that case.
 
 export type MandateSnapshot = Readonly<{
   name: string;
@@ -127,20 +128,20 @@ export function clearPendingCreation(store: KeyValueStore | null): void {
   }
 }
 
-// Same-page fallback used when sessionStorage throws or is missing.
+// Same-page fallback used when localStorage throws or is missing.
 const memory = new Map<string, string>();
 
 /**
- * sessionStorage when it works, otherwise an in-memory store for this page
+ * localStorage when it works, otherwise an in-memory store for this page
  * load. Every read and write is guarded, so a Storage object that throws can
  * never break rendering. Never returns null in a browser.
  */
-export function browserSessionStorage(): KeyValueStore {
+export function browserStorage(): KeyValueStore {
   return {
     getItem(key) {
       try {
         if (typeof window !== "undefined") {
-          const value = window.sessionStorage.getItem(key);
+          const value = window.localStorage.getItem(key);
           if (value !== null) return value;
         }
       } catch {
@@ -151,7 +152,7 @@ export function browserSessionStorage(): KeyValueStore {
     setItem(key, value) {
       memory.set(key, value);
       try {
-        if (typeof window !== "undefined") window.sessionStorage.setItem(key, value);
+        if (typeof window !== "undefined") window.localStorage.setItem(key, value);
       } catch {
         // memory copy already holds it
       }
@@ -159,7 +160,7 @@ export function browserSessionStorage(): KeyValueStore {
     removeItem(key) {
       memory.delete(key);
       try {
-        if (typeof window !== "undefined") window.sessionStorage.removeItem(key);
+        if (typeof window !== "undefined") window.localStorage.removeItem(key);
       } catch {
         // nothing more to do
       }

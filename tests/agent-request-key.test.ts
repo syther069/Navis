@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  browserSessionStorage,
+  browserStorage,
   clearPendingCreation,
   mandateFingerprint,
   PENDING_CREATION_STORAGE_KEY,
@@ -10,8 +10,9 @@ import {
   type MandateSnapshot,
 } from "../components/agent/request-key";
 
-// Minimal sessionStorage stand-in. One instance represents one browser tab
-// session; a "reload" is a fresh page reading the same instance.
+// Minimal localStorage stand-in. One instance represents one browser profile
+// on one origin; a reload, a closed and reopened tab, or a restarted browser
+// is a fresh page reading the same instance.
 function memoryStorage(): Storage {
   const data = new Map<string, string>();
   return {
@@ -102,7 +103,7 @@ describe("agent creation request key", () => {
     ).toBe(first);
   });
 
-  it("survives a reload: retrying the same mandate replays the first agent", () => {
+  it("survives a reload or a closed browser: retrying the same mandate replays the first agent", () => {
     const api = fakeAgentsApi();
     const session = memoryStorage();
 
@@ -111,8 +112,9 @@ describe("agent creation request key", () => {
     const first = api.create(wallet, { name: mandate.name, clientRequestId: key1 });
     expect(first.status).toBe(201);
 
-    // Page load 2 (reload): a fresh form reads the same sessionStorage,
-    // restores the mandate, and the retry sends the same key.
+    // Page load 2 (reload, or the browser was closed and reopened): a fresh
+    // form reads the same localStorage, restores the mandate, and the retry
+    // sends the same key.
     const restored = readPendingCreation(session, wallet);
     expect(restored?.mandate).toEqual(mandate);
     const key2 = requestKeyFor(session, wallet, restored!.mandate);
@@ -185,10 +187,10 @@ describe("agent creation request key", () => {
     expect(readPendingCreation(session, wallet)).toBeNull();
   });
 
-  it("keeps one key per page load even when sessionStorage is unusable", () => {
+  it("keeps one key per page load even when localStorage is unusable", () => {
     // No window in this test environment, so the browser store falls back to
     // module memory: retries on the same page still share a key.
-    const store = browserSessionStorage();
+    const store = browserStorage();
     clearPendingCreation(store);
     const first = requestKeyFor(store, wallet, mandate);
     expect(requestKeyFor(store, wallet, mandate)).toBe(first);

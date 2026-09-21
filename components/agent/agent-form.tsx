@@ -7,7 +7,7 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
 import { strategyDocumentSchema } from "../../lib/domain/strategy";
 import {
-  browserSessionStorage,
+  browserStorage,
   clearPendingCreation,
   mandateFingerprint,
   PENDING_CREATION_STORAGE_KEY,
@@ -70,7 +70,7 @@ function classifyFailure(status: number, body: Record<string, unknown>): FormFai
 }
 
 function readPendingRaw(): string | null {
-  return browserSessionStorage().getItem(PENDING_CREATION_STORAGE_KEY);
+  return browserStorage().getItem(PENDING_CREATION_STORAGE_KEY);
 }
 
 function subscribeToSessionStorage(onChange: () => void) {
@@ -113,14 +113,14 @@ export function AgentForm({
   const [failure, setFailure] = useState<FormFailure | null>(null);
   const [linkClawPump, setLinkClawPump] = useState(false);
   const [creating, setCreating] = useState(false);
-  // One key per reviewed mandate, kept in sessionStorage with a fingerprint
+  // One key per reviewed mandate, kept in localStorage with a fingerprint
   // of the mandate (components/agent/request-key.ts). A retry after a network
-  // or storage failure, including after a reload of this page, sends the same
+  // or storage failure, including after a reload or a closed and reopened browser, sends the same
   // key, so the server returns the first agent instead of a second one. A
   // changed mandate gets a fresh key.
   const inFlight = useRef(false);
 
-  // After a reload with an unconfirmed save, offer the same mandate back so
+  // After a reload or reopen with an unconfirmed save, offer the same mandate back so
   // the owner can review and retry it (same request key) rather than retype
   // it. Read through useSyncExternalStore so the server render stays empty
   // and no state is set from an effect.
@@ -130,7 +130,7 @@ export function AgentForm({
     () => null,
   );
   const pending =
-    pendingRaw && wallet ? readPendingCreation(browserSessionStorage(), wallet) : null;
+    pendingRaw && wallet ? readPendingCreation(browserStorage(), wallet) : null;
   const pendingIsCurrent =
     pending !== null &&
     wallet !== null &&
@@ -151,7 +151,7 @@ export function AgentForm({
     setError(null);
     setFailure(null);
     const clientRequestId = wallet
-      ? requestKeyFor(browserSessionStorage(), wallet, { ...values, linkClawPump })
+      ? requestKeyFor(browserStorage(), wallet, { ...values, linkClawPump })
       : undefined;
     try {
       let response: Response;
@@ -178,7 +178,7 @@ export function AgentForm({
         return;
       }
       const result = body as unknown as CreationResult;
-      clearPendingCreation(browserSessionStorage());
+      clearPendingCreation(browserStorage());
       router.push(`/agents/${encodeURIComponent(result.agent.slug)}`);
     } finally {
       inFlight.current = false;
@@ -233,7 +233,7 @@ export function AgentForm({
     // Remember the reviewed mandate now so a reload before or after the save
     // attempt restores it with the same request key.
     if (wallet) {
-      requestKeyFor(browserSessionStorage(), wallet, { ...values, linkClawPump });
+      requestKeyFor(browserStorage(), wallet, { ...values, linkClawPump });
     }
     setReviewing(true);
   }

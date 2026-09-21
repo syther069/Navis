@@ -86,7 +86,7 @@ explicit "nothing was saved" error. The in-memory map is used only when no
   and onchain settlement), simulation status, what the receipt proves
   (offchain integrity evidence), receipt verification, Proof ID, and Open
   Decision / View Proof / Copy Proof Link. One request key per submission is
-  kept in sessionStorage until the server confirms the run
+  kept in localStorage until the server confirms the run
   (`components/decisions/run-request-key.ts`).
 - **Smoke**: `scripts/smoke-judge-flow.mjs` now exercises the stored path when
   `/api/health` reports the database as `ok`: public record, proof id, no

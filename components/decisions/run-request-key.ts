@@ -1,14 +1,14 @@
 // Client-side request key for one public Atlas run submission.
 //
 // Each click on "Run decision" is meant to produce a new decision, so a key is
-// minted per submission. The key is kept in sessionStorage with the run's
+// minted per submission. The key is kept in localStorage with the run's
 // fingerprint (agent, scenario, universe) until the server confirms the run:
 // if the request fails or the tab reloads before the answer arrives, the next
 // submit of the same run reuses the key and the server returns the stored
 // record instead of a twin. A confirmed run clears the key, and a different
 // scenario or universe never reuses one.
 
-import { browserSessionStorage, newRequestKey } from "@/components/agent/request-key";
+import { browserStorage, newRequestKey } from "@/components/agent/request-key";
 
 export type RunRequest = Readonly<{
   agentSlug: string;
@@ -76,4 +76,4 @@ export function clearPendingRun(store: KeyValueStore | null): void {
   }
 }
 
-export { browserSessionStorage };
+export { browserStorage };
