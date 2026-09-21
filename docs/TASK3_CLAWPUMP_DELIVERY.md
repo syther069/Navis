@@ -69,19 +69,26 @@ Gate: see section 6.
 
 ## 5. Production verification
 
-Deployment: https://navis-gilt.vercel.app
+Deployment: https://navis-gilt.vercel.app, application commit `081a07f` (`feat(clawpump): enable provider verification and stock-pair preflight`, GitHub `main`, authored and committed by the repository owner). `CLAWPUMP_API_KEY` was set on the Vercel project (production and preview, sensitive) before the deployment, so the deployed build read it at runtime.
 
-| Item                    | Value                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| Real authenticated call | Not performed. Blocked: `CLAWPUMP_API_KEY` is not available in this workspace or on Vercel. |
-| Provider request id     | None                                                                                        |
-| Stored verification row | None                                                                                        |
-| What production shows   | "Provider not configured", naming `CLAWPUMP_API_KEY` (a `cpk_` Partner key)                 |
-
-To complete the live steps once a key exists: set `CLAWPUMP_API_KEY` in the Vercel project, redeploy, open `/markets/launch` (or `POST /api/integrations/clawpump/verification` while signed in), then read `/api/health` `services.clawpump`. Copy the request id, endpoint, HTTP status and timestamp from the stored record into this table.
+| Item                    | Value                                                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Real authenticated call | `GET https://clawpump.tech/api/v1/skills` from the production server, HTTP 200, validated response type `skills`                                                                                          |
+| Provider request id     | `666900bf-4514-497a-8393-591028d8b612`                                                                                                                                                                    |
+| Provider timestamp      | `2026-09-21T16:35:32.428Z` (checked at `2026-09-21T16:35:31.467Z`)                                                                                                                                        |
+| Agent access            | `GET /agents` HTTP 403, recorded as `agentAccess: forbidden` (key not linked to an account)                                                                                                               |
+| Stored verification row | `external_calls.operation = provider_verification`, result `connected`, on the Neon production database; `/api/health` `services.clawpump` reports `status: connected` from that stored row               |
+| Pair catalogue on page  | Live `/pump-pairs` request `3a7a5e90-023d-4ac9-a1e0-76c0a3617f2b` at `2026-09-21T16:35:42.535Z`: 169 pairs, 77 classified as tokenized stocks from on-chain issuer metadata, SOL and USDC not stock pairs |
+| State track on page     | Provider connected and Stock pair discovered lit; Agent linked, Preflight and Launch states unlit; the two launch states stated as gated on a stored signature (none exist)                               |
+| Nothing launched        | No `POST /launch/self-funded` was made in production; no funds moved                                                                                                                                      |
 
 ## 6. Gate, commit and remaining work
 
-Gate result and commit hash are appended below by the delivery step.
+`npm run check` at the application commit: format, lint, typecheck, 55 files / 436 tests, lockfile, build, judge smoke against the development database, `db:check`, submission audit, all passing.
 
-Remaining bounty requirements outside this task: a funded Solana mainnet launch through an authorised wallet action (a separate execution step that pays the quoted SOL from the registered payout wallet), then an onchain verification of the resulting mint. Navis does not claim the full "Stocknized Agent" bounty.
+Commit: `081a07f37169fe876559bd7b84ce9d886342c479` on GitHub `main`.
+
+Remaining bounty requirements outside this task:
+
+1. ClawPump must link this Partner key to an account so `GET /agents` and `POST /agents` stop answering 403; only then can a Navis agent be linked and a real preflight quote stored.
+2. A funded Solana mainnet launch through an authorised wallet action (a separate execution step that pays the quoted SOL from the registered payout wallet), then an onchain verification of the resulting mint. Navis does not claim the full "Stocknized Agent" bounty.
