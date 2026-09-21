@@ -2,13 +2,15 @@
 
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 
 import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
 import { strategyDocumentSchema } from "../../lib/domain/strategy";
 import {
   browserSessionStorage,
   clearPendingCreation,
+  mandateFingerprint,
+  PENDING_CREATION_STORAGE_KEY,
   readPendingCreation,
   requestKeyFor,
 } from "./request-key";
@@ -67,6 +69,15 @@ function classifyFailure(status: number, body: Record<string, unknown>): FormFai
   return { kind: "unknown", message };
 }
 
+function readPendingRaw(): string | null {
+  return browserSessionStorage()?.getItem(PENDING_CREATION_STORAGE_KEY) ?? null;
+}
+
+function subscribeToSessionStorage(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
 const demoAssets = [
   "demo_mint_equity_a",
   "demo_mint_equity_b",
@@ -106,15 +117,27 @@ export function AgentForm({
   // changed mandate gets a fresh key.
   const inFlight = useRef(false);
 
-  // After a reload with an unconfirmed save, put the same mandate back so the
-  // owner can review and retry it rather than retype it.
-  useEffect(() => {
-    const pending = readPendingCreation(browserSessionStorage());
+  // After a reload with an unconfirmed save, offer the same mandate back so
+  // the owner can review and retry it (same request key) rather than retype
+  // it. Read through useSyncExternalStore so the server render stays empty
+  // and no state is set from an effect.
+  const pendingRaw = useSyncExternalStore(
+    subscribeToSessionStorage,
+    readPendingRaw,
+    () => null,
+  );
+  const pending = pendingRaw ? readPendingCreation(browserSessionStorage()) : null;
+  const pendingIsCurrent =
+    pending !== null &&
+    mandateFingerprint({ ...values, linkClawPump }) === pending.fingerprint;
+
+  function restorePending() {
     if (!pending) return;
     const { linkClawPump: pendingLink, ...pendingValues } = pending.mandate;
     setValues(pendingValues);
     setLinkClawPump(pendingLink);
-  }, []);
+    setError(null);
+  }
 
   async function createAgent() {
     if (inFlight.current) return;
@@ -281,6 +304,18 @@ export function AgentForm({
 
   return (
     <form className="agent-form route-panel" onSubmit={review} noValidate>
+      {pending && !pendingIsCurrent ? (
+        <div className="form-notice" role="status">
+          <p>
+            An earlier save of <strong>{pending.mandate.name}</strong> was not
+            confirmed. Restoring it and creating again repeats the same request, so it
+            cannot make a second agent.
+          </p>
+          <button className="secondary-button" type="button" onClick={restorePending}>
+            Restore that mandate
+          </button>
+        </div>
+      ) : null}
       <TextField label="Agent name" name="name" value={values.name} update={update} />
       <div className="form-field">
         <label htmlFor="objective">Objective</label>

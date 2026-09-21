@@ -1992,6 +1992,27 @@ button:active:not(:disabled) {
   color: #f0c98a;
 }
 
+.form-notice {
+  display: grid;
+  gap: var(--space-3);
+  border-left: 2px solid #f0b35a;
+  padding-left: var(--space-3);
+  font-size: var(--text-label);
+  color: var(--text-secondary);
+}
+
+.form-notice p {
+  margin: 0;
+}
+
+.form-notice strong {
+  color: var(--text-primary);
+}
+
+.form-notice .secondary-button {
+  justify-self: start;
+}
+
 .review-list {
   margin: 0;
   border-block: 1px solid var(--border);
