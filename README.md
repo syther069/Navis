@@ -19,7 +19,7 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 - The Atlas page opens with a short intro (problem, what Navis does, what to try) and an optional read-only devnet slot probe gated on `SOLANA_RPC_URL`. Production has `SOLANA_RPC_URL` set to the public devnet endpoint, execution flags stay false, and the probe only reads the current slot.
 - Meteora DBC has a second server-approved quote profile, `navis-stock-exposure-v1`, quoted in a PreStocks exposure token chosen from the live catalogue and verified onchain at prepare time (token program, decimals, Token-2022 extensions, Meteora token badge). It is mainnet only and currently gated because no live PreStocks mint carries the badge; no substitute mint is ever used.
 - Repository documentation was refreshed so every claim matches the deployed commit. Historical baselines are kept in clearly labelled history sections.
-- Still open: nothing on the public site writes to Solana (the only chain read is the devnet slot probe); the public site has no database, so created agents and persisted runs cannot be exercised there; no videos. The code is released under the MIT licence (see `LICENSE`).
+- Still open: nothing on the public site writes to Solana (the only chain read is the devnet slot probe); the public site's persisted runs are demo-mode simulations (no devnet or mainnet run is persisted); no videos. The code is released under the MIT licence (see `LICENSE`).
 
 ## What is implemented
 
@@ -44,7 +44,7 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 - No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
 - Meteora signed input is now server-bound to the exact prepared intent, but broadcast stays hard-blocked (the submit routes return 503 before any send) until the protocol is retested against a real cluster.
 - The Vercel demo at https://navis-gilt.vercel.app runs in demo mode without a database. Fresh Atlas runs work there, but a run is kept in the memory of the serverless instance that produced it, so no detail link is offered; the inline result panel shows the full run. No demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
-- Migrations `0006` (execution intents) and `0007` (submitting status) are in the repository and applied to no database. The development database has `0000` through `0005`; the public site has no database at all.
+- Migrations `0006` (execution intents) and `0007` (submitting status) are in the repository and applied to the public site's database. The development database has `0000` through `0005`; the public site's Neon database has all eight (applied 2026-09-21).
 - PreStocks is read-only. Navis does not expose buy/sell or launch actions for PreStocks assets.
 - The public health mode is `demo` on `devnet`: PreStocks, the demo AI provider, Meteora SDK reads and a read-only public devnet RPC are configured, while database, authentication origin, wallet sessions and ClawPump are not configured. The public app is deterministic; it is not persistent or wallet-ready.
 

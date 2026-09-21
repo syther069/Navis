@@ -4,7 +4,7 @@ Updated: 2026-09-20.
 
 ## Review summary
 
-Current `main` passes all nine automated gates, including 40 test files / 300 tests and the judge smoke with a fresh decision. The hardening below is deployed on the public Vercel demo at GitHub `main` commit `a335681`. The public demo has no database, sessions or RPC configured. Real wallet signing and production secret review remain open. See `REMEDIATION_REPORT.md` for the remediation pass and `STOCKLANA_JUDGE_AUDIT_V2.md` for the latest independent audit.
+Current `main` passes all nine automated gates, including 40 test files / 300 tests and the judge smoke with a fresh decision. The hardening below is deployed on the public Vercel demo at GitHub `main` commit `a335681`. At the time of this review the public demo had no database, sessions or RPC configured; database, sessions, origin and RPC were configured on 2026-09-20 and 2026-09-21 (see `EVIDENCE.md`). Real wallet signing and production secret review remain open. See `REMEDIATION_REPORT.md` for the remediation pass and `STOCKLANA_JUDGE_AUDIT_V2.md` for the latest independent audit.
 
 ## Hardening after the judge audit (deployed at `a335681`)
 
@@ -15,7 +15,7 @@ Current `main` passes all nine automated gates, including 40 test files / 300 te
 - New Meteora configuration confirmations reject incomplete or inconsistent RPC evidence, use actual block time, preserve terminal/pool state, compare current status on updates and sanitize upstream errors. Existing historical records were not migrated or re-certified.
 - Fresh dependency, SAST and privacy scans were run during the audit. SAST and privacy scans returned no findings; dependency findings remain unresolved. Absence of static findings is not a security certification.
 - Mutation origin checks now trust same-origin requests behind the deployment proxy using `x-forwarded-host`; foreign origins still receive 403. Verified on production on 2026-09-20.
-- The new `execution_intents` table ships as migration `0006`. There is no evidence it has been applied to any database; the development database has `0000` through `0005` and the public demo has no database.
+- The new `execution_intents` table ships as migration `0006`. At the time of this review it was applied to no database; on 2026-09-21 migrations `0000` through `0007` were applied to the public site's database. The development database still has `0000` through `0005`.
 
 ## Checks performed
 

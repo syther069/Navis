@@ -1,13 +1,17 @@
 {
   "status": "ok",
-  "checkedAt": "2026-09-21T10:38:01.229Z",
+  "checkedAt": "2026-09-21T11:07:34.880Z",
   "mode": "demo",
   "cluster": "devnet",
   "services": {
-    "database": { "status": "not_configured" },
-    "authenticationOrigin": { "status": "not_configured" },
+    "database": {
+      "status": "ok",
+      "tablesReady": true,
+      "immutabilityGuardsReady": true
+    },
+    "authenticationOrigin": { "status": "configured" },
     "solanaRpc": { "status": "configured" },
-    "walletSessions": { "status": "not_configured" },
+    "walletSessions": { "status": "configured" },
     "clawpump": { "status": "not_configured" },
     "meteora": { "status": "configured" },
     "prestocks": { "status": "configured" },

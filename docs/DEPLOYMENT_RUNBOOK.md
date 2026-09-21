@@ -64,7 +64,7 @@ Do not deploy it as a static-only site unless the API routes, database-backed le
 
 ## 5. Database setup
 
-The repository ships migrations `0000` through `0007`. The development database has `0000` through `0005` applied in order with journal SHA tracking; `0006` (execution intents) and `0007` (Meteora submitting status) are applied to no database yet. The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
+The repository ships migrations `0000` through `0007`. The development database has `0000` through `0005` applied in order with journal SHA tracking; `0006` (execution intents) and `0007` (Meteora submitting status) are applied to the public site's Neon database (all eight, on 2026-09-21) and not yet to the development database. The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
 
 Do not add startup or deploy-time DDL. Do not prescribe manual SQL against Replit managed production.
 
@@ -89,31 +89,44 @@ The public demo is the Vercel deployment at https://navis-gilt.vercel.app, built
 7. Click **Republish** so production wallet authentication uses the explicit origin.
 8. Verify public `/api/health`, the judge routes, nonce/origin rejection and acceptance behavior, and the deployed smoke report.
 
-## 6a. Vercel: enabling persistence and wallet sessions on the public site
+## 6a. Vercel: persistence and wallet sessions on the public site
 
-The public site currently runs with no usable database, session secret or explicit app origin: `GET /api/health` shows `database`, `authenticationOrigin` and `walletSessions` as `not_configured`, although the Vercel project has variables with those names defined. Fresh Atlas runs still work (in memory); created agents, persisted runs and wallet sign-in do not. To enable them the owner must:
+Enabled on 2026-09-21. The Vercel project (Production) holds a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint, set by the owner), a 64-character `SESSION_SECRET` and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app`; migrations `0000` through `0007` are applied to that database and `GET /api/health` reports `database` ok, `authenticationOrigin` and `walletSessions` configured (`docs/EVIDENCE.md`, "Public health"). Before that date the three names existed on Vercel with empty values, which the health route reports as `not_configured`.
+
+To repeat this on a fresh Vercel project, or after rotating the database:
 
 1. In the Vercel project settings (Production environment) set real values for:
-   - `DATABASE_URL`: a PostgreSQL connection string reachable from Vercel (for example Neon or Vercel Postgres).
+   - `DATABASE_URL`: a PostgreSQL connection string reachable from Vercel (Neon pooled endpoint with `sslmode=require` is what production uses).
    - `SESSION_SECRET`: a random string of at least 32 characters.
-   - `NEXT_PUBLIC_APP_URL`: exactly `https://navis-gilt.vercel.app`.
+   - `NEXT_PUBLIC_APP_URL`: exactly the public origin, `https://navis-gilt.vercel.app`.
 2. Trigger a new production deployment (Redeploy in the Vercel dashboard, or push to `main`). Environment changes do not apply to an existing deployment.
-3. Apply the migrations to that database from a machine that can reach it:
+3. Apply the migrations to that database from a machine that can reach it. `drizzle.config.ts` deliberately carries no credentials, so pass them through a temporary config that is not committed:
 
    ```bash
-   DATABASE_URL='<the same connection string>' npx drizzle-kit migrate
-   DATABASE_URL='<the same connection string>' npm run db:check
+   cat > drizzle.remote.config.ts <<'EOF'
+   import { defineConfig } from "drizzle-kit";
+   export default defineConfig({
+     dialect: "postgresql",
+     schema: "./lib/db/schema.ts",
+     out: "./drizzle",
+     strict: true,
+     dbCredentials: { url: process.env.REMOTE_DATABASE_URL! },
+   });
+   EOF
+   REMOTE_DATABASE_URL='<the same connection string>' npx drizzle-kit migrate --config drizzle.remote.config.ts
+   rm drizzle.remote.config.ts
+   npm run db:check
    ```
 
    This applies `0000` through `0007`. Navis never runs DDL at startup.
 
-4. Confirm `GET https://navis-gilt.vercel.app/api/health` now reports `database`, `authenticationOrigin` and `walletSessions` as `configured`, then run the public smoke:
+4. Confirm `GET https://navis-gilt.vercel.app/api/health` reports `database` ok and `authenticationOrigin` and `walletSessions` configured, then run the public smoke:
 
    ```bash
    NAVIS_SMOKE_BASE_URL=https://navis-gilt.vercel.app npm run smoke:judge
    ```
 
-Keep the execution flags in the demo posture; persistence does not require devnet or mainnet execution.
+Keep the execution flags in the demo posture; persistence does not require devnet or mainnet execution. Atlas demo runs stay in memory by design even with a database attached; only owner-created agents persist.
 
 ## 7. Devnet rehearsal
 

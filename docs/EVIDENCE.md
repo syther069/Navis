@@ -1,6 +1,6 @@
 # Navis Evidence Manifest
 
-Updated: 2026-09-20 (late evening IST).
+Updated: 2026-09-21 (afternoon IST): public database, wallet sessions and origin enabled and verified; see "Public health".
 
 This manifest records what can be proven from the current `main` and the public deployment, and what remains externally blocked. Everything in the "Final state" section was measured on 2026-09-20 against the commit named there. Earlier baselines are listed under History at the end.
 
@@ -48,9 +48,16 @@ All gates were run on 2026-09-20 at the final application commit.
 
 ## Public health
 
-`GET https://navis-gilt.vercel.app/api/health` on 2026-09-21 at commit `a41c10a` (saved as `docs/evidence/final-public-health.json`) returned HTTP 200 with `mode=demo`, `cluster=devnet` and these services: `database` not configured, `authenticationOrigin` not configured, `solanaRpc` configured (public devnet endpoint, read-only slot probe), `walletSessions` not configured, `clawpump` not configured, `meteora` configured (SDK reads only), `prestocks` configured, `ai` configured (deterministic demo provider). No secret values are returned.
+`GET https://navis-gilt.vercel.app/api/health` on 2026-09-21 at 11:07 UTC, deployed commit `7c33c43` (saved as `docs/evidence/final-public-health.json`), returned HTTP 200 with `status=ok`, `mode=demo`, `cluster=devnet` and these services: `database` ok (16 tables and 7 immutability triggers present), `authenticationOrigin` configured, `solanaRpc` configured (public devnet endpoint, read-only slot probe), `walletSessions` configured, `clawpump` not configured, `meteora` configured (SDK reads only), `prestocks` configured, `ai` configured (deterministic demo provider). No secret values are returned.
 
-The Vercel project has environment variables named `NEXT_PUBLIC_APP_URL`, `DATABASE_URL` and `SESSION_SECRET`, but the health output shows none of them holds a usable value. Consequences on the public site: wallet sign-in is unavailable, created agents and their persisted decision runs cannot be exercised, and fresh Atlas runs are kept in the memory of the serverless instance that produced them. The owner steps to change this are in `docs/DEPLOYMENT_RUNBOOK.md`, section 6a.
+On 2026-09-21 the owner set a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint) on the Vercel project; `SESSION_SECRET` (64 random characters) and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app` were set the same day and the site was redeployed so the values applied. Migrations `0000` through `0007` were applied to that database with `drizzle-kit migrate` (8 journal entries, `npm run db:check` clean). Before this, all three names existed on Vercel with empty values and health reported them as `not_configured` (the earlier output is kept in git history).
+
+Public persistence and wallet sign-in were then exercised end to end against https://navis-gilt.vercel.app (log: `docs/evidence/final-public-persistence-flow.json`):
+
+- Wallet sign-in: `POST /api/auth/nonce` for a fresh ed25519 keypair returned a challenge whose first line names `navis-gilt.vercel.app`; the signed challenge posted to `/api/auth/verify` returned 200 with a `navis_session` cookie; replaying the same signature returned 401; `GET /api/auth/session` returned the wallet and an 8-hour expiry; a nonce request from a foreign origin returned 403. The keypair was created in a script and signed with tweetnacl, so this proves the server side of the flow, not a browser wallet extension.
+- Agent creation: `POST /api/agents` returned 201 with slug `judge-verify-agent-5b0a886e`; `GET /api/agents` listed it for that wallet only.
+- Persisted run: `POST /api/decisions/run` for that agent (Balanced) returned 200 with `persisted.store = "database"`, decision `bd50e402-9517-4ed2-a3f7-4de23f619876`, proof `4c262113-93bd-41f0-8967-83e72e921110`, all 12 checks passed, receipt verified.
+- Real browser: in headless Chromium holding that session cookie, `/agents` listed the new agent (`docs/evidence/final-agents-list-signed-in.png`), the decision link on the agent page was clicked and `/decisions/bd50e402-...` rendered from the database with the `database` badge and the text "Stored for the connected wallet; the detail page reloads it from the database" (`docs/evidence/final-persisted-decision.png`); the proof page opened from it. Without the cookie the same decision and proof URLs return HTTP 404.
 
 ## Demo evidence
 
@@ -59,7 +66,7 @@ The Vercel project has environment variables named `NEXT_PUBLIC_APP_URL`, `DATAB
 `POST /api/decisions/run` creates a fresh proposal, runs the deterministic policy engine, and returns every check, the execution eligibility, and a receipt that the browser verifies locally with the same code as `/proofs/<id>`. Three paths exist:
 
 - **Atlas (public demo).** No wallet or database is needed. The default asset universe is the live PreStocks catalogue (allowlist from the validated `contract_address` values, token price as the research price, freshness from the read time, liquidity left unavailable so the rule warns instead of inventing a figure). Balanced is approved with 10 of 11 checks passed and 1 warned; Oversized is rejected on max trade bps and min reserve bps. When no database is configured the run is kept in bounded process memory only, the panel says so, and no detail link is offered (on Vercel a later request can land on another instance).
-- **Owner-created agents in demo mode.** With `DATABASE_URL`, `SESSION_SECRET` and a wallet session, a run is persisted in one transaction: portfolio snapshot, decision, policy evaluation, execution attempt (simulated) and proof receipt. The decision and proof pages are owner-scoped; unknown ids return a real HTTP 404. Not exercisable on the public site (no database there).
+- **Owner-created agents in demo mode.** With `DATABASE_URL`, `SESSION_SECRET` and a wallet session, a run is persisted in one transaction: portfolio snapshot, decision, policy evaluation, execution attempt (simulated) and proof receipt. The decision and proof pages are owner-scoped; unknown ids return a real HTTP 404. Exercised on the public site on 2026-09-21 (see "Public health").
 - **Owner-created agents in devnet or mainnet mode.** Refused with HTTP 409, because a persisted snapshot does not hold every market fact an honest evaluation needs and Navis will not invent them.
 
 No path executes onchain.
@@ -104,7 +111,7 @@ No path executes onchain.
 | Pool transaction       | Builder implemented; no signature on any cluster                                                                                                                                                                                                                                                                                                               |
 | Pool address/base mint | Not available                                                                                                                                                                                                                                                                                                                                                  |
 | Devnet rehearsal       | Not run by the owner as of this manifest; if it is run later, record the signatures here and in `docs/INTEGRATIONS.md`                                                                                                                                                                                                                                         |
-| Blocker                | Broadcast is hard-blocked in every mode (submit routes return 503 before any send) pending a review on a real cluster; migrations `0006` (execution intents) and `0007` (submitting status) exist in the repository but are applied to no database; all live flags remain false                                                                                |
+| Blocker                | Broadcast is hard-blocked in every mode (submit routes return 503 before any send) pending a review on a real cluster; migrations `0006` (execution intents) and `0007` (submitting status) exist in the repository and are applied to the public site's database (2026-09-21), not yet to the development database; all live flags remain false               |
 
 ### PreStocks
 
@@ -134,7 +141,7 @@ No path executes onchain.
 | Item                 | Verified value                                                                                                              |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Development database | Migrations `0000` through `0005` applied with journal SHA tracking; `0006` and `0007` are in the repository and not applied |
-| Production database  | None; the public Vercel demo has no database, so created agents and persisted runs cannot be exercised there                |
+| Production database  | Neon PostgreSQL attached to the public Vercel demo on 2026-09-21; created agents and persisted demo runs verified there     |
 | Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                           |
 | Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                             |
 

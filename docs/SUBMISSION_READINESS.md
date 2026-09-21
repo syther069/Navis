@@ -35,27 +35,27 @@ Track selection is not evidence of sponsor eligibility.
 
 ## Current readiness
 
-| Item                                     | Status                                                                                                            |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Public application URL                   | Live: https://navis-gilt.vercel.app                                                                               |
-| Live site matches GitHub `main`          | See `docs/EVIDENCE.md`, "Final state" (deployed commit after push and public smoke result)                        |
-| Full automated check                     | Passed all nine gates at the final application commit: 46 files / 340 tests; submission audit with zero warnings  |
-| Local smoke report                       | `docs/evidence/final-local-smoke.json` (fresh oversized decision on the PreStocks universe)                       |
-| Screenshots                              | `docs/evidence/final-*.png`: agent run verdict and receipt hash, proof page, Markets Launch, landing              |
-| Same-origin mutation requests            | Trusted behind the proxy; foreign origin 403 (verified on production earlier on 2026-09-20)                       |
-| Public database, wallet sessions, origin | Not configured on Vercel (health shows `not_configured`); owner steps in `docs/DEPLOYMENT_RUNBOOK.md`, section 6a |
-| Meteora intent binding                   | Implemented in code with tests; broadcast hard-blocked; not live-tested                                           |
-| Migrations 0006 and 0007                 | In the repository; applied to no database                                                                         |
-| Real wallet extension and signing        | Not tested                                                                                                        |
-| Production dependency audit              | 19: 6 high, 13 moderate, 0 critical (`docs/evidence/stocklana-v2-dependency-audit.json`)                          |
-| LICENSE file                             | Present: MIT, copyright TANUJ CHANDA, `license` field set in `package.json`, checked by the submission audit      |
-| Pitch video, at most 3 minutes           | Not recorded (optional; scenes in `docs/SUBMISSION_DRAFT.md`)                                                     |
-| Technical video, at most 5 minutes       | Not recorded (optional; scenes in `docs/SUBMISSION_DRAFT.md`)                                                     |
-| ClawPump funded launch                   | Unsupported in current posture                                                                                    |
-| Meteora live submission                  | Hard-blocked in every mode                                                                                        |
-| Mainnet                                  | Disabled                                                                                                          |
-| Registration and team declaration        | Owner to confirm on the form                                                                                      |
-| Final submission                         | Not submitted                                                                                                     |
+| Item                                     | Status                                                                                                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public application URL                   | Live: https://navis-gilt.vercel.app                                                                                                                             |
+| Live site matches GitHub `main`          | See `docs/EVIDENCE.md`, "Final state" (deployed commit after push and public smoke result)                                                                      |
+| Full automated check                     | Passed all nine gates at the final application commit: 46 files / 340 tests; submission audit with zero warnings                                                |
+| Local smoke report                       | `docs/evidence/final-local-smoke.json` (fresh oversized decision on the PreStocks universe)                                                                     |
+| Screenshots                              | `docs/evidence/final-*.png`: agent run verdict and receipt hash, proof page, Markets Launch, landing                                                            |
+| Same-origin mutation requests            | Trusted behind the proxy; foreign origin 403 (verified on production earlier on 2026-09-20)                                                                     |
+| Public database, wallet sessions, origin | Configured on Vercel since 2026-09-21 (health: database ok, origin and wallet sessions configured); verified end to end, see `docs/EVIDENCE.md` "Public health" |
+| Meteora intent binding                   | Implemented in code with tests; broadcast hard-blocked; not live-tested                                                                                         |
+| Migrations 0006 and 0007                 | In the repository; applied to the public site's database on 2026-09-21 (not yet to the development database)                                                    |
+| Real wallet extension and signing        | Not tested                                                                                                                                                      |
+| Production dependency audit              | 19: 6 high, 13 moderate, 0 critical (`docs/evidence/stocklana-v2-dependency-audit.json`)                                                                        |
+| LICENSE file                             | Present: MIT, copyright TANUJ CHANDA, `license` field set in `package.json`, checked by the submission audit                                                    |
+| Pitch video, at most 3 minutes           | Not recorded (optional; scenes in `docs/SUBMISSION_DRAFT.md`)                                                                                                   |
+| Technical video, at most 5 minutes       | Not recorded (optional; scenes in `docs/SUBMISSION_DRAFT.md`)                                                                                                   |
+| ClawPump funded launch                   | Unsupported in current posture                                                                                                                                  |
+| Meteora live submission                  | Hard-blocked in every mode                                                                                                                                      |
+| Mainnet                                  | Disabled                                                                                                                                                        |
+| Registration and team declaration        | Owner to confirm on the form                                                                                                                                    |
+| Final submission                         | Not submitted                                                                                                                                                   |
 
 ## Sponsor source results
 

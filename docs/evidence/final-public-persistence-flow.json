@@ -1,0 +1,70 @@
+{
+  "base": "https://navis-gilt.vercel.app",
+  "checkedAt": "2026-09-21",
+  "wallet": "FFdFHYEJ6iQD1wdjAHGY6dgnqeCinDB4ncqgcucJ3P3T",
+  "note": "Fresh ed25519 keypair; the server challenge was signed with tweetnacl and posted to /api/auth/verify from the site origin. Session cookie value omitted.",
+  "steps": [
+    {
+      "name": "nonce",
+      "status": 200,
+      "challengeId": "22680403-8c8a-4c6b-a0f3-f359bbf4bd62",
+      "messageFirstLine": "navis-gilt.vercel.app wants you to sign in with your Solana account:"
+    },
+    {
+      "name": "verify",
+      "status": 200,
+      "body": {
+        "authenticated": true,
+        "wallet": "FFdFHYEJ6iQD1wdjAHGY6dgnqeCinDB4ncqgcucJ3P3T",
+        "expiresIn": 28800
+      }
+    },
+    {
+      "name": "replay",
+      "status": 401
+    },
+    {
+      "name": "session",
+      "status": 200,
+      "body": {
+        "authenticated": true,
+        "userId": "ed6e73e1-820a-46c9-9ceb-fa0af3db52eb",
+        "wallet": "FFdFHYEJ6iQD1wdjAHGY6dgnqeCinDB4ncqgcucJ3P3T",
+        "expiresAt": "2026-09-21T19:05:27.000Z"
+      }
+    },
+    {
+      "name": "createAgent",
+      "status": 201,
+      "slug": "judge-verify-agent-5b0a886e",
+      "keys": ["agent", "link"]
+    },
+    {
+      "name": "listAgents",
+      "status": 200,
+      "count": 1,
+      "slugs": ["judge-verify-agent-5b0a886e"]
+    },
+    {
+      "name": "runDecision",
+      "status": 200,
+      "decisionId": "bd50e402-9517-4ed2-a3f7-4de23f619876",
+      "persisted": {
+        "store": "database",
+        "note": "Stored in the database for the connected wallet: decision, policy evaluation, simulated execution attempt and proof receipt."
+      }
+    }
+  ],
+  "agentSlug": "judge-verify-agent-5b0a886e",
+  "decisionId": "bd50e402-9517-4ed2-a3f7-4de23f619876",
+  "proofId": "4c262113-93bd-41f0-8967-83e72e921110",
+  "browser": {
+    "agentsListShowsCreatedAgent": true,
+    "decisionLinkClickedFromAgentPage": "/decisions/bd50e402-9517-4ed2-a3f7-4de23f619876",
+    "detailPageBadge": "database",
+    "detailPersistenceText": "Stored in the database for the connected wallet: decision, policy evaluation, simulated execution attempt and proof receipt.",
+    "anonymousDecisionPage": 404,
+    "anonymousProofPage": 404,
+    "foreignOriginNonce": 403
+  }
+}

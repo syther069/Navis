@@ -57,7 +57,7 @@ Say: A judge can verify the receipt from a clean browser. If a real signature ex
 
 Open `/agents` and `/agents/new` briefly.
 
-Say: Owners define their own mandates. With a database and a wallet session, each demo run for an owner agent is persisted as a snapshot, decision, policy evaluation, simulated execution attempt and proof receipt in one transaction, and the decision and proof pages are owner-scoped. The public site has no database, so this is shown, not run.
+Say: Owners define their own mandates. With a database and a wallet session, each demo run for an owner agent is persisted as a snapshot, decision, policy evaluation, simulated execution attempt and proof receipt in one transaction, and the decision and proof pages are owner-scoped. On the public site this needs a connected wallet; sign in, create an agent and run Balanced to see the persisted decision and its detail link.
 
 ## 2:15–3:20 — Sponsor market surfaces
 
