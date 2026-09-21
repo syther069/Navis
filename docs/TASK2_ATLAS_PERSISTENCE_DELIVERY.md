@@ -1,6 +1,6 @@
 # Task 2 delivery: persisted Atlas decisions and proofs
 
-Status: delivered. Application commit `d1684dd` and follow-up `c715042` are on
+Status: delivered. Application commit `d1684dd`, follow-ups `c715042` and `055bf0b` (owner-only lists exclude public Atlas records; agent history filtered in SQL) are on
 GitHub `main` and deployed on Vercel; the production check is recorded at the end.
 
 ## Reuse plan (decided before coding)
