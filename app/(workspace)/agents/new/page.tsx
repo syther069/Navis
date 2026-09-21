@@ -39,6 +39,7 @@ export default async function NewAgentPage() {
           persistenceAvailable={canPersist}
           clawPumpAvailable={false}
           authenticated={Boolean(session)}
+          wallet={session?.wallet ?? null}
         />
         <aside className="route-panel route-panel-muted">
           <span className="route-eyebrow">Creation boundary</span>

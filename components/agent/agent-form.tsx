@@ -70,7 +70,7 @@ function classifyFailure(status: number, body: Record<string, unknown>): FormFai
 }
 
 function readPendingRaw(): string | null {
-  return browserSessionStorage()?.getItem(PENDING_CREATION_STORAGE_KEY) ?? null;
+  return browserSessionStorage().getItem(PENDING_CREATION_STORAGE_KEY);
 }
 
 function subscribeToSessionStorage(onChange: () => void) {
@@ -98,10 +98,13 @@ export function AgentForm({
   persistenceAvailable,
   clawPumpAvailable,
   authenticated,
+  wallet,
 }: {
   persistenceAvailable: boolean;
   clawPumpAvailable: boolean;
   authenticated: boolean;
+  /** Session wallet, or null when not signed in. Scopes the pending record. */
+  wallet: string | null;
 }) {
   const router = useRouter();
   const [values, setValues] = useState(initialValues);
@@ -126,10 +129,12 @@ export function AgentForm({
     readPendingRaw,
     () => null,
   );
-  const pending = pendingRaw ? readPendingCreation(browserSessionStorage()) : null;
+  const pending =
+    pendingRaw && wallet ? readPendingCreation(browserSessionStorage(), wallet) : null;
   const pendingIsCurrent =
     pending !== null &&
-    mandateFingerprint({ ...values, linkClawPump }) === pending.fingerprint;
+    wallet !== null &&
+    mandateFingerprint(wallet, { ...values, linkClawPump }) === pending.fingerprint;
 
   function restorePending() {
     if (!pending) return;
@@ -145,10 +150,9 @@ export function AgentForm({
     setCreating(true);
     setError(null);
     setFailure(null);
-    const clientRequestId = requestKeyFor(browserSessionStorage(), {
-      ...values,
-      linkClawPump,
-    });
+    const clientRequestId = wallet
+      ? requestKeyFor(browserSessionStorage(), wallet, { ...values, linkClawPump })
+      : undefined;
     try {
       let response: Response;
       try {
@@ -228,7 +232,9 @@ export function AgentForm({
     setFailure(null);
     // Remember the reviewed mandate now so a reload before or after the save
     // attempt restores it with the same request key.
-    requestKeyFor(browserSessionStorage(), { ...values, linkClawPump });
+    if (wallet) {
+      requestKeyFor(browserSessionStorage(), wallet, { ...values, linkClawPump });
+    }
     setReviewing(true);
   }
 
