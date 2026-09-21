@@ -2,10 +2,16 @@
 
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
 import { strategyDocumentSchema } from "../../lib/domain/strategy";
+import {
+  browserSessionStorage,
+  clearPendingCreation,
+  readPendingCreation,
+  requestKeyFor,
+} from "./request-key";
 
 type FormValues = {
   name: string;
@@ -61,12 +67,6 @@ function classifyFailure(status: number, body: Record<string, unknown>): FormFai
   return { kind: "unknown", message };
 }
 
-function newRequestKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 const demoAssets = [
   "demo_mint_equity_a",
   "demo_mint_equity_b",
@@ -99,11 +99,22 @@ export function AgentForm({
   const [failure, setFailure] = useState<FormFailure | null>(null);
   const [linkClawPump, setLinkClawPump] = useState(false);
   const [creating, setCreating] = useState(false);
-  // One key per reviewed mandate. A retry after a network or storage failure
-  // reuses it, so the server returns the first agent instead of a second one.
-  // Going back to edit the mandate issues a fresh key.
-  const requestKey = useRef<string | null>(null);
+  // One key per reviewed mandate, kept in sessionStorage with a fingerprint
+  // of the mandate (components/agent/request-key.ts). A retry after a network
+  // or storage failure, including after a reload of this page, sends the same
+  // key, so the server returns the first agent instead of a second one. A
+  // changed mandate gets a fresh key.
   const inFlight = useRef(false);
+
+  // After a reload with an unconfirmed save, put the same mandate back so the
+  // owner can review and retry it rather than retype it.
+  useEffect(() => {
+    const pending = readPendingCreation(browserSessionStorage());
+    if (!pending) return;
+    const { linkClawPump: pendingLink, ...pendingValues } = pending.mandate;
+    setValues(pendingValues);
+    setLinkClawPump(pendingLink);
+  }, []);
 
   async function createAgent() {
     if (inFlight.current) return;
@@ -111,7 +122,10 @@ export function AgentForm({
     setCreating(true);
     setError(null);
     setFailure(null);
-    requestKey.current ??= newRequestKey();
+    const clientRequestId = requestKeyFor(browserSessionStorage(), {
+      ...values,
+      linkClawPump,
+    });
     try {
       let response: Response;
       try {
@@ -121,7 +135,7 @@ export function AgentForm({
           body: JSON.stringify({
             ...values,
             linkClawPump,
-            clientRequestId: requestKey.current,
+            clientRequestId,
           }),
         });
       } catch {
@@ -137,6 +151,7 @@ export function AgentForm({
         return;
       }
       const result = body as unknown as CreationResult;
+      clearPendingCreation(browserSessionStorage());
       router.push(`/agents/${encodeURIComponent(result.agent.slug)}`);
     } finally {
       inFlight.current = false;
@@ -188,7 +203,9 @@ export function AgentForm({
 
     setError(null);
     setFailure(null);
-    requestKey.current = newRequestKey();
+    // Remember the reviewed mandate now so a reload before or after the save
+    // attempt restores it with the same request key.
+    requestKeyFor(browserSessionStorage(), { ...values, linkClawPump });
     setReviewing(true);
   }
 
