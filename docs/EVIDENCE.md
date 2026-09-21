@@ -31,7 +31,7 @@ All gates were run on 2026-09-20 at the final application commit.
 | `npm run check:lockfile`    | Passed: every `package-lock.json` resolved URL is on `registry.npmjs.org`                                                                                                                                                                                             |
 | `npm run build`             | Passed: production Next.js 16.3.5 build                                                                                                                                                                                                                               |
 | `npm run smoke:judge`       | Passed against a local `next start` in the locked demo posture with no database: 12 page routes, PreStocks API, real 404 for unknown decision and proof ids, and a fresh oversized decision on the PreStocks universe. Report: `docs/evidence/final-local-smoke.json` |
-| `npm run db:check`          | Passed (Drizzle schema matches migrations `0000` to `0007`)                                                                                                                                                                                                           |
+| `npm run db:check`          | Passed (Drizzle schema matches migrations `0000` to `0008`)                                                                                                                                                                                                           |
 | `npm run submission:audit`  | Passed with zero warnings                                                                                                                                                                                                                                             |
 | `npm run check`             | Passed: all nine gates in sequence                                                                                                                                                                                                                                    |
 | Production dependency audit | `npm audit --omit=dev`: 19 advisories (6 high, 13 moderate, 0 critical), all transitive through the Solana and Meteora chains: `docs/evidence/stocklana-v2-dependency-audit.json`. Unresolved; not a security certification                                           |
@@ -50,7 +50,7 @@ All gates were run on 2026-09-20 at the final application commit.
 
 `GET https://navis-gilt.vercel.app/api/health` on 2026-09-21 at 11:07 UTC, deployed commit `7c33c43` (saved as `docs/evidence/final-public-health.json`), returned HTTP 200 with `status=ok`, `mode=demo`, `cluster=devnet` and these services: `database` ok (16 tables and 7 immutability triggers present), `authenticationOrigin` configured, `solanaRpc` configured (public devnet endpoint, read-only slot probe), `walletSessions` configured, `clawpump` not configured, `meteora` configured (SDK reads only), `prestocks` configured, `ai` configured (deterministic demo provider). No secret values are returned.
 
-On 2026-09-21 the owner set a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint) on the Vercel project; `SESSION_SECRET` (64 random characters) and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app` were set the same day and the site was redeployed so the values applied. Migrations `0000` through `0007` were applied to that database with `drizzle-kit migrate` (8 journal entries, `npm run db:check` clean). Before this, all three names existed on Vercel with empty values and health reported them as `not_configured` (the earlier output is kept in git history).
+On 2026-09-21 the owner set a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint) on the Vercel project; `SESSION_SECRET` (64 random characters) and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app` were set the same day and the site was redeployed so the values applied. Migrations `0000` through `0007` were applied to that database with `drizzle-kit migrate` (8 journal entries, `npm run db:check` clean); `0008` (agent request idempotency) was applied the same day once it reached `main`, so the database holds all nine. Before this, all three names existed on Vercel with empty values and health reported them as `not_configured` (the earlier output is kept in git history).
 
 Public persistence and wallet sign-in were then exercised end to end against https://navis-gilt.vercel.app (log: `docs/evidence/final-public-persistence-flow.json`):
 
@@ -111,7 +111,7 @@ No path executes onchain.
 | Pool transaction       | Builder implemented; no signature on any cluster                                                                                                                                                                                                                                                                                                               |
 | Pool address/base mint | Not available                                                                                                                                                                                                                                                                                                                                                  |
 | Devnet rehearsal       | Not run by the owner as of this manifest; if it is run later, record the signatures here and in `docs/INTEGRATIONS.md`                                                                                                                                                                                                                                         |
-| Blocker                | Broadcast is hard-blocked in every mode (submit routes return 503 before any send) pending a review on a real cluster; migrations `0006` (execution intents) and `0007` (submitting status) exist in the repository and are applied to the public site's database (2026-09-21), not yet to the development database; all live flags remain false               |
+| Blocker                | Broadcast is hard-blocked in every mode (submit routes return 503 before any send) pending a review on a real cluster; migrations `0006` (execution intents) and `0007` (submitting status) are applied to both the development and the public site's database; all live flags remain false                                                                    |
 
 ### PreStocks
 
@@ -134,18 +134,18 @@ No path executes onchain.
 - No external live address is claimed without a corresponding signature/address row.
 - Deployment steps are in `docs/DEPLOYMENT_RUNBOOK.md`; copy-ready submission language is in `docs/SUBMISSION_DRAFT.md`; open-source and sponsor credits are in `docs/ATTRIBUTIONS.md`.
 - Sponsor tracks are optional and judged by the sponsors. Recommended: Main, PreStocks, Meteora DBC. Not ClawPump (no launch), not Pyth (not used).
-- No funded-wallet action, live launch, production database, video, or final submission is claimed.
+- No funded-wallet action, live launch, video, or final submission is claimed.
 
 ## Database evidence
 
-| Item                 | Verified value                                                                                                              |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Development database | Migrations `0000` through `0005` applied with journal SHA tracking; `0006` and `0007` are in the repository and not applied |
-| Production database  | Neon PostgreSQL attached to the public Vercel demo on 2026-09-21; created agents and persisted demo runs verified there     |
-| Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                           |
-| Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                             |
+| Item                 | Verified value                                                                                                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Development database | Migrations `0000` through `0008` applied with journal SHA tracking (verified by the real-database test suite); logical backup taken before `0006`                                                                                   |
+| Production database  | Neon PostgreSQL attached to the public Vercel demo on 2026-09-21 with migrations `0000` through `0008` applied; wallet sign-in, agent creation and a persisted demo run with a working detail link verified there ("Public health") |
+| Immutability         | Evidence rows are append-only; database tests run inside rolled-back transactions                                                                                                                                                   |
+| Deployment lookup    | Navis is deployed on Vercel; it is not published through Replit                                                                                                                                                                     |
 
-A real wallet extension and signing remain unverified. See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the round 2 audit and its evidence list.
+A real wallet extension and signing remain unverified (the public sign-in check used a scripted keypair). See `docs/STOCKLANA_JUDGE_AUDIT_V2.md` for the round 2 audit and its evidence list.
 
 ## History
 

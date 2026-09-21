@@ -37,16 +37,16 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 
 ## Honest limitations
 
-- Fresh demo decisions do not execute onchain. Without `DATABASE_URL`, Atlas runs are kept in bounded process memory and disappear when the server instance restarts.
+- Fresh demo decisions do not execute onchain. Atlas runs are kept in bounded process memory by design, even with a database attached, and disappear when the server instance restarts.
 - Fresh decisions for owner agents are persisted only in demo mode. Devnet and mainnet agents get a 409 because persisted snapshots do not contain every market fact required for an honest policy evaluation; Navis does not invent missing values.
 - No live ClawPump launch has been submitted from this checkout. `INT-04` requires configured `CLAWPUMP_API_KEY`, authenticated wallet, funding, provider acceptance, and chain confirmation.
 - ClawPump funded launch is unsupported in the current demo/devnet posture. The documented self-funded route has no devnet selector, and Navis currently implements preflight only.
 - No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
 - Meteora signed input is now server-bound to the exact prepared intent, but broadcast stays hard-blocked (the submit routes return 503 before any send) until the protocol is retested against a real cluster.
-- The Vercel demo at https://navis-gilt.vercel.app runs in demo mode without a database. Fresh Atlas runs work there, but a run is kept in the memory of the serverless instance that produced it, so no detail link is offered; the inline result panel shows the full run. No demo video URL, pitch video URL, technical video URL, or production database migration evidence is recorded.
-- Migrations `0006` (execution intents) and `0007` (submitting status) are in the repository and applied to the public site's database. The development database has `0000` through `0005`; the public site's Neon database has all eight (applied 2026-09-21).
+- The Vercel demo at https://navis-gilt.vercel.app runs in demo mode. Since 2026-09-21 it has a Neon PostgreSQL database, a session secret and an explicit origin, so wallet sign-in, owner agents and persisted demo runs with a working detail link are available there (`docs/EVIDENCE.md`, "Public health"). Fresh Atlas runs still stay in the memory of the serverless instance that produced them, so no detail link is offered for them; the inline result panel shows the full run. No demo video URL, pitch video URL or technical video URL is recorded.
+- Both databases carry migrations `0000` through `0008`: the development database (journal hashes verified by `tests/database-persistence.test.ts`) and the public site's Neon database (applied with `npm run db:migrate` on 2026-09-21).
 - PreStocks is read-only. Navis does not expose buy/sell or launch actions for PreStocks assets.
-- The public health mode is `demo` on `devnet`: PreStocks, the demo AI provider, Meteora SDK reads and a read-only public devnet RPC are configured, while database, authentication origin, wallet sessions and ClawPump are not configured. The public app is deterministic; it is not persistent or wallet-ready.
+- The public health mode is `demo` on `devnet`: database, authentication origin, wallet sessions, PreStocks, the demo AI provider, Meteora SDK reads and a read-only public devnet RPC are configured; ClawPump is not. The public app is deterministic and, for owner agents, persistent; a browser wallet extension has not yet been exercised against it.
 
 ## Quick start
 
@@ -109,7 +109,11 @@ Generate or check migrations with Drizzle:
 npm run db:check
 ```
 
-The repository ships migrations `0000` through `0007`. The development database has `0000` through `0005` applied in order with journal SHA tracking; `0006` and `0007` are not applied anywhere. Navis does not run startup DDL. To migrate a database you control, run `npx drizzle-kit migrate` with `DATABASE_URL` set (see `docs/DEPLOYMENT_RUNBOOK.md`).
+The repository ships migrations `0000` through `0008`; all of them are additive (`0008` adds `agents.client_request_id` and a unique index per owner for idempotent creation). The development database has all nine applied in order with journal SHA tracking. Navis does not run startup DDL. To migrate a database you control, run `npm run db:migrate` with `DATABASE_URL` set, then `npm run db:check` (see `docs/DEPLOYMENT_RUNBOOK.md`).
+
+Storage failures are classified in `lib/db/errors.ts` into stable codes (`database_not_configured`, `database_unreachable`, `database_schema_mismatch`, `database_timeout`, `database_transaction_failed`, `duplicate_request`, `authorization_failed`) with fixed HTTP statuses; responses never carry hosts, SQL or driver text. `POST /api/agents` accepts a `clientRequestId`; a retry with the same key returns the first agent (`replayed: true`) instead of creating a twin. TLS to the database is decided from the URL (`lib/db/connection.ts`): verified for remote hosts unless `sslmode` says otherwise, off for localhost.
+
+Real-database tests (`tests/database-persistence.test.ts`, `tests/persisted-decision-run.test.ts`) run only when `DATABASE_URL` is set and roll back every write; they are skipped with a warning otherwise.
 
 The database pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout.
 

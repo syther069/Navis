@@ -17,6 +17,7 @@ import {
   type Asset,
 } from "../domain";
 import type { AgentBundle } from "../db/repositories/types";
+import { classifyDatabaseError } from "../db/errors";
 import { hashCanonical } from "../proofs/canonical";
 
 const createAgentInputSchema = z.object({
@@ -32,6 +33,9 @@ const createAgentInputSchema = z.object({
   strategy: strategyDocumentSchema,
   riskPolicy: riskPolicyDocumentSchema,
   assets: z.array(assetSchema).min(1).max(32),
+  // Client-generated once per Create Agent submission. Same owner + same key
+  // returns the agent created by the first request instead of a second row.
+  clientRequestId: z.string().trim().min(8).max(128).optional(),
 });
 
 export type CreatePersistentAgentInput = z.input<typeof createAgentInputSchema>;
@@ -205,6 +209,70 @@ export function prepareAgentCreation(
   });
 }
 
+export type CreatePersistentAgentResult = Readonly<{
+  bundle: AgentBundle;
+  /** True when an earlier request with the same client key already created it. */
+  replayed: boolean;
+}>;
+
+async function findAgentByClientRequest(
+  db: NavisDatabase,
+  ownerWallet: string,
+  clientRequestId: string,
+): Promise<AgentBundle | null> {
+  const [row] = await db
+    .select({ slug: schema.agents.slug })
+    .from(schema.agents)
+    .where(
+      and(
+        eq(schema.agents.ownerWallet, ownerWallet),
+        eq(schema.agents.clientRequestId, clientRequestId),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+  return getPersistentAgentForOwner(row.slug, ownerWallet, db);
+}
+
+/**
+ * Create an agent, or return the one an earlier request with the same
+ * `clientRequestId` already created. A concurrent twin loses the unique index
+ * race and is answered with the winner's record as well.
+ */
+export async function createPersistentAgentIdempotent(
+  candidate: CreatePersistentAgentInput,
+  database?: NavisDatabase,
+): Promise<CreatePersistentAgentResult> {
+  const prepared = prepareAgentCreation(candidate);
+  const db = database ?? (await import("../db/client")).getDatabase();
+  const key = prepared.input.clientRequestId;
+
+  if (key) {
+    const existing = await findAgentByClientRequest(
+      db,
+      prepared.input.ownerWallet,
+      key,
+    );
+    if (existing) return { bundle: existing, replayed: true };
+  }
+
+  try {
+    const bundle = await createPersistentAgent(candidate, db);
+    return { bundle, replayed: false };
+  } catch (error) {
+    const classified = classifyDatabaseError(error);
+    if (classified.code === "duplicate_request" && key) {
+      const winner = await findAgentByClientRequest(
+        db,
+        prepared.input.ownerWallet,
+        key,
+      );
+      if (winner) return { bundle: winner, replayed: true };
+    }
+    throw error;
+  }
+}
+
 export async function createPersistentAgent(
   candidate: CreatePersistentAgentInput,
   database?: NavisDatabase,
@@ -238,6 +306,7 @@ export async function createPersistentAgent(
         activeStrategyVersion: 1,
         activeRiskPolicyVersion: 1,
         integrationStatus: "not_configured",
+        clientRequestId: prepared.input.clientRequestId ?? null,
       })
       .returning();
     if (!agentRow) throw new Error("Agent creation returned no record");

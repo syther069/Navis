@@ -16,6 +16,7 @@
     "evidence:screenshots": "node scripts/capture-evidence-screenshots.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "check:lockfile": "node scripts/check-lockfile-registry.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",

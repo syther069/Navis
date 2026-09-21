@@ -34,21 +34,21 @@ The Next.js scripts bind to `0.0.0.0` and use Replit's supplied `PORT`. Leave `N
 
 Provision these before a public deployment:
 
-| Input                                             | Required for                                                       | Notes                                                                                                                 |
-| ------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`                             | Wallet auth and public callbacks                                   | Leave unset for the first Publish; after verifying the origin, set the exact HTTPS URL through Secrets and Republish. |
-| `NEXT_PUBLIC_SOLANA_CLUSTER`                      | Public cluster labelling                                           | Use `devnet` for rehearsal; only use `mainnet-beta` after release approval.                                           |
-| `NAVIS_EXECUTION_MODE`                            | Runtime safety posture                                             | Use `demo`, `devnet`, or `mainnet`.                                                                                   |
-| `ENABLE_DEMO_MODE`                                | Demo fixtures                                                      | Keep true for judge demo unless live-only deployment is desired.                                                      |
-| `ENABLE_DEVNET_EXECUTION`                         | Devnet signing/submission                                          | Requires RPC, wallet, and funding.                                                                                    |
-| `ENABLE_MAINNET_EXECUTION`                        | Mainnet signing/submission                                         | Must stay false until final approval.                                                                                 |
-| `MAINNET_RELEASE_APPROVED`                        | Mainnet release gate                                               | Must stay false until an owner has completed all live checks.                                                         |
-| `SOLANA_RPC_URL`                                  | Treasury reads, transaction simulation/submission, Meteora monitor | Use a rate-limited production-grade endpoint for a public demo.                                                       |
-| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0005`; Replit production migrates through Publish; Vercel: section 6a.                |
-| `SESSION_SECRET`                                  | Wallet-auth sessions                                               | At least 32 characters; server-only.                                                                                  |
-| `CLAWPUMP_API_KEY`                                | ClawPump agent/pair/preflight/launch calls                         | Server-only; expected `cpk_` prefix.                                                                                  |
-| `PRESTOCKS_API_URL`                               | PreStocks read-only catalogue                                      | Defaults to `https://prestocks.com/api/prestocks`.                                                                    |
-| `AI_PROVIDER` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Non-demo AI proposals                                              | Keep `AI_PROVIDER=demo` for deterministic judge flow unless live provider testing is complete.                        |
+| Input                                             | Required for                                                       | Notes                                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                             | Wallet auth and public callbacks                                   | Leave unset for the first Publish; after verifying the origin, set the exact HTTPS URL through Secrets and Republish.                                                 |
+| `NEXT_PUBLIC_SOLANA_CLUSTER`                      | Public cluster labelling                                           | Use `devnet` for rehearsal; only use `mainnet-beta` after release approval.                                                                                           |
+| `NAVIS_EXECUTION_MODE`                            | Runtime safety posture                                             | Use `demo`, `devnet`, or `mainnet`.                                                                                                                                   |
+| `ENABLE_DEMO_MODE`                                | Demo fixtures                                                      | Keep true for judge demo unless live-only deployment is desired.                                                                                                      |
+| `ENABLE_DEVNET_EXECUTION`                         | Devnet signing/submission                                          | Requires RPC, wallet, and funding.                                                                                                                                    |
+| `ENABLE_MAINNET_EXECUTION`                        | Mainnet signing/submission                                         | Must stay false until final approval.                                                                                                                                 |
+| `MAINNET_RELEASE_APPROVED`                        | Mainnet release gate                                               | Must stay false until an owner has completed all live checks.                                                                                                         |
+| `SOLANA_RPC_URL`                                  | Treasury reads, transaction simulation/submission, Meteora monitor | Use a rate-limited production-grade endpoint for a public demo.                                                                                                       |
+| `DATABASE_URL`                                    | Persistent agents, decisions, proofs, external calls, transactions | Development has `0000` through `0008`; Replit production migrates through Publish; Vercel: section 6a. Remote hosts use verified TLS unless `sslmode` says otherwise. |
+| `SESSION_SECRET`                                  | Wallet-auth sessions                                               | At least 32 characters; server-only.                                                                                                                                  |
+| `CLAWPUMP_API_KEY`                                | ClawPump agent/pair/preflight/launch calls                         | Server-only; expected `cpk_` prefix.                                                                                                                                  |
+| `PRESTOCKS_API_URL`                               | PreStocks read-only catalogue                                      | Defaults to `https://prestocks.com/api/prestocks`.                                                                                                                    |
+| `AI_PROVIDER` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Non-demo AI proposals                                              | Keep `AI_PROVIDER=demo` for deterministic judge flow unless live provider testing is complete.                                                                        |
 
 ## 4. Recommended deployment shape
 
@@ -64,7 +64,18 @@ Do not deploy it as a static-only site unless the API routes, database-backed le
 
 ## 5. Database setup
 
-The repository ships migrations `0000` through `0007`. The development database has `0000` through `0005` applied in order with journal SHA tracking; `0006` (execution intents) and `0007` (Meteora submitting status) are applied to the public site's Neon database (all eight, on 2026-09-21) and not yet to the development database. The pool uses a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
+The repository ships migrations `0000` through `0008`, all additive: `0006` (execution intents), `0007` (Meteora submitting status) and `0008` (`agents.client_request_id` plus a per-owner unique index for idempotent creation). The development database has all of them applied in order with journal SHA tracking; a logical `pg_dump` was taken before `0006`. The public site's Neon database also has `0000` through `0008` (applied on 2026-09-21; section 6a). The pool keeps at most 8 connections per instance with a 5-second connection timeout, 10-second statement timeout, and 12-second query timeout. TLS is decided from `DATABASE_URL`: verified certificates for any non-localhost host unless `sslmode` says otherwise (`disable` turns it off, `no-verify` keeps it on without verification). For Replit production, provision and migrate managed PostgreSQL through the user Publish flow; for Vercel, see section 6a.
+
+To migrate any database you control:
+
+```bash
+DATABASE_URL='<connection string>' npm run db:migrate
+DATABASE_URL='<connection string>' npm run db:check
+```
+
+`db:migrate` runs `drizzle-kit migrate`, which applies only the journal entries not yet recorded in `drizzle.__drizzle_migrations`; re-running it is a no-op. Take a backup first on a database with data. To roll back, restore the backup; the migrations do not drop or rewrite existing rows, so a failed migration leaves earlier data intact.
+
+Storage failures reach clients as stable codes (`lib/db/errors.ts`): `database_not_configured` 503, `database_unreachable` 503, `database_schema_mismatch` 503 (migrations pending), `database_timeout` 504, `database_transaction_failed` 503, `duplicate_request` 409, `authorization_failed` 403. `/api/health` reports `database.status` as `ok`, `not_configured`, `schema_incomplete` or `unreachable` (with `reason` `connection` or `timeout`) and never includes the host.
 
 Do not add startup or deploy-time DDL. Do not prescribe manual SQL against Replit managed production.
 
@@ -91,7 +102,7 @@ The public demo is the Vercel deployment at https://navis-gilt.vercel.app, built
 
 ## 6a. Vercel: persistence and wallet sessions on the public site
 
-Enabled on 2026-09-21. The Vercel project (Production) holds a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint, set by the owner), a 64-character `SESSION_SECRET` and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app`; migrations `0000` through `0007` are applied to that database and `GET /api/health` reports `database` ok, `authenticationOrigin` and `walletSessions` configured (`docs/EVIDENCE.md`, "Public health"). Before that date the three names existed on Vercel with empty values, which the health route reports as `not_configured`.
+Enabled on 2026-09-21. The Vercel project (Production) holds a real `DATABASE_URL` (Neon PostgreSQL, pooled endpoint, set by the owner), a 64-character `SESSION_SECRET` and `NEXT_PUBLIC_APP_URL=https://navis-gilt.vercel.app`; migrations `0000` through `0008` are applied to that database and `GET /api/health` reports `database` ok, `authenticationOrigin` and `walletSessions` configured (`docs/EVIDENCE.md`, "Public health"). Before that date the three names existed on Vercel with empty values, which the health route reports as `not_configured`.
 
 To repeat this on a fresh Vercel project, or after rotating the database:
 
@@ -100,25 +111,14 @@ To repeat this on a fresh Vercel project, or after rotating the database:
    - `SESSION_SECRET`: a random string of at least 32 characters.
    - `NEXT_PUBLIC_APP_URL`: exactly the public origin, `https://navis-gilt.vercel.app`.
 2. Trigger a new production deployment (Redeploy in the Vercel dashboard, or push to `main`). Environment changes do not apply to an existing deployment.
-3. Apply the migrations to that database from a machine that can reach it. `drizzle.config.ts` deliberately carries no credentials, so pass them through a temporary config that is not committed:
+3. Apply the migrations to that database from a machine that can reach it. `drizzle.config.ts` reads the target from `DATABASE_URL` only when `db:migrate` runs and never writes it to disk:
 
    ```bash
-   cat > drizzle.remote.config.ts <<'EOF'
-   import { defineConfig } from "drizzle-kit";
-   export default defineConfig({
-     dialect: "postgresql",
-     schema: "./lib/db/schema.ts",
-     out: "./drizzle",
-     strict: true,
-     dbCredentials: { url: process.env.REMOTE_DATABASE_URL! },
-   });
-   EOF
-   REMOTE_DATABASE_URL='<the same connection string>' npx drizzle-kit migrate --config drizzle.remote.config.ts
-   rm drizzle.remote.config.ts
-   npm run db:check
+   DATABASE_URL='<the same connection string>' npm run db:migrate
+   DATABASE_URL='<the same connection string>' npm run db:check
    ```
 
-   This applies `0000` through `0007`. Navis never runs DDL at startup.
+   This applies `0000` through `0008`; re-running it is a no-op. Navis never runs DDL at startup. If the app is redeployed before the migrations run, `/api/health` shows `schema_incomplete` and agent creation answers `database_schema_mismatch` until they are applied.
 
 4. Confirm `GET https://navis-gilt.vercel.app/api/health` reports `database` ok and `authenticationOrigin` and `walletSessions` configured, then run the public smoke:
 

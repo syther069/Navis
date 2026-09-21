@@ -6,11 +6,16 @@ import { z } from "zod";
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
+import {
+  classifyDatabaseError,
+  DatabaseError,
+  logDatabaseError,
+} from "@/lib/db/errors";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
 import { env } from "@/lib/env";
 import { createClawPumpClient } from "@/lib/integrations/clawpump/server";
 import {
-  createPersistentAgent,
+  createPersistentAgentIdempotent,
   listPersistentAgentsForOwner,
 } from "@/lib/services/agents";
 import { linkClawPumpAgent } from "@/lib/services/clawpump-agents";
@@ -24,6 +29,7 @@ const requestSchema = z
     minReserveBps: z.number().int().min(0).max(10_000),
     maxSlippageBps: z.number().int().min(1).max(2_000),
     linkClawPump: z.boolean().default(false),
+    clientRequestId: z.string().trim().min(8).max(128).optional(),
   })
   .refine((value) => value.maxTradeBps <= value.maxPositionBps, {
     message: "Maximum trade cannot exceed maximum position.",
@@ -38,6 +44,21 @@ function slugify(name: string) {
   return `${base || "agent"}-${randomUUID().slice(0, 8)}`;
 }
 
+function databaseFailure(scope: string, error: unknown) {
+  const classified = classifyDatabaseError(error);
+  logDatabaseError(scope, classified);
+  return NextResponse.json(classified.toJSON(), {
+    status: classified.status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+function storageNotConfigured() {
+  return NextResponse.json(new DatabaseError("database_not_configured").toJSON(), {
+    status: 503,
+  });
+}
+
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await readSessionToken(token) : null;
@@ -47,18 +68,17 @@ export async function GET(request: NextRequest) {
       { status: 401 },
     );
   }
-  if (!env.databaseUrl) {
-    return NextResponse.json(
-      { error: "Persistent storage is not configured." },
-      { status: 503 },
-    );
-  }
+  if (!env.databaseUrl) return storageNotConfigured();
 
-  const agents = await listPersistentAgentsForOwner(session.wallet, getDatabase());
-  return NextResponse.json(
-    { agents },
-    { headers: { "Cache-Control": "private, no-store" } },
-  );
+  try {
+    const agents = await listPersistentAgentsForOwner(session.wallet, getDatabase());
+    return NextResponse.json(
+      { agents },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (error) {
+    return databaseFailure("agents.list", error);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -74,12 +94,7 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
-  if (!env.databaseUrl) {
-    return NextResponse.json(
-      { error: "Persistent storage is not configured." },
-      { status: 503 },
-    );
-  }
+  if (!env.databaseUrl) return storageNotConfigured();
   if (env.executionMode !== "demo") {
     return NextResponse.json(
       { error: "This form uses demo assets and cannot create a live-mode agent." },
@@ -110,13 +125,14 @@ export async function POST(request: NextRequest) {
   const database = getDatabase();
 
   try {
-    const bundle = await createPersistentAgent(
+    const { bundle, replayed } = await createPersistentAgentIdempotent(
       {
         slug: slugify(input.name),
         name: input.name,
         ownerWallet: session.wallet,
         mode: "demo",
         cluster: "devnet",
+        clientRequestId: input.clientRequestId,
         assets,
         strategy: {
           objective: input.objective,
@@ -150,7 +166,7 @@ export async function POST(request: NextRequest) {
       | { status: "linked"; externalAgentId: string; wallet: string; requestId: string }
       | { status: "failed"; error: string } = { status: "not_requested" };
 
-    if (input.linkClawPump) {
+    if (input.linkClawPump && !replayed) {
       if (!env.clawpumpApiKey) {
         link = { status: "failed", error: "ClawPump is not configured." };
       } else {
@@ -187,13 +203,23 @@ export async function POST(request: NextRequest) {
           riskPolicyHash: bundle.riskPolicy.hash,
         },
         link,
+        replayed,
       },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
+      { status: replayed ? 200 : 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Agent creation failed." },
-      { status: 400 },
-    );
+    // Mandate validation failures come from prepareAgentCreation as plain
+    // Errors or Zod issues before any SQL runs; everything else is storage.
+    const classified = classifyDatabaseError(error);
+    if (classified.code === "database_error" && !(error instanceof DatabaseError)) {
+      return NextResponse.json(
+        {
+          error: error instanceof Error ? error.message : "Agent creation failed.",
+          code: "invalid_mandate",
+        },
+        { status: 400 },
+      );
+    }
+    return databaseFailure("agents.create", error);
   }
 }

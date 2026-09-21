@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
+import {
+  classifyDatabaseError,
+  DatabaseError,
+  logDatabaseError,
+} from "@/lib/db/errors";
 import { env } from "@/lib/env";
 import { getPersistentAgentForOwner } from "@/lib/services/agents";
 
@@ -18,10 +23,9 @@ export async function GET(
     );
   }
   if (!env.databaseUrl) {
-    return NextResponse.json(
-      { error: "Persistent storage is not configured." },
-      { status: 503 },
-    );
+    return NextResponse.json(new DatabaseError("database_not_configured").toJSON(), {
+      status: 503,
+    });
   }
 
   try {
@@ -38,7 +42,16 @@ export async function GET(
       { agent: bundle },
       { headers: { "Cache-Control": "private, no-store" } },
     );
-  } catch {
-    return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+  } catch (error) {
+    const classified = classifyDatabaseError(error);
+    if (classified.code === "database_error" && !(error instanceof DatabaseError)) {
+      // Malformed slug or wallet: nothing to look up.
+      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    }
+    logDatabaseError("agents.read", classified);
+    return NextResponse.json(classified.toJSON(), {
+      status: classified.status,
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }

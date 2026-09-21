@@ -4,9 +4,11 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import { env } from "../env";
+import { buildPoolConfig } from "./connection";
+import { DatabaseError } from "./errors";
 import * as schema from "./schema";
 
-type NavisDatabase = NodePgDatabase<typeof schema>;
+export type NavisDatabase = NodePgDatabase<typeof schema>;
 
 const databaseGlobal = globalThis as typeof globalThis & {
   navisDatabase?: NavisDatabase;
@@ -15,20 +17,19 @@ const databaseGlobal = globalThis as typeof globalThis & {
 
 export function getDatabase(): NavisDatabase {
   if (!env.databaseUrl) {
-    throw new Error(
-      "DATABASE_URL is not configured. Persistent repositories are unavailable in this Navis instance.",
-    );
+    throw new DatabaseError("database_not_configured");
   }
 
   if (!databaseGlobal.navisPool) {
-    databaseGlobal.navisPool = new Pool({
-      connectionString: env.databaseUrl,
-      max: 8,
-      idleTimeoutMillis: 20_000,
-      connectionTimeoutMillis: 5_000,
-      statement_timeout: 10_000,
-      query_timeout: 12_000,
+    // TLS is decided from the URL: verified for remote hosts unless sslmode
+    // says otherwise, off for localhost. See lib/db/connection.ts.
+    const pool = new Pool(buildPoolConfig(env.databaseUrl));
+    // An idle client can be dropped by the server; without a listener that
+    // surfaces as an uncaught exception and kills the process.
+    pool.on("error", () => {
+      console.error("[navis:db] idle client error; the pool will reconnect");
     });
+    databaseGlobal.navisPool = pool;
   }
 
   if (!databaseGlobal.navisDatabase) {

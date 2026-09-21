@@ -114,10 +114,17 @@ export const agents = pgTable(
     externalAgentId: text("external_agent_id"),
     externalWallet: text("external_wallet"),
     externalRequestId: text("external_request_id"),
+    // Client-generated key for one Create Agent submission. A retry or a
+    // double-click carrying the same key returns this row instead of a twin.
+    clientRequestId: text("client_request_id"),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("agents_owner_wallet_slug_unique").on(table.ownerWallet, table.slug),
+    uniqueIndex("agents_owner_wallet_client_request_unique").on(
+      table.ownerWallet,
+      table.clientRequestId,
+    ),
     check(
       "agents_mode_cluster_check",
       sql`(${table.mode} = 'demo') OR (${table.mode} = 'devnet' AND ${table.cluster} = 'devnet') OR (${table.mode} = 'mainnet' AND ${table.cluster} = 'mainnet-beta')`,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { challengeRequestSchema } from "@/lib/auth/core";
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { classifyDatabaseError, logDatabaseError } from "@/lib/db/errors";
 import { AuthenticationError, createAuthenticationChallenge } from "@/lib/auth/server";
 
 export async function POST(request: Request) {
@@ -26,7 +27,15 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthenticationError && error.code === "not_configured") {
-      return NextResponse.json({ error: error.message }, { status: 503 });
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 503 },
+      );
+    }
+    const classified = classifyDatabaseError(error);
+    if (classified.code !== "database_error") {
+      logDatabaseError("auth.nonce", classified);
+      return NextResponse.json(classified.toJSON(), { status: classified.status });
     }
     return NextResponse.json(
       { error: "The authentication challenge could not be created." },

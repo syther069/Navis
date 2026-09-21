@@ -1,0 +1,2 @@
+ALTER TABLE "agents" ADD COLUMN "client_request_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "agents_owner_wallet_client_request_unique" ON "agents" USING btree ("owner_wallet","client_request_id");

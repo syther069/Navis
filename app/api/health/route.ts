@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getDatabase } from "@/lib/db/client";
+import { classifyDatabaseError, logDatabaseError } from "@/lib/db/errors";
 import { env, getPublicCapabilities } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -17,14 +18,18 @@ async function checkDatabase() {
       guards_ready: boolean;
     }>(sql`
       select
-        (select count(*) = 16 from information_schema.tables
+        (select count(*) = 17 from information_schema.tables
           where table_schema = 'public' and table_name in (
             'users', 'agents', 'assets', 'agent_asset_permissions',
             'strategy_versions', 'risk_policy_versions', 'treasury_accounts',
             'portfolio_snapshots', 'decisions', 'policy_evaluations',
             'execution_attempts', 'proof_receipts', 'market_launches',
-            'external_calls', 'auth_challenges', 'execution_events'
-          )) as schema_ready,
+            'external_calls', 'auth_challenges', 'execution_events',
+            'execution_intents'
+          ))
+          and exists (select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'agents'
+              and column_name = 'client_request_id') as schema_ready,
         (select count(*) = 7 from pg_trigger t
           join pg_class c on c.oid = t.tgrelid
           join pg_namespace n on n.oid = c.relnamespace
@@ -49,8 +54,21 @@ async function checkDatabase() {
       tablesReady: true,
       immutabilityGuardsReady: true,
     };
-  } catch {
-    return { status: "unreachable" as const };
+  } catch (error) {
+    const classified = classifyDatabaseError(error);
+    logDatabaseError("health", classified);
+    // Only the classification leaves the server: no host, no driver text.
+    if (classified.code === "database_timeout") {
+      return { status: "unreachable" as const, reason: "timeout" as const };
+    }
+    if (classified.code === "database_schema_mismatch") {
+      return {
+        status: "schema_incomplete" as const,
+        tablesReady: false,
+        immutabilityGuardsReady: false,
+      };
+    }
+    return { status: "unreachable" as const, reason: "connection" as const };
   }
 }
 

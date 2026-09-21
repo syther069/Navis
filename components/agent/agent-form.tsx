@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { riskPolicyDocumentSchema } from "../../lib/domain/risk-policy";
 import { strategyDocumentSchema } from "../../lib/domain/strategy";
@@ -30,6 +30,42 @@ type CreationResult = Readonly<{
     | { status: "linked"; externalAgentId: string; wallet: string; requestId: string }
     | { status: "failed"; error: string };
 }>;
+
+type FormFailure = Readonly<{
+  kind: "validation" | "authorization" | "storage" | "unknown";
+  message: string;
+}>;
+
+/** Storage-side failure codes from lib/db/errors.ts. */
+const STORAGE_CODES = new Set([
+  "database_not_configured",
+  "database_unreachable",
+  "database_schema_mismatch",
+  "database_timeout",
+  "database_transaction_failed",
+  "database_error",
+]);
+
+function classifyFailure(status: number, body: Record<string, unknown>): FormFailure {
+  const code = typeof body.code === "string" ? body.code : undefined;
+  const message =
+    typeof body.error === "string" ? body.error : "Agent creation failed.";
+  if (code && STORAGE_CODES.has(code)) return { kind: "storage", message };
+  if (status === 401 || status === 403 || code === "authorization_failed") {
+    return { kind: "authorization", message };
+  }
+  if (status === 400 || status === 409 || status === 422) {
+    return { kind: "validation", message };
+  }
+  if (status >= 500) return { kind: "storage", message };
+  return { kind: "unknown", message };
+}
+
+function newRequestKey() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 const demoAssets = [
   "demo_mint_equity_a",
@@ -60,29 +96,50 @@ export function AgentForm({
   const [values, setValues] = useState(initialValues);
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FormFailure | null>(null);
   const [linkClawPump, setLinkClawPump] = useState(false);
   const [creating, setCreating] = useState(false);
+  // One key per reviewed mandate. A retry after a network or storage failure
+  // reuses it, so the server returns the first agent instead of a second one.
+  // Going back to edit the mandate issues a fresh key.
+  const requestKey = useRef<string | null>(null);
+  const inFlight = useRef(false);
 
   async function createAgent() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setCreating(true);
     setError(null);
+    setFailure(null);
+    requestKey.current ??= newRequestKey();
     try {
-      const response = await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, linkClawPump }),
-      });
+      let response: Response;
+      try {
+        response = await fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...values,
+            linkClawPump,
+            clientRequestId: requestKey.current,
+          }),
+        });
+      } catch {
+        setFailure({
+          kind: "storage",
+          message: "The request did not reach Navis. Your agent was not saved.",
+        });
+        return;
+      }
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok || !body.agent) {
-        throw new Error(
-          typeof body.error === "string" ? body.error : "Agent creation failed.",
-        );
+        setFailure(classifyFailure(response.status, body));
+        return;
       }
       const result = body as unknown as CreationResult;
       router.push(`/agents/${encodeURIComponent(result.agent.slug)}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Agent creation failed.");
     } finally {
+      inFlight.current = false;
       setCreating(false);
     }
   }
@@ -130,6 +187,8 @@ export function AgentForm({
     }
 
     setError(null);
+    setFailure(null);
+    requestKey.current = newRequestKey();
     setReviewing(true);
   }
 
@@ -156,7 +215,11 @@ export function AgentForm({
           <button
             className="secondary-button"
             type="button"
-            onClick={() => setReviewing(false)}
+            disabled={creating}
+            onClick={() => {
+              setFailure(null);
+              setReviewing(false);
+            }}
           >
             <ArrowLeft aria-hidden="true" size={17} /> Edit mandate
           </button>
@@ -164,10 +227,11 @@ export function AgentForm({
             className="primary-button"
             type="button"
             disabled={!persistenceAvailable || creating}
+            aria-busy={creating}
             onClick={() => void createAgent()}
           >
             <Check aria-hidden="true" size={17} />
-            {creating ? "Creating…" : "Create agent"}
+            {creating ? "Saving…" : failure ? "Try again" : "Create agent"}
           </button>
         </div>
         <label className="form-checkbox">
@@ -186,11 +250,7 @@ export function AgentForm({
             </small>
           </span>
         </label>
-        {error ? (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        {failure ? <CreationFailure failure={failure} /> : null}
         <p className="form-note">
           {persistenceAvailable
             ? "The authenticated wallet will own this persistent draft."
@@ -255,6 +315,34 @@ export function AgentForm({
         Review mandate <ArrowRight aria-hidden="true" size={18} />
       </button>
     </form>
+  );
+}
+
+function CreationFailure({ failure }: { failure: FormFailure }) {
+  if (failure.kind === "storage") {
+    return (
+      <div className="form-error form-error-storage" role="alert">
+        <strong>Not saved: storage unavailable.</strong>
+        <p>
+          {failure.message} Nothing was stored for this mandate. You can try again with
+          the same details; a retry will not create a second agent.
+        </p>
+      </div>
+    );
+  }
+  if (failure.kind === "authorization") {
+    return (
+      <div className="form-error" role="alert">
+        <strong>Not saved: sign in required.</strong>
+        <p>{failure.message} Authenticate the wallet again and retry.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="form-error" role="alert">
+      <strong>Not saved: the mandate was rejected.</strong>
+      <p>{failure.message} Edit the mandate and review it again.</p>
+    </div>
   );
 }
 

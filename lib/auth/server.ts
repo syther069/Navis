@@ -215,7 +215,9 @@ export async function readSessionToken(token: string) {
 export const sessionCookieOptions = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: env.appUrl.startsWith("https://"),
+  // Secure whenever the configured origin is https, and always in production
+  // so a misconfigured origin can never downgrade the cookie to plain http.
+  secure: env.appUrl.startsWith("https://") || process.env.NODE_ENV === "production",
   path: "/",
   maxAge: AUTH_SESSION_TTL_SECONDS,
 };
