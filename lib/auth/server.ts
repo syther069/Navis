@@ -288,8 +288,9 @@ export type SessionRevocationOutcome = "revoked" | "not_revocable" | "unavailabl
 export async function revokeAuthenticationSession(
   token: string,
 ): Promise<SessionRevocationOutcome> {
-  if (!env.sessionSecret) return "not_revocable";
-  if (!env.databaseUrl) return "unavailable";
+  // Without the secret the token cannot even be classified, so this is an
+  // outage, not proof that revocation is unnecessary.
+  if (!env.sessionSecret) return "unavailable";
 
   let claims: z.infer<typeof sessionClaimsSchema>;
   try {
@@ -308,11 +309,15 @@ export async function revokeAuthenticationSession(
     claims = parsed.data;
   } catch {
     // Invalid or expired token: it cannot authenticate, so there is nothing
-    // durable left to revoke.
+    // durable left to revoke, regardless of storage state.
     return "not_revocable";
   }
 
   if (!claims.jti) return "not_revocable";
+
+  // Only a valid, revocable token needs storage; without it the owner must be
+  // able to retry rather than lose the cookie.
+  if (!env.databaseUrl) return "unavailable";
 
   try {
     const database = getDatabase();
@@ -324,14 +329,6 @@ export async function revokeAuthenticationSession(
         expiresAt: new Date(claims.exp * 1_000),
       })
       .onConflictDoNothing();
-
-    // Bound the table: a revocation row is useless once the token would have
-    // expired anyway.
-    await database
-      .delete(authSessionRevocations)
-      .where(lt(authSessionRevocations.expiresAt, new Date()));
-
-    return "revoked";
   } catch (error) {
     console.error(
       "[navis:auth.session] revocation failed:",
@@ -339,6 +336,21 @@ export async function revokeAuthenticationSession(
     );
     return "unavailable";
   }
+
+  // Best effort only: the revocation row is already durable, so a pruning
+  // failure must not turn a completed logout into a retryable error.
+  try {
+    await getDatabase()
+      .delete(authSessionRevocations)
+      .where(lt(authSessionRevocations.expiresAt, new Date()));
+  } catch (error) {
+    console.error(
+      "[navis:auth.session] revocation pruning failed:",
+      error instanceof Error ? error.name : typeof error,
+    );
+  }
+
+  return "revoked";
 }
 
 export const sessionCookieOptions = {

@@ -112,7 +112,18 @@ export function WalletControl({
         }
 
         if (session.authenticated === true && session.wallet !== address) {
-          await fetch("/api/auth/session", { method: "DELETE" });
+          const logout = await fetch("/api/auth/session", {
+            method: "DELETE",
+          }).catch(() => null);
+          if (!logout || !logout.ok) {
+            // The previous wallet's session could not be ended on the server.
+            // Stay in the checking state so this wallet cannot authenticate
+            // and silently overwrite the only revocable cookie copy.
+            setError(
+              "Navis could not end the previous wallet session. Disconnect and reconnect the wallet to try again.",
+            );
+            return;
+          }
         }
         setSessionState("anonymous");
       })
@@ -196,14 +207,14 @@ export function WalletControl({
   }
 
   async function disconnectWallet() {
-    setMenuOpen(false);
     setError(null);
     if (sessionState === "authenticated") {
       const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
         () => null,
       );
-      // Stay signed in when the server could not durably end the session, so
-      // the owner can retry instead of losing the only revocable copy.
+      // Stay signed in and keep the menu open when the server could not
+      // durably end the session, so the error stays visible and the owner can
+      // retry instead of losing the only revocable copy.
       if (!logout || !logout.ok) {
         setError(
           "Navis could not end the session on the server. Try disconnecting again.",
@@ -211,6 +222,7 @@ export function WalletControl({
         return;
       }
     }
+    setMenuOpen(false);
     setSessionState("anonymous");
     await disconnect();
     router.refresh();
