@@ -25,11 +25,21 @@ export async function DELETE(request: Request) {
 
   // Server-side revocation: the token comes from the session cookie, never
   // from the request body, so logout can only end the caller's own session.
-  // The outcome is not reflected in the response.
   const token = request.headers
     .get("cookie")
     ?.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
-  if (token) await revokeAuthenticationSession(token);
+  if (token) {
+    const outcome = await revokeAuthenticationSession(token);
+    if (outcome === "unavailable") {
+      // Revocation storage failed. Keep the cookie so the owner can retry:
+      // clearing it would destroy the only retry path while a copied token
+      // silently becomes valid again once storage recovers.
+      return NextResponse.json(
+        { error: "The session could not be ended on the server. Try again." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
 
   const response = NextResponse.json(
     { authenticated: false },

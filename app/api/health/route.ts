@@ -58,14 +58,14 @@ async function checkDatabase() {
       guards_ready: boolean;
     }>(sql`
       select
-        (select count(*) = 17 from information_schema.tables
+        (select count(*) = 18 from information_schema.tables
           where table_schema = 'public' and table_name in (
             'users', 'agents', 'assets', 'agent_asset_permissions',
             'strategy_versions', 'risk_policy_versions', 'treasury_accounts',
             'portfolio_snapshots', 'decisions', 'policy_evaluations',
             'execution_attempts', 'proof_receipts', 'market_launches',
             'external_calls', 'auth_challenges', 'execution_events',
-            'execution_intents'
+            'execution_intents', 'auth_session_revocations'
           ))
           and exists (select 1 from information_schema.columns
             where table_schema = 'public' and table_name = 'agents'

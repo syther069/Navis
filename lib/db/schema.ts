@@ -109,9 +109,7 @@ export const authSessionRevocations = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [
-    index("auth_session_revocations_expires_idx").on(table.expiresAt),
-  ],
+  (table) => [index("auth_session_revocations_expires_idx").on(table.expiresAt)],
 );
 
 export const agents = pgTable(

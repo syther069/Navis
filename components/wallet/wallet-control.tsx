@@ -199,7 +199,17 @@ export function WalletControl({
     setMenuOpen(false);
     setError(null);
     if (sessionState === "authenticated") {
-      await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+      const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
+        () => null,
+      );
+      // Stay signed in when the server could not durably end the session, so
+      // the owner can retry instead of losing the only revocable copy.
+      if (!logout || !logout.ok) {
+        setError(
+          "Navis could not end the session on the server. Try disconnecting again.",
+        );
+        return;
+      }
     }
     setSessionState("anonymous");
     await disconnect();

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   revokeCalls: [] as string[],
-  revokeResult: true,
+  revokeResult: "revoked" as "revoked" | "not_revocable" | "unavailable",
 }));
 
 vi.mock("../lib/auth/server", async (importOriginal) => {
@@ -32,7 +32,7 @@ function del(headers: Record<string, string>, body?: unknown) {
 describe("wallet logout route", () => {
   beforeEach(() => {
     mocks.revokeCalls = [];
-    mocks.revokeResult = true;
+    mocks.revokeResult = "revoked";
   });
 
   it("revokes exactly the session from the cookie and clears it", async () => {
@@ -66,15 +66,33 @@ describe("wallet logout route", () => {
     expect(response.headers.get("set-cookie")).toContain(SESSION_COOKIE_NAME);
   });
 
-  it("still clears the cookie when revocation storage fails", async () => {
-    mocks.revokeResult = false;
+  it("clears the cookie when the token needed no server-side revocation", async () => {
+    mocks.revokeResult = "not_revocable";
+    const response = await del({
+      cookie: `${SESSION_COOKIE_NAME}=legacy-or-invalid-token`,
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ authenticated: false });
+    expect(mocks.revokeCalls).toEqual(["legacy-or-invalid-token"]);
+    expect(response.headers.get("set-cookie")).toContain(SESSION_COOKIE_NAME);
+  });
+
+  it("keeps the cookie and returns 503 when revocation storage is unavailable", async () => {
+    mocks.revokeResult = "unavailable";
     const response = await del({
       cookie: `${SESSION_COOKIE_NAME}=token-from-cookie`,
     });
 
-    // The failure is not exposed; the response shape is unchanged.
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ authenticated: false });
+    // The owner must be able to retry; clearing the cookie here would leave a
+    // copied token valid again once storage recovers.
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "The session could not be ended on the server. Try again.",
+    });
     expect(mocks.revokeCalls).toEqual(["token-from-cookie"]);
+    expect(response.headers.get("set-cookie") ?? "").not.toContain(
+      `${SESSION_COOKIE_NAME}=;`,
+    );
   });
 });

@@ -90,7 +90,7 @@ describe.skipIf(!databaseUrl)("wallet session revocation", () => {
     const before = await auth.readSessionToken(token);
     expect(before).toMatchObject({ userId: user.id, wallet: walletA });
 
-    expect(await auth.revokeAuthenticationSession(token)).toBe(true);
+    expect(await auth.revokeAuthenticationSession(token)).toBe("revoked");
     expect(await auth.readSessionToken(token)).toBeNull();
 
     const { getDatabase } = await import("../lib/db/client");
@@ -108,7 +108,7 @@ describe.skipIf(!databaseUrl)("wallet session revocation", () => {
     const sameWallet = await mintSession(keypairA, walletA);
     const otherUser = await mintSession(keypairB, walletB);
 
-    expect(await auth.revokeAuthenticationSession(revoked.token)).toBe(true);
+    expect(await auth.revokeAuthenticationSession(revoked.token)).toBe("revoked");
 
     expect(await auth.readSessionToken(revoked.token)).toBeNull();
     expect(await auth.readSessionToken(sameWallet.token)).toMatchObject({
@@ -133,12 +133,12 @@ describe.skipIf(!databaseUrl)("wallet session revocation", () => {
 
     expect(await auth.readSessionToken(legacy)).toMatchObject({ wallet: walletA });
     // There is no jti to record; revocation is a no-op for legacy tokens.
-    expect(await auth.revokeAuthenticationSession(legacy)).toBe(false);
+    expect(await auth.revokeAuthenticationSession(legacy)).toBe("not_revocable");
   });
 
   it("refuses to revoke malformed or expired tokens and still rejects them", async () => {
     const auth = await import("../lib/auth/server");
-    expect(await auth.revokeAuthenticationSession("not-a-token")).toBe(false);
+    expect(await auth.revokeAuthenticationSession("not-a-token")).toBe("not_revocable");
 
     const { user } = await mintSession(keypairA, walletA);
     const expired = await new SignJWT({ wallet: walletA })
@@ -151,7 +151,7 @@ describe.skipIf(!databaseUrl)("wallet session revocation", () => {
       .setExpirationTime("-1s")
       .sign(new TextEncoder().encode(env.sessionSecret!));
 
-    expect(await auth.revokeAuthenticationSession(expired)).toBe(false);
+    expect(await auth.revokeAuthenticationSession(expired)).toBe("not_revocable");
     expect(await auth.readSessionToken(expired)).toBeNull();
   });
 
@@ -168,7 +168,7 @@ describe.skipIf(!databaseUrl)("wallet session revocation", () => {
     });
 
     const fresh = await mintSession(keypairA, walletA);
-    expect(await auth.revokeAuthenticationSession(fresh.token)).toBe(true);
+    expect(await auth.revokeAuthenticationSession(fresh.token)).toBe("revoked");
 
     const rows = await database
       .select()

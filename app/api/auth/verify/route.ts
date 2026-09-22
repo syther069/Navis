@@ -24,7 +24,9 @@ export async function POST(request: Request) {
   }
   // Cheap in-process burst guard first; the shared limiter below is the one
   // that holds across serverless instances.
-  if (!allowMutationRequest(request, VERIFY_LIMIT * 2, VERIFY_WINDOW_MS, "auth.verify")) {
+  if (
+    !allowMutationRequest(request, VERIFY_LIMIT * 2, VERIFY_WINDOW_MS, "auth.verify")
+  ) {
     return NextResponse.json(
       { error: "Too many sign-in attempts. Try again shortly." },
       { status: 429, headers: { "Retry-After": "60" } },

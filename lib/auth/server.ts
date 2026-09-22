@@ -112,9 +112,7 @@ export async function pruneAuthenticationChallenges(
 ) {
   await database
     .delete(authChallenges)
-    .where(
-      or(lt(authChallenges.expiresAt, now), isNotNull(authChallenges.usedAt)),
-    );
+    .where(or(lt(authChallenges.expiresAt, now), isNotNull(authChallenges.usedAt)));
 }
 
 export async function verifyAuthenticationChallenge(input: {
@@ -270,15 +268,30 @@ async function isSessionRevoked(jti: string) {
   }
 }
 
+export type SessionRevocationOutcome = "revoked" | "not_revocable" | "unavailable";
+
 /**
  * Revokes exactly the session carried by `token`: the jti and user come from
  * the verified JWT claims, never from client-supplied input, so one wallet
- * cannot revoke another's session. Returns false when the token is invalid,
- * expired, legacy (no jti), or revocation storage is unavailable; the caller
- * clears the cookie regardless and the outcome is never exposed.
+ * cannot revoke another's session.
+ *
+ * Outcomes:
+ * - "revoked": the server-side revocation row is durable.
+ * - "not_revocable": the token is invalid, expired, or legacy (no jti). It
+ *   can never authenticate again or expires on its own, so clearing the
+ *   cookie is safe.
+ * - "unavailable": revocation storage could not be written. The caller must
+ *   NOT clear the cookie, so the owner can retry; otherwise a copied token
+ *   would become valid again once storage recovers while the owner believes
+ *   the session was ended.
  */
-export async function revokeAuthenticationSession(token: string) {
-  if (!env.sessionSecret || !env.databaseUrl) return false;
+export async function revokeAuthenticationSession(
+  token: string,
+): Promise<SessionRevocationOutcome> {
+  if (!env.sessionSecret) return "not_revocable";
+  if (!env.databaseUrl) return "unavailable";
+
+  let claims: z.infer<typeof sessionClaimsSchema>;
   try {
     const { payload } = await jwtVerify(
       token,
@@ -290,16 +303,25 @@ export async function revokeAuthenticationSession(token: string) {
       },
     );
 
-    const claims = sessionClaimsSchema.safeParse(payload);
-    if (!claims.success || !claims.data.jti) return false;
+    const parsed = sessionClaimsSchema.safeParse(payload);
+    if (!parsed.success) return "not_revocable";
+    claims = parsed.data;
+  } catch {
+    // Invalid or expired token: it cannot authenticate, so there is nothing
+    // durable left to revoke.
+    return "not_revocable";
+  }
 
+  if (!claims.jti) return "not_revocable";
+
+  try {
     const database = getDatabase();
     await database
       .insert(authSessionRevocations)
       .values({
-        jti: claims.data.jti,
-        userId: claims.data.sub,
-        expiresAt: new Date(claims.data.exp * 1_000),
+        jti: claims.jti,
+        userId: claims.sub,
+        expiresAt: new Date(claims.exp * 1_000),
       })
       .onConflictDoNothing();
 
@@ -309,13 +331,13 @@ export async function revokeAuthenticationSession(token: string) {
       .delete(authSessionRevocations)
       .where(lt(authSessionRevocations.expiresAt, new Date()));
 
-    return true;
+    return "revoked";
   } catch (error) {
     console.error(
       "[navis:auth.session] revocation failed:",
       error instanceof Error ? error.name : typeof error,
     );
-    return false;
+    return "unavailable";
   }
 }
 
