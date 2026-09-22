@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import * as schema from "../db/schema";
@@ -64,7 +64,8 @@ export class ClawPumpLinkRefused extends Error {
       | "external_in_use"
       | "external_not_owned_by_key"
       | "external_wallet_mismatch"
-      | "no_strategy",
+      | "no_strategy"
+      | "unconfirmed_create",
   ) {
     super(message);
     this.name = "ClawPumpLinkRefused";
@@ -124,10 +125,52 @@ export async function linkClawPumpAgent(
   const operation = request.mode === "create" ? "create_agent" : "attach_agent";
   const startedAt = performance.now();
 
-  await db
+  if (request.mode === "create") {
+    // POST /agents has no provider idempotency key, so a create whose answer
+    // was lost (timeout, network failure, 5xx, unreadable response) may have
+    // committed at the provider. Refuse a blind retry: the owner must find
+    // that identity under the key and attach it instead of creating a twin.
+    const [unconfirmedCreate] = await db
+      .select({ id: schema.externalCalls.id })
+      .from(schema.externalCalls)
+      .where(
+        and(
+          eq(schema.externalCalls.provider, "clawpump"),
+          eq(schema.externalCalls.operation, "create_agent"),
+          eq(schema.externalCalls.status, "failed"),
+          sql`${schema.externalCalls.metadata} ->> 'localAgentId' = ${local.id}`,
+          sql`${schema.externalCalls.metadata} ->> 'unconfirmed' = 'true'`,
+        ),
+      )
+      .orderBy(desc(schema.externalCalls.createdAt))
+      .limit(1);
+    if (unconfirmedCreate) {
+      throw new ClawPumpLinkRefused(
+        "The previous create attempt's outcome is unconfirmed: ClawPump may have created the identity. Check the identities listed under the Partner key and attach that one instead of creating a second.",
+        "unconfirmed_create",
+      );
+    }
+  }
+
+  // Claim the link atomically. Two concurrent requests cannot both pass this
+  // update, so at most one provider call is ever in flight per agent.
+  const [claimed] = await db
     .update(schema.agents)
     .set({ integrationStatus: "pending", updatedAt: new Date() })
-    .where(eq(schema.agents.id, local.id));
+    .where(
+      and(
+        eq(schema.agents.id, local.id),
+        ne(schema.agents.integrationStatus, "pending"),
+        ne(schema.agents.integrationStatus, "linked"),
+      ),
+    )
+    .returning({ id: schema.agents.id });
+  if (!claimed) {
+    throw new ClawPumpLinkRefused(
+      "A ClawPump link for this agent already exists or is in progress. One link per agent.",
+      "already_linked",
+    );
+  }
 
   let external: ClawPumpAgent & { meta: { requestId: string } };
   let requestedSkills: readonly string[] | undefined;
@@ -216,9 +259,18 @@ export async function linkClawPumpAgent(
             externalRequestId: external.meta.requestId,
             updatedAt: new Date(),
           })
-          .where(eq(schema.agents.id, local.id))
+          .where(
+            and(
+              eq(schema.agents.id, local.id),
+              eq(schema.agents.integrationStatus, "pending"),
+            ),
+          )
           .returning({ id: schema.agents.id });
-        if (!updated) throw new Error("Local agent link update returned no record");
+        if (!updated) {
+          throw new Error(
+            "Local agent link update claimed no pending row; the link state changed underneath this attempt.",
+          );
+        }
       })
       .catch((error: unknown) => {
         if (isUniqueViolation(error, "agents_external_agent_id_unique")) {
@@ -240,6 +292,7 @@ export async function linkClawPumpAgent(
   } catch (error) {
     const latencyMs = Math.round(performance.now() - startedAt);
     const refused = error instanceof ClawPumpLinkRefused;
+    const unconfirmed = request.mode === "create" && isAmbiguousCreateError(error);
     const safeError =
       error instanceof ClawPumpError
         ? describeClawPumpError(error)
@@ -260,20 +313,48 @@ export async function linkClawPumpAgent(
             request.mode === "attach" ? request.externalAgentId : undefined,
           requestedSkills,
           refused: refused ? error.reason : undefined,
+          unconfirmed: unconfirmed || undefined,
         },
       });
       // A refusal leaves the agent exactly as it was; a provider failure is
-      // recorded on the row so the owner sees it and can retry.
+      // recorded on the row so the owner sees it and can retry. Both writes
+      // are conditional on this attempt still holding the pending claim, so
+      // a slower failed request can never reset a row another attempt has
+      // already linked.
       await transaction
         .update(schema.agents)
         .set({
           integrationStatus: refused ? "not_configured" : "failed",
           updatedAt: new Date(),
         })
-        .where(eq(schema.agents.id, local.id));
+        .where(
+          and(
+            eq(schema.agents.id, local.id),
+            eq(schema.agents.integrationStatus, "pending"),
+          ),
+        );
     });
     throw error;
   }
+}
+
+/**
+ * A create call whose answer never arrived (or could not be read) may still
+ * have committed at the provider. Definite 4xx rejections prove it did not.
+ */
+function isAmbiguousCreateError(error: unknown): boolean {
+  if (error instanceof ClawPumpLinkRefused) return false;
+  if (error instanceof ClawPumpError) {
+    return !new Set([
+      "unauthorized",
+      "payment_required",
+      "forbidden",
+      "not_found",
+      "validation",
+      "conflict",
+    ]).has(error.kind);
+  }
+  return true;
 }
 
 export type ClawPumpIdentityView = Readonly<{

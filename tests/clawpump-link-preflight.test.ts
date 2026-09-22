@@ -277,6 +277,112 @@ describe.skipIf(!databaseUrl)("ClawPump agent link and launch preflight", () => 
     });
   });
 
+  it("refuses a second create while one is in flight, with a single provider call", async () => {
+    await inRollback(async (tx) => {
+      const { agent, userId } = await createOwnedAgent(tx);
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const client = linkClient({
+        createAgent: vi.fn(async () => {
+          await gate;
+          return { ...externalAgent(), meta };
+        }),
+      });
+      const context = { userId, userWallet: ownerWallet, client, database: tx };
+
+      const first = linkClawPumpAgent(agent.id, { mode: "create" }, context);
+      // Let the first attempt claim the pending state and enter the provider call.
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await expect(
+        linkClawPumpAgent(agent.id, { mode: "create" }, context),
+      ).rejects.toMatchObject({ reason: "already_linked" });
+
+      release();
+      const link = await first;
+      expect(link.externalAgentId).toBe("agent_ext_1");
+      expect(
+        (client as { createAgent: ReturnType<typeof vi.fn> }).createAgent.mock.calls
+          .length,
+      ).toBe(1);
+    });
+  });
+
+  it("treats a create timeout as unconfirmed, refuses a blind retry, and still allows attach", async () => {
+    await inRollback(async (tx) => {
+      const { agent, userId } = await createOwnedAgent(tx);
+      const client = linkClient({
+        createAgent: vi.fn(async () => {
+          throw new ClawPumpError("ClawPump did not answer in time.", "timeout");
+        }),
+      });
+
+      await expect(
+        linkClawPumpAgent(
+          agent.id,
+          { mode: "create" },
+          { userId, userWallet: ownerWallet, client, database: tx },
+        ),
+      ).rejects.toBeInstanceOf(ClawPumpError);
+
+      const [row] = await tx
+        .select()
+        .from(schema.agents)
+        .where(eq(schema.agents.id, agent.id));
+      expect(row!.integrationStatus).toBe("failed");
+
+      const audit = await tx
+        .select()
+        .from(schema.externalCalls)
+        .where(
+          and(
+            eq(schema.externalCalls.provider, "clawpump"),
+            eq(schema.externalCalls.operation, "create_agent"),
+          ),
+        )
+        .orderBy(desc(schema.externalCalls.createdAt))
+        .limit(1);
+      expect(audit[0]).toMatchObject({ status: "failed" });
+      expect(audit[0]!.metadata).toMatchObject({
+        localAgentId: agent.id,
+        unconfirmed: true,
+      });
+
+      // A blind create retry could mint a twin identity at the provider.
+      await expect(
+        linkClawPumpAgent(
+          agent.id,
+          { mode: "create" },
+          { userId, userWallet: ownerWallet, client, database: tx },
+        ),
+      ).rejects.toMatchObject({ reason: "unconfirmed_create" });
+      expect(
+        (client as { createAgent: ReturnType<typeof vi.fn> }).createAgent.mock.calls
+          .length,
+      ).toBe(1);
+
+      // The owner reconciles by attaching the identity the key lists.
+      const listed = linkClient({
+        listAgents: vi.fn(async () => ({
+          agents: [externalAgent("agent_ext_9")],
+          meta,
+        })),
+      });
+      const link = await linkClawPumpAgent(
+        agent.id,
+        { mode: "attach", externalAgentId: "agent_ext_9" },
+        { userId, userWallet: EXTERNAL_WALLET, client: listed, database: tx },
+      );
+      expect(link.externalAgentId).toBe("agent_ext_9");
+      const [after] = await tx
+        .select()
+        .from(schema.agents)
+        .where(eq(schema.agents.id, agent.id));
+      expect(after!.integrationStatus).toBe("linked");
+    });
+  });
+
   it("attaches only an id the key lists, once per external id, and never a foreign or public agent", async () => {
     await inRollback(async (tx) => {
       const first = await createOwnedAgent(tx, ownerWallet, "First");

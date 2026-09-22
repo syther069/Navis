@@ -35,6 +35,7 @@ const REFUSAL_STATUS: Record<ClawPumpLinkRefused["reason"], number> = {
   external_not_owned_by_key: 403,
   external_wallet_mismatch: 403,
   no_strategy: 409,
+  unconfirmed_create: 409,
 };
 
 async function resolveOwner(request: NextRequest) {
