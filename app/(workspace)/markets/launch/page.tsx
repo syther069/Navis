@@ -50,6 +50,10 @@ import {
   type LaunchPreflightResult,
 } from "@/lib/services/launch-preflight";
 import { getNavisMeteoraCurvePreviews } from "@/lib/integrations/meteora/config";
+import {
+  isMeteoraBroadcastAvailable,
+  METEORA_BROADCAST_UNAVAILABLE_REASON,
+} from "@/lib/integrations/meteora/broadcast-safety";
 import { listMeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
 import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
 import {
@@ -530,6 +534,9 @@ async function MeteoraSection({
       prestocksSymbols={prestocksSymbols}
       rpcConfigured={Boolean(env.solanaRpcUrl)}
       executionEnabled={executionEnabled}
+      cluster={env.cluster}
+      broadcastAvailable={isMeteoraBroadcastAvailable()}
+      broadcastBlockedReason={METEORA_BROADCAST_UNAVAILABLE_REASON}
       agents={launchContext.meteoraAgents}
     />
   );

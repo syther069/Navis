@@ -15,6 +15,9 @@ export function MeteoraCurvePanel({
   prestocksSymbols,
   rpcConfigured,
   executionEnabled,
+  cluster,
+  broadcastAvailable,
+  broadcastBlockedReason,
   agents,
 }: {
   /** One preview per server-approved quote profile for the active cluster. */
@@ -23,6 +26,11 @@ export function MeteoraCurvePanel({
   prestocksSymbols: readonly { symbol: string; name: string }[];
   rpcConfigured: boolean;
   executionEnabled: boolean;
+  /** Active cluster; used for wallet readiness copy and explorer links. */
+  cluster: string;
+  /** Server-side broadcast gate result for this deployment. */
+  broadcastAvailable: boolean;
+  broadcastBlockedReason: string;
   agents: readonly {
     id: string;
     name: string;
@@ -256,6 +264,9 @@ export function MeteoraCurvePanel({
         </div>
         <MeteoraConfigPrepare
           executionEnabled={executionEnabled}
+          cluster={cluster}
+          broadcastAvailable={broadcastAvailable}
+          broadcastBlockedReason={broadcastBlockedReason}
           agents={agents}
           profiles={profiles}
           prestocksSymbols={prestocksSymbols}
