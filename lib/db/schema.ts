@@ -95,6 +95,25 @@ export const authChallenges = pgTable(
   ],
 );
 
+/**
+ * Server-side session revocation. Session tokens are stateless JWTs, so
+ * logout records the token's jti here and readSessionToken rejects listed
+ * tokens. A row is useless once the token would have expired anyway, so rows
+ * are pruned by expires_at and the table stays bounded by live sessions.
+ */
+export const authSessionRevocations = pgTable(
+  "auth_session_revocations",
+  {
+    jti: text("jti").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("auth_session_revocations_expires_idx").on(table.expiresAt),
+  ],
+);
+
 export const agents = pgTable(
   "agents",
   {

@@ -1,11 +1,13 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { and, eq, gt, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { jwtVerify, SignJWT } from "jose";
 import { z } from "zod";
 
 import { getDatabase } from "@/lib/db/client";
-import { authChallenges, users } from "@/lib/db/schema";
+import { authChallenges, authSessionRevocations, users } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 
 import {
@@ -29,6 +31,9 @@ const sessionClaimsSchema = z.object({
   sub: z.uuid(),
   wallet: walletSchema,
   exp: z.number().int().positive(),
+  // Present on tokens minted after server-side revocation support; legacy
+  // tokens without it simply expire.
+  jti: z.string().min(1).max(64).optional(),
 });
 
 function requireAuthenticationConfiguration() {
@@ -198,6 +203,7 @@ async function createSessionToken(user: { id: string; wallet: string }) {
   return new SignJWT({ wallet: user.wallet })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(user.id)
+    .setJti(randomUUID())
     .setIssuer(env.appUrl)
     .setAudience("navis")
     .setIssuedAt()
@@ -222,6 +228,13 @@ export async function readSessionToken(token: string) {
     const claims = sessionClaimsSchema.safeParse(payload);
     if (!claims.success) return null;
 
+    // Tokens minted after revocation support carry a jti; check the
+    // server-side revocation list so a logged-out session stays rejected.
+    // Legacy tokens without a jti cannot be revoked and simply expire.
+    if (claims.data.jti && (await isSessionRevoked(claims.data.jti))) {
+      return null;
+    }
+
     return {
       userId: claims.data.sub,
       wallet: claims.data.wallet,
@@ -229,6 +242,80 @@ export async function readSessionToken(token: string) {
     };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Tokens bearing a jti are only minted when the database is configured, so a
+ * missing database means the revocation list cannot be read and the safest
+ * answer is to reject the token. A database failure also fails closed: with
+ * storage down the rest of the app cannot serve authenticated work anyway.
+ */
+async function isSessionRevoked(jti: string) {
+  if (!env.databaseUrl) return true;
+  try {
+    const database = getDatabase();
+    const [row] = await database
+      .select({ jti: authSessionRevocations.jti })
+      .from(authSessionRevocations)
+      .where(eq(authSessionRevocations.jti, jti))
+      .limit(1);
+    return Boolean(row);
+  } catch (error) {
+    console.error(
+      "[navis:auth.session] revocation check failed:",
+      error instanceof Error ? error.name : typeof error,
+    );
+    return true;
+  }
+}
+
+/**
+ * Revokes exactly the session carried by `token`: the jti and user come from
+ * the verified JWT claims, never from client-supplied input, so one wallet
+ * cannot revoke another's session. Returns false when the token is invalid,
+ * expired, legacy (no jti), or revocation storage is unavailable; the caller
+ * clears the cookie regardless and the outcome is never exposed.
+ */
+export async function revokeAuthenticationSession(token: string) {
+  if (!env.sessionSecret || !env.databaseUrl) return false;
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(env.sessionSecret),
+      {
+        issuer: env.appUrl,
+        audience: "navis",
+        algorithms: ["HS256"],
+      },
+    );
+
+    const claims = sessionClaimsSchema.safeParse(payload);
+    if (!claims.success || !claims.data.jti) return false;
+
+    const database = getDatabase();
+    await database
+      .insert(authSessionRevocations)
+      .values({
+        jti: claims.data.jti,
+        userId: claims.data.sub,
+        expiresAt: new Date(claims.data.exp * 1_000),
+      })
+      .onConflictDoNothing();
+
+    // Bound the table: a revocation row is useless once the token would have
+    // expired anyway.
+    await database
+      .delete(authSessionRevocations)
+      .where(lt(authSessionRevocations.expiresAt, new Date()));
+
+    return true;
+  } catch (error) {
+    console.error(
+      "[navis:auth.session] revocation failed:",
+      error instanceof Error ? error.name : typeof error,
+    );
+    return false;
   }
 }
 

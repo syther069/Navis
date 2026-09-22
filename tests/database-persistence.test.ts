@@ -159,7 +159,7 @@ describe.skipIf(!databaseUrl)("database persistence", () => {
       expect(applied.rows.map((row) => Number(row.created_at))).toEqual(
         expected.map((entry) => entry.when),
       );
-      expect(journal.entries.at(-1)?.tag).toBe("0010_clawpump_external_agent_unique");
+      expect(journal.entries.at(-1)?.tag).toBe("0011_auth_session_revocations");
     });
   });
 

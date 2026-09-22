@@ -78,6 +78,13 @@
       "when": 1790009027362,
       "tag": "0010_clawpump_external_agent_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790083999384,
+      "tag": "0011_auth_session_revocations",
+      "breakpoints": true
     }
   ]
 }
