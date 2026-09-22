@@ -86,7 +86,7 @@ Deployment: https://navis-gilt.vercel.app, application commit `081a07f` (`feat(c
 
 `npm run check` at the application commit: format, lint, typecheck, 55 files / 436 tests, lockfile, build, judge smoke against the development database, `db:check`, submission audit, all passing.
 
-Commit: `081a07f37169fe876559bd7b84ce9d886342c479` on GitHub `main`.
+Commit: `081a07f37169fe876559bd7b84ce9d886342c479` on GitHub `main`, with review follow-ups `338a9f9` (fail-closed pairs, wallet-bound attach) and `afd6e22` (link claim is a single atomic update, final writes are conditional on that claim, and a create whose answer was lost is recorded as unconfirmed so a blind retry cannot mint a twin identity at the provider; the owner attaches the listed identity instead).
 
 Remaining bounty requirements outside this task:
 
