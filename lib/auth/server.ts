@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { jwtVerify, SignJWT } from "jose";
 import { z } from "zod";
 
@@ -84,12 +84,32 @@ export async function createAuthenticationChallenge(wallet: string) {
 
   if (!challenge) throw new Error("The authentication challenge was not persisted.");
 
+  // Bound the table: every issued challenge removes rows that can never be
+  // verified again, so flooding the nonce endpoint cannot grow it forever.
+  await pruneAuthenticationChallenges(database, issuedAt);
+
   return {
     challengeId: challenge.id,
     nonce,
     message: buildSignInMessage(messageInput(challenge, nonce)),
     expiresAt: challenge.expiresAt.toISOString(),
   };
+}
+
+/**
+ * Removes challenges that can never verify again: expired, or already
+ * consumed. Called opportunistically when a new challenge is issued so the
+ * table stays bounded without a separate sweeper.
+ */
+export async function pruneAuthenticationChallenges(
+  database: ReturnType<typeof getDatabase>,
+  now = new Date(),
+) {
+  await database
+    .delete(authChallenges)
+    .where(
+      or(lt(authChallenges.expiresAt, now), isNotNull(authChallenges.usedAt)),
+    );
 }
 
 export async function verifyAuthenticationChallenge(input: {

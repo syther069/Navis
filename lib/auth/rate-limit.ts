@@ -9,8 +9,13 @@ export function clientIdentifier(request: Request) {
   );
 }
 
-export function allowMutationRequest(request: Request, limit = 20, windowMs = 60_000) {
-  const key = clientIdentifier(request);
+export function allowMutationRequest(
+  request: Request,
+  limit = 20,
+  windowMs = 60_000,
+  scope = "mutation",
+) {
+  const key = `${scope}:${clientIdentifier(request)}`;
   const now = Date.now();
   const recent = (attempts.get(key) ?? []).filter((time) => now - time < windowMs);
   if (recent.length >= limit) return false;
