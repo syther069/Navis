@@ -164,6 +164,11 @@ export function getNavisMeteoraCurveInput(
     ...NAVIS_EQUITY_CURVE_INPUT,
     token: {
       ...NAVIS_EQUITY_CURVE_INPUT.token,
+      // Reserve one whole base token in the SOL rehearsal profile. The
+      // zero-leftover curve passes SDK validation but fails devnet's integer
+      // supply check (6020). A one-token reserve passes real RPC simulation
+      // without increasing the fixed one-billion-token supply.
+      leftover: profileId === "navis-equity-v1" ? 1 : 0,
       tokenQuoteDecimal:
         profile.quoteDecimals === 6 ? TokenDecimal.SIX : TokenDecimal.NINE,
     },
@@ -204,7 +209,10 @@ export function getNavisMeteoraCurvePreview(
   const generated = buildNavisMeteoraConfig(profileId);
   const thresholdRaw = generated.migrationQuoteThreshold.toString(10);
   const threshold = formatRawQuoteAmount(thresholdRaw, profile.quoteDecimals);
-  const input = NAVIS_EQUITY_CURVE_INPUT;
+  const input = {
+    ...NAVIS_EQUITY_CURVE_INPUT,
+    token: getNavisMeteoraCurveInput(profileId).token,
+  };
   const status = getMeteoraQuoteProfileStatus(profileId, cluster);
 
   return Object.freeze({

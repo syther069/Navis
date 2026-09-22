@@ -128,7 +128,7 @@ describe("Meteora quote profile allowlist", () => {
     const receiver = Keypair.generate().publicKey.toBase58();
     const sol = validateNavisMeteoraConfig(receiver, "navis-equity-v1");
     const stock = validateNavisMeteoraConfig(receiver, "navis-stock-exposure-v1");
-    expect(sol.migrationQuoteThreshold.toString(10)).toBe("4828261560");
+    expect(sol.migrationQuoteThreshold.toString(10)).toBe("4828261555");
     expect(stock.migrationQuoteThreshold.gt(sol.migrationQuoteThreshold)).toBe(true);
     expect(stock.tokenDecimal).toBe(sol.tokenDecimal);
   });

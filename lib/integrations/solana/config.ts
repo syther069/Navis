@@ -10,8 +10,8 @@ export type SolanaRpcConfig = Readonly<{
 }>;
 
 export const SOLANA_GENESIS_HASHES: Record<SolanaCluster, string> = {
-  devnet: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-  "mainnet-beta": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+  devnet: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
+  "mainnet-beta": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d",
 };
 
 export type ExplorerEntity = "address" | "tx" | "block";
