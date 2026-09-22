@@ -27,7 +27,13 @@ describe("Navis Meteora DBC configuration", () => {
     const receiver = Keypair.generate().publicKey.toBase58();
     const generated = validateNavisMeteoraConfig(receiver);
 
-    expect(generated.migrationQuoteThreshold.toString(10)).toBe("4828261560");
+    expect(generated.migrationQuoteThreshold.toString(10)).toBe("4828261555");
+    expect(generated.tokenSupply?.preMigrationTokenSupply.toString(10)).toBe(
+      "1000000000000000",
+    );
+    expect(generated.tokenSupply?.postMigrationTokenSupply.toString(10)).toBe(
+      "1000000000000000",
+    );
     expect(generated.migrationOption).toBe(1);
     expect(generated.migrationFeeOption).toBe(3);
     expect(generated.tokenUpdateAuthority).toBe(1);
@@ -38,7 +44,8 @@ describe("Navis Meteora DBC configuration", () => {
 
     expect(preview.programId).toBe(METEORA_DBC_PROGRAM_ID);
     expect(preview.quoteMint).toBe(WRAPPED_SOL_MINT);
-    expect(preview.pricing.migrationQuoteThreshold).toBe("4.82826156");
+    expect(preview.pricing.migrationQuoteThreshold).toBe("4.828261555");
+    expect(preview.token.leftover).toBe("1");
     expect(preview.availability.available).toBe(true);
     expect(preview.rationale.lockedLiquidity).toContain("10%");
     expect(preview.sdkVersion).toBe("1.5.12");
@@ -111,7 +118,7 @@ describe("Navis Meteora DBC configuration", () => {
     expect(prepared.messageSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(prepared.serializedTransaction).toEqual(expect.any(String));
     expect(prepared.review.signaturesRequired).toBe(2);
-    expect(prepared.review.migrationQuoteThresholdLamports).toBe("4828261560");
+    expect(prepared.review.migrationQuoteThresholdLamports).toBe("4828261555");
     expect(
       Transaction.from(Buffer.from(prepared.serializedTransaction, "base64"))
         .signatures,

@@ -1,24 +1,40 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Keypair, Transaction } from "@solana/web3.js";
 import {
   ArrowClockwise,
   FileMagnifyingGlass,
   WarningCircle,
 } from "@phosphor-icons/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
 import { StatusBadge } from "@/components/shared/domain-primitives";
-import { METEORA_BROADCAST_UNAVAILABLE_REASON } from "@/lib/integrations/meteora/broadcast-safety";
 import type {
   MeteoraQuoteProfileAvailability,
   MeteoraQuoteProfileId,
 } from "@/lib/integrations/meteora/quote-profiles";
 
+import { MeteoraTimeline, type MeteoraTimelineStep } from "./meteora-timeline";
+
+/** Base58 transaction signature explorer link for the active cluster. */
+function solanaExplorerTxUrl(signature: string, cluster: string) {
+  const base = `https://explorer.solana.com/tx/${signature}`;
+  return cluster === "mainnet-beta" ? base : `${base}?cluster=${cluster}`;
+}
+
+/** Lamports per signature on Solana; rent is embedded in the prepared tx. */
+const LAMPORTS_PER_SIGNATURE = 5_000;
+
 export type MeteoraPrepareProps = Readonly<{
   executionEnabled: boolean;
+  /** Active Solana cluster; shown next to the wallet and used for explorer links. */
+  cluster: string;
+  /** True only when the server-side broadcast gate is released for this deployment. */
+  broadcastAvailable: boolean;
+  /** Why broadcast is blocked, when broadcastAvailable is false. */
+  broadcastBlockedReason: string;
   agents: readonly {
     id: string;
     name: string;
@@ -185,14 +201,22 @@ function bytesToBase64(bytes: Uint8Array) {
 
 export function MeteoraConfigPrepare({
   executionEnabled,
+  cluster,
+  broadcastAvailable,
+  broadcastBlockedReason,
   agents,
   profiles,
   prestocksSymbols,
 }: MeteoraPrepareProps) {
+  const { connection } = useConnection();
   const { connected, publicKey, signTransaction } = useWallet();
   const configKeypairRef = useRef<Keypair | null>(null);
   const poolBaseMintKeypairRef = useRef<Keypair | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState(agents[0]?.id ?? "");
+  const [agentSelectionId, setSelectedAgentId] = useState("");
+  // Authentication refreshes the server-owned list after this component mounts.
+  const selectedAgentId = agents.some((agent) => agent.id === agentSelectionId)
+    ? agentSelectionId
+    : (agents[0]?.id ?? "");
   const [selectedProfileId, setSelectedProfileId] = useState<MeteoraQuoteProfileId>(
     profiles.find((profile) => profile.available)?.id ?? "navis-equity-v1",
   );
@@ -207,6 +231,104 @@ export function MeteoraConfigPrepare({
   const [poolSymbol, setPoolSymbol] = useState("NAVIS");
   const [poolUri, setPoolUri] = useState("https://example.com/navis-token.json");
   const [state, setState] = useState<PrepareState>({ status: "idle" });
+  const [balance, setBalance] = useState<
+    | { status: "idle" }
+    | { status: "loading" }
+    | { status: "loaded"; lamports: number }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+  const walletAddress = publicKey?.toBase58();
+
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) setBalance({ status: "loading" });
+    });
+    connection
+      .getBalance(publicKey, "confirmed")
+      .then((lamports) => {
+        if (!controller.signal.aborted) setBalance({ status: "loaded", lamports });
+      })
+      .catch((cause: unknown) => {
+        if (controller.signal.aborted) return;
+        setBalance({
+          status: "error",
+          message: cause instanceof Error ? cause.message : "Balance lookup failed.",
+        });
+      });
+    return () => controller.abort();
+  }, [connected, connection, publicKey]);
+
+  const flow = state.status === "ready" ? state : null;
+  const signedBytes = Boolean(flow?.signedSerializedTransaction);
+  const simulationFailed = Boolean(flow?.simulation && flow.simulation.error !== null);
+  const simulationPassed = Boolean(flow?.simulation && flow.simulation.error === null);
+  const timelineSteps: MeteoraTimelineStep[] = [
+    {
+      key: "wallet",
+      label: "Wallet connected",
+      state: connected ? "done" : "pending",
+    },
+    {
+      key: "configuration",
+      label: "Configuration validated",
+      state: flow ? "done" : connected ? "current" : "pending",
+    },
+    {
+      key: "prepared",
+      label: "Transaction prepared",
+      state: flow ? "done" : "pending",
+    },
+    {
+      key: "approval",
+      label: "Awaiting wallet approval",
+      state: signedBytes ? "done" : flow ? "current" : "pending",
+    },
+    {
+      key: "signed",
+      label: "Transaction signed",
+      state: signedBytes ? "done" : "pending",
+    },
+    {
+      key: "simulation",
+      label: "Simulation passed",
+      state: simulationPassed
+        ? "done"
+        : simulationFailed
+          ? "failed"
+          : signedBytes
+            ? "current"
+            : "pending",
+    },
+    {
+      key: "submission",
+      label: "Submission",
+      state: flow?.submitted ? "done" : flow?.submitting ? "current" : "pending",
+    },
+    {
+      key: "confirmation",
+      label: "Confirmation",
+      state:
+        flow?.confirmation?.launch?.status === "failed"
+          ? "failed"
+          : flow?.confirmation?.evidence?.signature
+            ? "done"
+            : flow?.confirming || flow?.confirmation
+              ? "current"
+              : "pending",
+    },
+    {
+      key: "verification",
+      label: "Onchain verification",
+      state:
+        flow?.confirmation?.launch?.status === "confirmed"
+          ? "done"
+          : flow?.confirmation
+            ? "current"
+            : "pending",
+    },
+  ];
 
   async function prepareTransaction() {
     if (!executionEnabled || !connected || !publicKey || !selectedAgentId) return;
@@ -575,7 +697,11 @@ export function MeteoraConfigPrepare({
   }
 
   const disabled =
-    !executionEnabled || !connected || state.status === "loading" || !profileReady;
+    !executionEnabled ||
+    !connected ||
+    !selectedAgentId ||
+    state.status === "loading" ||
+    !profileReady;
 
   return (
     <div className="meteora-prepare">
@@ -647,10 +773,75 @@ export function MeteoraConfigPrepare({
 
       {connected && agents.length === 0 ? (
         <p className="form-note">
-          Create or import an owned live-mode Navis agent before submitting Meteora
+          Create an owned Navis agent in this environment before submitting Meteora
           transactions.
         </p>
       ) : null}
+
+      {executionEnabled ? (
+        <div
+          className="meteora-wallet-readiness"
+          data-testid="meteora-wallet-readiness"
+        >
+          <dl className="meteora-readiness-list">
+            <div>
+              <dt>Wallet</dt>
+              <dd>
+                {connected && walletAddress ? (
+                  <AddressValue value={walletAddress} label="wallet" />
+                ) : (
+                  "Not connected"
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Cluster</dt>
+              <dd>
+                <code>{cluster}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Balance</dt>
+              <dd>
+                {balance.status === "loaded"
+                  ? `${(balance.lamports / 1e9).toFixed(4)} SOL`
+                  : balance.status === "loading"
+                    ? "Checking…"
+                    : balance.status === "error"
+                      ? balance.message
+                      : connected
+                        ? "Not fetched"
+                        : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt>Network fee</dt>
+              <dd>
+                {state.status === "ready"
+                  ? `${((state.prepared.review.signaturesRequired * LAMPORTS_PER_SIGNATURE) / 1e9).toFixed(6)} SOL plus account rent (itemized in the wallet approval)`
+                  : "Shown after preparation"}
+              </dd>
+            </div>
+          </dl>
+          {balance.status === "loaded" &&
+          state.status === "ready" &&
+          balance.lamports <
+            state.prepared.review.signaturesRequired * LAMPORTS_PER_SIGNATURE ? (
+            <p className="form-note" role="alert">
+              This balance cannot cover the network fee and rent. Fund the wallet before
+              broadcasting.
+            </p>
+          ) : null}
+          {cluster === "devnet" && connected ? (
+            <p className="form-note">
+              Devnet SOL has no value. Fund this wallet from a devnet faucet before
+              broadcasting.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <MeteoraTimeline steps={timelineSteps} />
 
       {state.status === "ready" ? (
         <PreparedTransactionReview
@@ -672,6 +863,9 @@ export function MeteoraConfigPrepare({
           poolSubmitted={state.poolSubmitted}
           poolConfirmation={state.poolConfirmation}
           canSimulate={Boolean(signTransaction)}
+          cluster={cluster}
+          broadcastAvailable={broadcastAvailable}
+          broadcastBlockedReason={broadcastBlockedReason}
           agents={agents}
           selectedAgentId={selectedAgentId}
           onAgentChange={setSelectedAgentId}
@@ -717,6 +911,9 @@ function PreparedTransactionReview({
   poolSubmitted,
   poolConfirmation,
   canSimulate,
+  cluster,
+  broadcastAvailable,
+  broadcastBlockedReason,
   agents,
   selectedAgentId,
   onAgentChange,
@@ -749,6 +946,9 @@ function PreparedTransactionReview({
   poolSubmitted?: SubmitResult;
   poolConfirmation?: ConfirmationResult;
   canSimulate: boolean;
+  cluster: string;
+  broadcastAvailable: boolean;
+  broadcastBlockedReason: string;
   agents: readonly {
     id: string;
     name: string;
@@ -881,13 +1081,26 @@ function PreparedTransactionReview({
       </div>
       {simulation ? <SimulationReview simulation={simulation} /> : null}
       <div className="meteora-submit-actions">
-        <button className="primary-button" type="button" disabled onClick={onSubmit}>
+        <button
+          className="primary-button"
+          type="button"
+          disabled={
+            !broadcastAvailable ||
+            submitting ||
+            !simulation ||
+            simulation.error !== null
+          }
+          onClick={onSubmit}
+        >
           <FileMagnifyingGlass aria-hidden="true" size={16} />
           {submitting ? "Submitting" : submitted ? "Submitted" : "Submit config"}
         </button>
         <p className="form-note">
-          {METEORA_BROADCAST_UNAVAILABLE_REASON} Preparation and simulation remain
-          available for review.
+          {broadcastAvailable
+            ? simulation && simulation.error === null
+              ? `Simulation passed. Submission broadcasts the signed transaction to ${cluster}; the signature and outcome are recorded for reconciliation.`
+              : "Submission unlocks after the signed transaction passes simulation."
+            : `${broadcastBlockedReason} Preparation and simulation remain available for review.`}
         </p>
       </div>
       {submitted ? (
@@ -895,6 +1108,7 @@ function PreparedTransactionReview({
           submitted={submitted}
           confirming={confirming}
           confirmation={confirmation}
+          cluster={cluster}
           onConfirm={onConfirm}
         />
       ) : null}
@@ -911,6 +1125,9 @@ function PreparedTransactionReview({
         submitted={poolSubmitted}
         confirmation={poolConfirmation}
         canSimulate={canSimulate}
+        cluster={cluster}
+        broadcastAvailable={broadcastAvailable}
+        broadcastBlockedReason={broadcastBlockedReason}
         onNameChange={onPoolNameChange}
         onSymbolChange={onPoolSymbolChange}
         onUriChange={onPoolUriChange}
@@ -940,6 +1157,9 @@ function PoolCreationReview({
   submitted,
   confirmation,
   canSimulate,
+  cluster,
+  broadcastAvailable,
+  broadcastBlockedReason,
   onNameChange,
   onSymbolChange,
   onUriChange,
@@ -960,6 +1180,9 @@ function PoolCreationReview({
   submitted?: SubmitResult;
   confirmation?: ConfirmationResult;
   canSimulate: boolean;
+  cluster: string;
+  broadcastAvailable: boolean;
+  broadcastBlockedReason: string;
   onNameChange: (name: string) => void;
   onSymbolChange: (symbol: string) => void;
   onUriChange: (uri: string) => void;
@@ -1063,13 +1286,24 @@ function PoolCreationReview({
             <button
               className="primary-button"
               type="button"
-              disabled
+              disabled={
+                !broadcastAvailable ||
+                submitting ||
+                !simulation ||
+                simulation.error !== null
+              }
               onClick={onSubmit}
             >
               <FileMagnifyingGlass aria-hidden="true" size={16} />
               {submitting ? "Submitting" : submitted ? "Submitted" : "Submit pool"}
             </button>
-            <p className="form-note">{METEORA_BROADCAST_UNAVAILABLE_REASON}</p>
+            <p className="form-note">
+              {broadcastAvailable
+                ? simulation && simulation.error === null
+                  ? `Pool simulation passed. Submission broadcasts to ${cluster} and records the signature.`
+                  : "Pool submission unlocks after a passing pool simulation."
+                : broadcastBlockedReason}
+            </p>
           </div>
         </div>
       ) : null}
@@ -1078,6 +1312,8 @@ function PoolCreationReview({
           submitted={submitted}
           confirming={false}
           confirmation={confirmation}
+          cluster={cluster}
+          kind="pool"
           onConfirm={onConfirm}
         />
       ) : null}
@@ -1089,11 +1325,15 @@ function SubmitReview({
   submitted,
   confirming,
   confirmation,
+  cluster,
+  kind = "config",
   onConfirm,
 }: {
   submitted: SubmitResult;
   confirming: boolean;
   confirmation?: ConfirmationResult;
+  cluster: string;
+  kind?: "config" | "pool";
   onConfirm: () => void;
 }) {
   return (
@@ -1101,9 +1341,15 @@ function SubmitReview({
       <div className="panel-heading">
         <div>
           <span>{submitted.launch.status ?? "submitted"}</span>
-          <h3>Config transaction submitted</h3>
+          <h3>{kind === "pool" ? "Pool" : "Config"} transaction submitted</h3>
         </div>
-        <StatusBadge tone="pending">Pending confirmation</StatusBadge>
+        <StatusBadge
+          tone={confirmation?.confirmation === "protocol_verified" ? "pass" : "pending"}
+        >
+          {confirmation?.confirmation === "protocol_verified"
+            ? "Protocol verified"
+            : "Pending confirmation"}
+        </StatusBadge>
       </div>
       <dl className="meteora-address-list">
         <div>
@@ -1133,6 +1379,16 @@ function SubmitReview({
           <FileMagnifyingGlass aria-hidden="true" size={16} />
           {confirming ? "Checking" : "Check confirmation"}
         </button>
+        {submitted.launch.transactionSignature ? (
+          <a
+            className="secondary-button"
+            href={solanaExplorerTxUrl(submitted.launch.transactionSignature, cluster)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View on Solana Explorer
+          </a>
+        ) : null}
         {confirmation ? (
           <p className="form-note">
             Confirmation: {confirmation.confirmation.replaceAll("_", " ")}

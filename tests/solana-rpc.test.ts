@@ -27,7 +27,9 @@ describe("Solana RPC boundary", () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(rpcResponse("ok"))
-      .mockResolvedValueOnce(rpcResponse(SOLANA_GENESIS_HASHES.devnet))
+      .mockResolvedValueOnce(
+        rpcResponse("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"),
+      )
       .mockResolvedValueOnce(rpcResponse(1234));
     const client = new SolanaRpcClient(
       {

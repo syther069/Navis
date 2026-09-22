@@ -84,13 +84,15 @@ Deployment: https://navis-gilt.vercel.app, application commit `081a07f` (`feat(c
 
 ## 6. Gate, commit and remaining work
 
+Final merged-tree validation on 2026-09-22: restored the distinct verification regression cases after merge corruption, formatted the incoming files, and ran the complete `npm run check` successfully: 57 test files, 452 tests, lint with zero warnings, typecheck, production build, judge smoke, schema check, and submission audit.
+
 Follow-up hardening commit: `338a9f9aa8e053fb461ca217a9bc7ed7a5bad281`, pushed to GitHub main under the repository owner's identity. This makes stock preflight fail closed on unclassified or unverified mints, limits existing-agent attachment to the signed-in registered wallet, enforces external-agent uniqueness in the database, and reserves the missing-account-link classification for HTTP 403. Migration `0010` was applied to development and production. The full `npm run check` passed with 439 tests after these changes. Production health reported database `ok` and ClawPump `connected`.
 
 Local preview limitation: the managed development workflow starts Next.js but stalls compiling `/`, then fails readiness. A local screenshot could not be captured. This is separate from the passing production build and public-site verification above.
 
 `npm run check` at the application commit: format, lint, typecheck, 55 files / 436 tests, lockfile, build, judge smoke against the development database, `db:check`, submission audit, all passing.
 
-Commit: `081a07f37169fe876559bd7b84ce9d886342c479` on GitHub `main`.
+Commit: `081a07f37169fe876559bd7b84ce9d886342c479` on GitHub `main`, with review follow-ups `338a9f9` (fail-closed pairs, wallet-bound attach) and `afd6e22` (link claim is a single atomic update, final writes are conditional on that claim, and a create whose answer was lost is recorded as unconfirmed so a blind retry cannot mint a twin identity at the provider; the owner attaches the listed identity instead).
 
 Remaining bounty requirements outside this task:
 

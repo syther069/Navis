@@ -1,0 +1,114 @@
+{
+  "base": "https://332e49f4-7354-4e5f-9421-9983d33ad29f-00-niy9psdn20jx.picard.replit.dev",
+  "cluster": "devnet",
+  "checkedAt": "2026-09-22T08:39:33.517Z",
+  "steps": [
+    {
+      "name": "walletReady",
+      "at": "2026-09-22T08:39:33.580Z",
+      "wallet": "DZezSS1H2TUtnPqkAmdvhWAoTAJxmZmeXhy5L2G8jVW7",
+      "keypairPath": "/tmp/navis-task4-devnet-wallet.json"
+    },
+    {
+      "name": "walletFunded",
+      "at": "2026-09-22T08:39:33.816Z",
+      "wallet": "DZezSS1H2TUtnPqkAmdvhWAoTAJxmZmeXhy5L2G8jVW7",
+      "balanceSol": 0.99401592,
+      "airdrop": false
+    },
+    {
+      "name": "agentReused",
+      "at": "2026-09-22T08:39:33.948Z",
+      "id": "45b0bc27-908f-44b4-8593-a01679912f46",
+      "mode": "devnet",
+      "cluster": "devnet"
+    },
+    {
+      "name": "walletConnected",
+      "at": "2026-09-22T08:39:39.311Z",
+      "wallet": "DZezSS1H2TUtnPqkAmdvhWAoTAJxmZmeXhy5L2G8jVW7"
+    },
+    {
+      "name": "walletAuthenticated",
+      "at": "2026-09-22T08:39:40.290Z"
+    },
+    {
+      "name": "readinessShown",
+      "at": "2026-09-22T08:39:41.624Z",
+      "text": "WalletDZezSS…G8jVW7ClusterdevnetBalance0.9940 SOLNetwork feeShown after preparationDevnet SOL has no value. Fund this wallet from a devnet faucet before broadcasting."
+    },
+    {
+      "name": "configPrepared",
+      "at": "2026-09-22T08:39:42.677Z"
+    },
+    {
+      "name": "simulationPassed",
+      "at": "2026-09-22T08:39:43.341Z"
+    },
+    {
+      "name": "configSubmitted",
+      "at": "2026-09-22T08:39:46.373Z",
+      "signature": "2ugpRWuCThjzJ4rJ3JbvYBQgDMJpR3xLEap7G7s69vYXM3WWA34gHasExy1nLmjzghYtUuWZNTPv8HYHLahsyJuz",
+      "explorer": "https://explorer.solana.com/tx/2ugpRWuCThjzJ4rJ3JbvYBQgDMJpR3xLEap7G7s69vYXM3WWA34gHasExy1nLmjzghYtUuWZNTPv8HYHLahsyJuz?cluster=devnet"
+    },
+    {
+      "name": "confirmationChecked",
+      "at": "2026-09-22T08:39:52.758Z",
+      "text": "Confirmation: protocol verified at slot 502341340, fee 10000 lamports, account GSMo2Z…. Real pool creation remains separate from this config transaction."
+    },
+    {
+      "name": "verifiedOnDevnet",
+      "at": "2026-09-22T08:39:53.146Z",
+      "signature": "2ugpRWuCThjzJ4rJ3JbvYBQgDMJpR3xLEap7G7s69vYXM3WWA34gHasExy1nLmjzghYtUuWZNTPv8HYHLahsyJuz",
+      "slot": 502341340,
+      "confirmationStatus": "finalized"
+    },
+    {
+      "name": "poolPrepared",
+      "at": "2026-09-22T08:39:54.775Z"
+    },
+    {
+      "name": "poolSimulationPassed",
+      "at": "2026-09-22T08:39:55.414Z"
+    },
+    {
+      "name": "poolSubmitted",
+      "at": "2026-09-22T08:39:56.041Z",
+      "signature": "5JKAb2paDR6LEYGWmbKfBPrz19LCFEi3mzZHgZp8ZPA3P4ngDMEDnJy4yZwHMf5hNRatZ1F1ZpAHKnv1xZDDkXdk"
+    },
+    {
+      "name": "poolProtocolVerified",
+      "at": "2026-09-22T08:40:04.291Z",
+      "signature": "5JKAb2paDR6LEYGWmbKfBPrz19LCFEi3mzZHgZp8ZPA3P4ngDMEDnJy4yZwHMf5hNRatZ1F1ZpAHKnv1xZDDkXdk",
+      "explorer": "https://explorer.solana.com/tx/5JKAb2paDR6LEYGWmbKfBPrz19LCFEi3mzZHgZp8ZPA3P4ngDMEDnJy4yZwHMf5hNRatZ1F1ZpAHKnv1xZDDkXdk?cluster=devnet",
+      "slot": 502341398,
+      "confirmationStatus": "finalized",
+      "protocolVerified": true
+    }
+  ],
+  "passed": true,
+  "wallet": "DZezSS1H2TUtnPqkAmdvhWAoTAJxmZmeXhy5L2G8jVW7",
+  "agent": {
+    "id": "45b0bc27-908f-44b4-8593-a01679912f46",
+    "slug": "devnet-launch-rehearsal-muceptn0-2c1fb580",
+    "name": "Devnet Launch Rehearsal muceptn0",
+    "status": "draft",
+    "mode": "devnet",
+    "cluster": "devnet",
+    "ownerWallet": "DZezSS1H2TUtnPqkAmdvhWAoTAJxmZmeXhy5L2G8jVW7",
+    "activeStrategyVersion": 1,
+    "activeRiskPolicyVersion": 1,
+    "integrationStatus": "not_configured",
+    "createdAt": "2026-09-22T08:23:14.093Z",
+    "updatedAt": "2026-09-22T08:23:14.093Z"
+  },
+  "transactionSignature": "2ugpRWuCThjzJ4rJ3JbvYBQgDMJpR3xLEap7G7s69vYXM3WWA34gHasExy1nLmjzghYtUuWZNTPv8HYHLahsyJuz",
+  "explorer": "https://explorer.solana.com/tx/2ugpRWuCThjzJ4rJ3JbvYBQgDMJpR3xLEap7G7s69vYXM3WWA34gHasExy1nLmjzghYtUuWZNTPv8HYHLahsyJuz?cluster=devnet",
+  "pool": {
+    "signature": "5JKAb2paDR6LEYGWmbKfBPrz19LCFEi3mzZHgZp8ZPA3P4ngDMEDnJy4yZwHMf5hNRatZ1F1ZpAHKnv1xZDDkXdk",
+    "explorer": "https://explorer.solana.com/tx/5JKAb2paDR6LEYGWmbKfBPrz19LCFEi3mzZHgZp8ZPA3P4ngDMEDnJy4yZwHMf5hNRatZ1F1ZpAHKnv1xZDDkXdk?cluster=devnet",
+    "slot": 502341398,
+    "confirmationStatus": "finalized",
+    "protocolVerified": true
+  }
+}
