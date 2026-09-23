@@ -58,7 +58,7 @@ Important findings:
 - **P2 logout:** disconnect during session checking/read failure could skip DELETE. Existing production happy-path revocation did not cover this.
 - **P2 resource exhaustion:** in-process limiter identities were never globally expired or capped.
 - **P2 information disclosure:** arbitrary infrastructure errors in prepare/simulate routes could escape into HTTP responses. No actual credential leak was observed.
-- **P2 remaining abuse surface:** several authenticated agent/provider/prepare endpoints lack shared per-user quotas; selected public RPC reads lack a limiter. No live flooding was performed.
+- **P2 abuse surface, fixed in final hardening:** costly authenticated agent/provider/Meteora operations now have database-shared verified-wallet quotas; public Solana slot and Meteora pool RPC reads have client quotas. Quota failures stop downstream work. Existing auth and public Atlas limits remain intact. No live flooding was performed.
 
 Existing safeguards include exact sign-in domain/URI, nonce expiry and atomic consumption, issuer/audience/algorithm-pinned JWTs, HttpOnly/Secure/SameSite cookies, trusted mutation origins, ownership-scoped queries, durable jti revocation, shared auth rate limits and fail-closed execution gates. **Legacy tokens issued without a jti remain valid until their original eight-hour expiry and cannot be individually revoked.** The durable logout guarantee applies to jti-bearing sessions; all newly issued sessions have a jti.
 
@@ -84,7 +84,7 @@ Evidence writes are atomic; immutable tables/triggers protect strategy, policy, 
 
 The old readiness probe omitted `rate_limit_windows` and public-demo/identity uniqueness objects. The audit strengthens it. Health still is not a substitute for exact migration-journal/schema validation. No production DDL or data deletion was performed.
 
-Residual risks: unbounded legitimate authenticated record creation without quotas; public demo evidence accumulates; existing public-Atlas DB tests have a reported concurrency/deadlock risk. Failed smoke reports may not be saved, so an older report must never be mistaken for a fresh passing run.
+Residual risks: public demo evidence accumulates; quotas limit creation rate, not lifetime storage; existing public-Atlas DB tests have a reported concurrency/deadlock risk. Final hardening saves failed smoke reports with explicit status, completed checks and a failing step, retaining the nonzero exit.
 
 ## 6. Solana findings
 
@@ -205,7 +205,7 @@ Audit candidate SHA, final validation and release result are recorded in `NAVIS_
 
 ## 17. Remaining risks and proportionate next steps
 
-Do not expand scope into trading, Pyth, Tessera or a redesign to obscure the above. Remaining bounded improvements include endpoint quotas, full receipt policy-fact replay, fixture sizing provenance, broader reconciliation assertions, stale-provider-health labelling and smoke evidence on failure. Track residual transitive dependency advisories and avoid incompatible SDK substitutions.
+Do not expand scope into trading, Pyth, Tessera or a redesign to obscure the above. Remaining improvements include full receipt policy-fact replay, fixture sizing provenance, broader reconciliation assertions and stale-provider-health labelling. Endpoint quotas and failure smoke evidence were addressed in final hardening; see `docs/FINAL_RELEASE_NOTES.md` for official sources and scope. Track residual transitive dependency advisories and avoid incompatible SDK substitutions.
 
 The bounded burst limiter deliberately fails closed for new identities at capacity and shares that capacity across scopes; mass distinct clients can temporarily deny admission. Expired entries may wait up to a sweep interval, and proxy address-header trust is an infrastructure assumption. Genesis validation adds one RPC read per transaction operation. Concurrent authentication across separate tabs is not globally serialized; the audit does not claim universal session-race prevention. A full multi-tab session-family model is outside the minimal repair.
 
