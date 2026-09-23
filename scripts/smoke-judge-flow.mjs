@@ -297,11 +297,17 @@ async function run() {
   server?.stdout.on("data", (chunk) => output.push(String(chunk)));
   server?.stderr.on("data", (chunk) => output.push(String(chunk)));
 
+  const startedAt = new Date().toISOString();
+  const results = [];
+  let health = null;
+  let step = "/api/health";
+  let failed = false;
+
   try {
-    const health = await waitForReady();
-    const results = [];
+    health = await waitForReady();
 
     for (const check of checks) {
+      step = check.path;
       const body = await readRoute(check.path);
       for (const text of check.includes) {
         if (!body.includes(text)) {
@@ -326,6 +332,7 @@ async function run() {
     }
 
     for (const check of jsonChecks) {
+      step = check.path;
       const body = await readJsonRoute(check.path, check.allowedStatuses);
       for (const text of check.includes) {
         if (!body.includes(text)) {
@@ -345,6 +352,7 @@ async function run() {
       });
     }
 
+    step = "/decisions/unknown-decision-id";
     const unknownDecision = await fetch(`${baseUrl}/decisions/unknown-decision-id`, {
       headers: { accept: "text/html", "user-agent": "Navis judge-flow smoke test" },
       redirect: "manual",
@@ -357,6 +365,7 @@ async function run() {
     console.log("✓ /decisions/unknown-decision-id -> 404");
     results.push({ path: "/decisions/unknown-decision-id", status: 404 });
 
+    step = "/proofs/unknown-proof-id";
     const unknownProof = await fetch(`${baseUrl}/proofs/unknown-proof-id`, {
       headers: { accept: "text/html", "user-agent": "Navis judge-flow smoke test" },
       redirect: "manual",
@@ -371,6 +380,7 @@ async function run() {
 
     const databaseStatus = health.services?.database?.status;
     if (databaseStatus === "not_configured" || databaseStatus === "ok") {
+      step = "/api/decisions/run and persisted follow-up";
       const fresh = await exerciseFreshDecision(databaseStatus);
       console.log(
         `✓ fresh decision ${fresh.decisionId} (${fresh.universe} universe, ${fresh.store})` +
@@ -387,32 +397,45 @@ async function run() {
     } else {
       console.log(`○ fresh decision skipped because the database is ${databaseStatus}`);
     }
-
-    if (reportPath) {
-      await mkdir(dirname(reportPath), { recursive: true });
-      await writeFile(
-        reportPath,
-        `${JSON.stringify(
-          {
-            checkedAt: new Date().toISOString(),
-            baseUrl,
-            health,
-            results,
-          },
-          null,
-          2,
-        )}\n`,
-      );
-      console.log(`Evidence report written to ${reportPath}`);
-    }
-
-    console.log("Judge-flow smoke passed.");
   } catch (error) {
+    failed = true;
     console.error(output.join(""));
     throw error;
   } finally {
-    stopServer(server);
+    try {
+      if (reportPath) {
+        await mkdir(dirname(reportPath), { recursive: true });
+        await writeFile(
+          reportPath,
+          `${JSON.stringify(
+            {
+              startedAt,
+              checkedAt: new Date().toISOString(),
+              baseUrl: new URL(baseUrl).origin,
+              status: failed ? "failed" : "passed",
+              failedStep: failed ? step : null,
+              // No raw response bodies, cookies, exception stacks or server logs.
+              failure: failed
+                ? "Smoke verification failed at the recorded step. Consult CI logs."
+                : null,
+              health,
+              results,
+            },
+            null,
+            2,
+          )}\n`,
+        );
+        console.log(`Evidence report written to ${reportPath}`);
+      }
+    } catch (reportError) {
+      console.error("Could not write smoke evidence report.");
+      // Preserve the original verification failure if both operations fail.
+      if (!failed) throw reportError;
+    } finally {
+      stopServer(server);
+    }
   }
+  console.log("Judge-flow smoke passed.");
 }
 
 await run();
