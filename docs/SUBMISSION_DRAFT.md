@@ -32,7 +32,7 @@ Demo receipts are explicitly labelled simulations. Real explorer links, mints, p
 
 ## Videos
 
-Videos are optional under the official rules. If the owner records them, use `docs/DEMO_SCRIPT.md` as the shot list. The technical video is that script in order (five minutes): landing screen (0:00), Atlas run with Balanced then Oversized and Verify receipt (0:30), proof page (1:30), Markets Launch with the two Meteora profiles and the PreStocks research view (2:15), settings, disclosures and transactions (3:20). The pitch video (three minutes) is the landing screen, one Balanced run, one Oversized run with the "Why this failed" panel, and the proof page. Record from a clean browser against https://navis-gilt.vercel.app; do not click any decision detail link on the public site.
+Videos are optional under the documented rules; confirm the current submission form before submitting. If the owner records them, use `docs/DEMO_SCRIPT.md` as the shot list. The technical video is that script in order (five minutes): landing screen (0:00), Atlas run with Balanced then Oversized and Verify receipt (0:30), proof page (1:30), Markets Launch with the two Meteora profiles and the PreStocks research view (2:15), settings, disclosures and transactions (3:20). The pitch video (three minutes) is the landing screen, one Balanced run, one Oversized run with the "Why this failed" panel, and the proof page. Record from a clean browser against https://navis-gilt.vercel.app. When the persistence note reports database storage, open the public Atlas decision and proof links and reload them. Without a database, show the inline result and explain that it is not durably stored.
 
 ## Suggested demo flow
 
@@ -49,7 +49,7 @@ Only claims backed by `docs/EVIDENCE.md` are kept.
 
 ### PreStocks (recommended track)
 
-> Navis consumes the PreStocks catalogue through a strict schema and uses it as the live asset universe for the Atlas demo agent: the allowlist comes from the validated contract addresses, the token price is the research price, freshness is the read time, and no liquidity or quote is invented. The research view shows premium or discount to mark, valuation gap, supply and allocation impact, labelled as research data. Navis exposes no PreStocks buy, sell, launch or issuance action and describes the tokens as economic exposure, not shares.
+> Navis consumes the PreStocks catalogue through a strict schema and uses it as the live asset universe for the Atlas demo agent: the allowlist comes from the validated contract addresses and the token price is the research price. Catalogue fetches bypass the Next.js data cache and have a five-second timeout. The timestamp records successful fetch time; the provider price observation timestamp is unavailable, so this is not proof of price freshness. No liquidity or execution quote is invented. The research view shows premium or discount to mark, valuation gap, supply and allocation impact, labelled as research data. Navis exposes no PreStocks buy, sell, launch or issuance action and describes the tokens as economic exposure, not shares.
 
 ### Meteora DBC (recommended track)
 
@@ -114,5 +114,5 @@ npm audit --omit=dev
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
 - Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump has no funded-launch code, and Meteora broadcast is hard-blocked until retested on a real cluster.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
-- The public demo runs in demo mode on devnet with a read-only public devnet RPC (slot probe only) and no database, wallet session, ClawPump or execution configuration. Fresh Atlas runs are simulations kept in server memory; the demo must not be presented as live-funds, persistent, or wallet-ready.
+- Atlas runs remain demo simulations: PreStocks research uses mainnet-beta asset identifiers, not mainnet execution. A configured database stores the public Atlas snapshot, decision, policy evaluation, simulated or rejected attempt and proof receipt atomically; public links need no wallet. Owner-agent records are session-scoped. Without a database, runs are memory-only with no durable links; database write failures must be shown as errors. This is not a real treasury-to-trade execution flow, a wallet signature, or onchain settlement. Confirm deployed capabilities and the displayed persistence result before recording; historical local-only devnet artifacts are not evidence of deployed execution.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`; the code is released under the MIT licence.

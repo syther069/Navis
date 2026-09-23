@@ -35,6 +35,9 @@ export function ProofReceiptView({
   const failed = document.policyEvaluation.checks.filter(
     (check) => check.status === "fail",
   );
+  const warned = document.policyEvaluation.checks.filter(
+    (check) => check.status === "warn",
+  );
   const assurance = assuranceForReceipt(document);
   return (
     <>
@@ -74,7 +77,7 @@ export function ProofReceiptView({
             value={approved ? "Approved" : "Rejected"}
             detail={
               approved
-                ? `All ${document.policyEvaluation.checks.length} checks passed; execution state ${document.execution.state}.`
+                ? `${document.policyEvaluation.checks.length - warned.length} checks passed, ${warned.length} warned; no failed checks; execution state ${document.execution.state}.`
                 : `Failed: ${failed.map((check) => check.rule.replaceAll("_", " ")).join(", ")}. Nothing was executed.`
             }
           />

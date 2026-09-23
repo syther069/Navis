@@ -66,7 +66,9 @@ Track selection is not evidence of sponsor eligibility.
 
 ## Release decision
 
-Ready to submit as an honest demo once the owner completes the form items (registration, team, tracks, optional videos). Do not claim on-chain execution, production persistence, ClawPump launches, or Meteora transactions anywhere in the submission.
+Submit only as an honest research and policy simulation after confirming the current form requirements and completing registration, team and track choices. With a configured database, public Atlas runs store the snapshot, decision, policy evaluation, simulated or rejected attempt and proof receipt atomically and expose public decision/proof links. Confirm the deployed persistence note and reload those links before claiming deployed storage. Without a database, results are memory-only and have no durable links; configured-database failures are errors, not successful storage. Owner records require the owner's session. Do not claim real-agent treasury execution, wallet-signed Atlas decisions, onchain settlement, ClawPump launches or deployed Meteora transactions. Historical local-only devnet artifacts do not establish current public deployment evidence.
+
+PreStocks capture times mean successful uncached fetch time, not provider price observation time (unavailable). Five-second fetch timeouts fail explicitly; the Atlas demo may then visibly select the fixture universe. A fresh capture timestamp is not proof that the provider's price is current.
 
 ## History
 

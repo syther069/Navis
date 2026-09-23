@@ -2,7 +2,7 @@
 
 This walkthrough is the technical-video source and must remain within five minutes. Prepare a separate pitch edit no longer than three minutes (landing screen, one Balanced run, one Oversized run with the "Why this failed" panel, the proof page).
 
-Verified on the public site: the landing screen, the agent list, the recorded deterministic Atlas walkthrough, the fresh **Run new decision** panel on the PreStocks universe (Balanced approved, Oversized rejected, receipt verified in the browser), the proof verifier, Markets Launch with both Meteora profiles and the PreStocks research view, and real 404s for unknown ids. Narrate those. Do not narrate persistence, on-chain activity or sponsor transactions on the public site; none exist there.
+Demonstrate the landing screen, agent list, **Run new decision** panel on the PreStocks universe, proof verifier and Markets Launch research view. Before recording, confirm deployed capabilities and each run's data-source and persistence notes rather than assuming availability. A database-backed public Atlas run stores the full evidence chain without a wallet; open and reload its decision and proof links. Without a database, explain that the inline result is memory-only. All Atlas executions are simulations or policy rejections, not signed transactions. Do not narrate onchain activity or sponsor transactions; historical local-only devnet artifacts are not current deployed evidence.
 
 Record from a clean browser against https://navis-gilt.vercel.app.
 
@@ -34,9 +34,9 @@ In the **Run new decision** panel leave the asset universe on **PreStocks univer
 Show:
 
 - Balanced: Approved, 10 of 11 checks passed and 1 warned (PreStocks publishes no liquidity figure, so the liquidity rule warns instead of inventing a number). Fresh receipt hash; "Receipt verified" after pressing **Verify receipt**. The assurance badge reads "Offchain integrity" and "Demo simulation".
-- The PreStocks facts under each check (allowlist from the catalogue contract addresses, trade value at the catalogue token price, read time as data age) and the research table under the result: premium or discount to mark, valuation gap, allocation impact.
+- The PreStocks facts under each check (allowlist from catalogue contract addresses, trade value at catalogue token price, successful uncached fetch time as data age) and the research table: premium or discount to mark, valuation gap, allocation impact. Explain that the provider price observation timestamp is unavailable: fetch freshness is not price freshness. The fetch has a five-second timeout; if the result reports a fixture fallback, identify it rather than claiming live PreStocks inputs.
 - Oversized: Rejected on max trade bps and min reserve bps; still a valid receipt. The "Why this failed" panel names the checks that exceeded their limits.
-- The persistence note: kept in memory for this server instance only. There is no detail link for in-memory runs on the public site; do not go looking for one.
+- The persistence note: a database-backed run stores its snapshot, decision, policy evaluation, simulated or rejected attempt and proof receipt atomically. Open its public decision and proof links, then reload to demonstrate storage. Without a database, the result is memory-only and has no durable links. If storage fails, show the error rather than claiming success.
 
 Then click **Inspect decision** on the recorded example (`/agents/atlas/decisions/demo-decision`) and show the deterministic proposal, policy checks and hash, with no explorer link for the simulated receipt.
 
