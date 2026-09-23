@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ execute: vi.fn() }));
 
@@ -18,6 +19,36 @@ import { GET } from "../app/api/health/route";
 
 describe("truthful database readiness", () => {
   beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("checks auth rate limits, public demo scoping and identity uniqueness", async () => {
+    mocks.execute.mockResolvedValue({
+      rows: [{ schema_ready: false, guards_ready: true }],
+    });
+    const response = await GET();
+    expect(response.status).toBe(503);
+    const query = new PgDialect().sqlToQuery(mocks.execute.mock.calls[0][0]).sql;
+    for (const required of [
+      "rate_limit_windows",
+      "auth_session_revocations",
+      "is_public_demo",
+      "agents_public_demo_slug_unique",
+      "decisions_agent_client_request_unique",
+      "agents_external_agent_id_unique",
+    ]) {
+      expect(query).toContain(required);
+    }
+  });
+
+  it("reports only a valid deployment commit, never arbitrary environment text", async () => {
+    mocks.execute.mockResolvedValue({
+      rows: [{ schema_ready: true, guards_ready: true }],
+    });
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "a".repeat(40));
+    expect((await (await GET()).json()).deployment.commit).toBe("a".repeat(40));
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "not-a-sha");
+    expect((await (await GET()).json()).deployment.commit).toBeNull();
+  });
 
   it("requires both the schema and immutability guards", async () => {
     mocks.execute.mockResolvedValue({
