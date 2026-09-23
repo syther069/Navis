@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildPairCatalogueView,
   classifyPair,
+  groupPairsForDisplay,
+  pairDisplayName,
   matchTokenizedStockIssuer,
   indexPreStocksMints,
   readTokenPrograms,
@@ -198,5 +200,58 @@ describe("ClawPump pair catalogue classification", () => {
       slot: 42,
       metadata: XSTOCK_METADATA,
     });
+  });
+
+  it("groups the catalogue for display: stocks by on-chain name, then cash pairs, then the unconfirmed rest", () => {
+    const verified2022 = (
+      decimals: number,
+      metadata: typeof XSTOCK_METADATA | null,
+    ) => ({
+      status: "verified" as const,
+      program: "spl-token-2022" as const,
+      decimals,
+      slot: 1,
+      metadata,
+    });
+    const tokenPrograms = new Map([
+      [XSTOCK_MINT, verified2022(8, XSTOCK_METADATA)],
+      [STOCK_MINT, verified2022(8, null)],
+    ]);
+    const view = buildPairCatalogueView({
+      pairs: pairs([
+        { mint: UNKNOWN_MINT, symbol: "MYSTERY", name: "Unknown quote", decimals: 6 },
+        { mint: USDC, symbol: "USDC", name: "USD Coin", decimals: 6 },
+        { mint: XSTOCK_MINT, symbol: "NVDAx", name: "provider label", decimals: 8 },
+        { mint: WRAPPED_SOL_MINT, symbol: "SOL", name: "Wrapped SOL", decimals: 9 },
+        { mint: STOCK_MINT, symbol: "TSLAx", name: "Tesla", decimals: 8 },
+        {
+          mint: "8wXtPeU6557ETkp9WHFY1n1EcU6NxDvbAggHGsMYiHsB",
+          symbol: "GME",
+          name: "Meme",
+          decimals: 6,
+        },
+      ]),
+      prestocks,
+      tokenPrograms,
+      tokenProgramSource: "test rpc",
+    });
+    const groups = groupPairsForDisplay(view.pairs);
+
+    // Stocks first, ordered by on-chain name (NVIDIA xStock before Tesla),
+    // and the on-chain name wins over the provider label.
+    expect(groups.stock.map((pair) => pair.mint)).toEqual([XSTOCK_MINT, STOCK_MINT]);
+    expect(groups.stock.map(pairDisplayName)).toEqual(["NVIDIA xStock", "Tesla"]);
+    // Wrapped SOL before stablecoins regardless of provider order.
+    expect(groups.cash.map((pair) => pair.symbol)).toEqual(["SOL", "USDC"]);
+    // Unconfirmed pairs keep provider order and nothing is dropped.
+    expect(groups.unclassified.map((pair) => pair.symbol)).toEqual(["MYSTERY", "GME"]);
+    expect(groups.stock.length + groups.cash.length + groups.unclassified.length).toBe(
+      view.pairs.length,
+    );
+    // Grouping is presentation only: eligibility is unchanged.
+    expect(groups.stock.every((pair) => pair.eligibleForStockPreflight)).toBe(true);
+    expect(groups.unclassified.some((pair) => pair.eligibleForStockPreflight)).toBe(
+      false,
+    );
   });
 });

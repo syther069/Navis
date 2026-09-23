@@ -331,6 +331,45 @@ export function buildPairCatalogueView(input: {
   };
 }
 
+export type PairDisplayGroups = Readonly<{
+  /** Tokenized stocks, sorted by on-chain name so a 77-entry list scans easily. */
+  stock: readonly AnnotatedPair[];
+  /** Wrapped SOL first, then stablecoins, in provider order within each. */
+  cash: readonly AnnotatedPair[];
+  /** Everything the classifier could not confirm; collapsed in the UI. */
+  unclassified: readonly AnnotatedPair[];
+}>;
+
+/** Display name for a pair: the on-chain metadata name when it exists. */
+export function pairDisplayName(pair: AnnotatedPair): string {
+  return pair.onchainMetadata?.name ?? pair.name;
+}
+
+/**
+ * Order the catalogue for reading: stock pairs first, then the SOL and
+ * stablecoin pairs, then the unconfirmed remainder. Grouping is presentation
+ * only; classification and preflight eligibility are untouched.
+ */
+export function groupPairsForDisplay(
+  pairs: readonly AnnotatedPair[],
+): PairDisplayGroups {
+  const stock = pairs
+    .filter((pair) => pair.classification === "tokenized_stock")
+    .sort((a, b) =>
+      pairDisplayName(a).localeCompare(pairDisplayName(b), "en", {
+        sensitivity: "base",
+      }),
+    );
+  return {
+    stock,
+    cash: [
+      ...pairs.filter((pair) => pair.classification === "wrapped_sol"),
+      ...pairs.filter((pair) => pair.classification === "stablecoin"),
+    ],
+    unclassified: pairs.filter((pair) => pair.classification === "unclassified"),
+  };
+}
+
 export function indexPreStocksMints(
   assets: readonly { contract_address: string; symbol: string; name: string }[],
 ): PreStocksMintIndex {
