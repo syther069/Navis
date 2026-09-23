@@ -34,6 +34,7 @@ import {
   type AnnotatedPair,
   type PairCatalogueView,
 } from "@/lib/integrations/clawpump/pairs";
+import { StockPairFilter } from "@/components/markets/stock-pair-filter";
 import {
   createClawPumpClient,
   loadClawPumpPreflightDependencies,
@@ -480,16 +481,23 @@ async function ClawPumpSection({
               </p>
             ) : null}
             {groups.stock.length > 0 ? (
-              <div className="pair-group" data-testid="clawpump-stock-pairs">
-                <span className="route-eyebrow">
-                  Tokenized stocks ({groups.stock.length})
-                </span>
-                <div className="pair-list">
-                  {groups.stock.map((asset) => (
-                    <PairCard key={asset.mint} asset={asset} />
-                  ))}
-                </div>
-              </div>
+              <StockPairFilter
+                pairs={groups.stock.map((asset) => ({
+                  mint: asset.mint,
+                  symbol: asset.symbol,
+                  name: pairDisplayName(asset),
+                }))}
+              >
+                {groups.stock.map((asset) => (
+                  <div
+                    key={asset.mint}
+                    data-pair-mint={asset.mint}
+                    className="pair-card-slot"
+                  >
+                    <PairCard asset={asset} />
+                  </div>
+                ))}
+              </StockPairFilter>
             ) : null}
             {groups.cash.length > 0 ? (
               <div className="pair-group" data-testid="clawpump-cash-pairs">
