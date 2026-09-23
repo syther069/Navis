@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import {
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "clawpump.agents");
+  if (quota) return quota;
   if (!env.clawpumpApiKey) {
     return NextResponse.json(
       { error: "ClawPump is not configured (CLAWPUMP_API_KEY)." },

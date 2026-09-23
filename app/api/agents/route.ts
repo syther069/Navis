@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import {
@@ -94,6 +95,8 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "agents.create");
+  if (quota) return quota;
   if (!env.databaseUrl) return storageNotConfigured();
   if (env.executionMode !== "demo") {
     return NextResponse.json(

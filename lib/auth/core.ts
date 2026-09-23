@@ -60,7 +60,9 @@ export type SignInMessageInput = Readonly<{
 }>;
 
 export function createAuthNonce() {
-  return randomBytes(24).toString("base64url");
+  // SIWS nonces must be alphanumeric. Base64url can include "-" or "_",
+  // which strict wallets reject before showing a sign-in prompt.
+  return randomBytes(24).toString("hex");
 }
 
 export function hashAuthNonce(nonce: string) {

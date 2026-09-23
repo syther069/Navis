@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "clawpump.verification");
+  if (quota) return quota;
   if (!env.clawpumpApiKey) {
     return NextResponse.json(NOT_CONFIGURED, { status: 503 });
   }

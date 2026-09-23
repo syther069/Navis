@@ -52,7 +52,7 @@ import {
 import { getNavisMeteoraCurvePreviews } from "@/lib/integrations/meteora/config";
 import {
   isMeteoraBroadcastAvailable,
-  METEORA_BROADCAST_UNAVAILABLE_REASON,
+  meteoraBroadcastUnavailableReason,
 } from "@/lib/integrations/meteora/broadcast-safety";
 import { listMeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
 import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
@@ -527,6 +527,13 @@ async function MeteoraSection({
       env.enableMainnetExecution &&
       Boolean(env.solanaRpcUrl));
 
+  const broadcastCapability = {
+    executionMode: env.executionMode,
+    cluster: env.cluster,
+    devnetExecutionEnabled: env.enableDevnetExecution,
+    solanaRpcConfigured: Boolean(env.solanaRpcUrl),
+  } as const;
+
   return (
     <MeteoraCurvePanel
       previews={previews}
@@ -535,8 +542,8 @@ async function MeteoraSection({
       rpcConfigured={Boolean(env.solanaRpcUrl)}
       executionEnabled={executionEnabled}
       cluster={env.cluster}
-      broadcastAvailable={isMeteoraBroadcastAvailable()}
-      broadcastBlockedReason={METEORA_BROADCAST_UNAVAILABLE_REASON}
+      broadcastAvailable={isMeteoraBroadcastAvailable(broadcastCapability)}
+      broadcastBlockedReason={meteoraBroadcastUnavailableReason(broadcastCapability)}
       agents={launchContext.meteoraAgents}
     />
   );

@@ -10,7 +10,15 @@ import { hasTrustedMutationOrigin } from "@/lib/auth/request";
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const session = token ? await readSessionToken(token) : null;
+  let session;
+  try {
+    session = token ? await readSessionToken(token, { reportUnavailable: true }) : null;
+  } catch {
+    return NextResponse.json(
+      { error: "The session could not be checked. Try again." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   return NextResponse.json(
     session ? { authenticated: true, ...session } : { authenticated: false },
@@ -27,7 +35,7 @@ export async function DELETE(request: Request) {
   // from the request body, so logout can only end the caller's own session.
   const token = request.headers
     .get("cookie")
-    ?.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
+    ?.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
   if (token) {
     const outcome = await revokeAuthenticationSession(token);
     if (outcome === "unavailable") {

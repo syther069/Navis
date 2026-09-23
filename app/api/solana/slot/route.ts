@@ -2,6 +2,7 @@ import { Connection } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
 import { env } from "@/lib/env";
+import { requirePublicRpcQuota } from "@/lib/auth/operation-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ const headers = { "Cache-Control": "no-store" };
 
 // Read-only cluster probe. It never signs, never sends, and never touches
 // any account. It exists so the first screen can show one true onchain fact.
-export async function GET() {
+export async function GET(request: Request) {
   if (!env.solanaRpcUrl) {
     return NextResponse.json(
       { status: "not_configured", cluster: env.cluster },
@@ -17,6 +18,8 @@ export async function GET() {
     );
   }
 
+  const quota = await requirePublicRpcQuota(request, "solana.slot");
+  if (quota) return quota;
   try {
     const connection = new Connection(env.solanaRpcUrl, {
       commitment: "confirmed",

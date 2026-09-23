@@ -19,7 +19,7 @@ const server = vi.hoisted(() => ({
 vi.mock("@/lib/env", () => ({ env: server.env }));
 vi.mock("@/lib/integrations/meteora/broadcast-safety", () => ({
   isMeteoraBroadcastAvailable: server.available,
-  METEORA_BROADCAST_UNAVAILABLE_REASON: server.reason,
+  meteoraBroadcastUnavailableReason: () => server.reason,
 }));
 vi.mock("@/lib/integrations/prestocks/client", () => ({
   getPreStocksCatalogue: async () => ({ assets: [] }),

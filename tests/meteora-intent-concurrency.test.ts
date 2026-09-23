@@ -1,6 +1,9 @@
 import bs58 from "bs58";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/shared-rate-limit", () => ({
+  consumeSharedRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const intentId = "58eddfb8-d139-42cd-baf8-1b69896752ce";
 const launchId = "b8e178c7-d667-4d18-814b-d6b36cf022ad";
@@ -32,11 +35,6 @@ vi.mock("../lib/auth/server", () => ({
     userId: "user-1",
     wallet: "11111111111111111111111111111111",
   }),
-}));
-
-vi.mock("../lib/integrations/meteora/broadcast-safety", () => ({
-  isMeteoraBroadcastAvailable: () => true,
-  METEORA_BROADCAST_UNAVAILABLE_REASON: "blocked",
 }));
 
 function updateBuilder(values: Record<string, unknown>) {
@@ -170,6 +168,18 @@ describe("Meteora intent concurrency", () => {
     const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
 
     expect(response.status).toBe(409);
+    expect(mocks.sendPool).not.toHaveBeenCalled();
+  });
+
+  it("marks a blockheight-expired pool intent expired before returning", async () => {
+    mocks.selectedRows = [{ ...intent("meteora.pool"), lastValidBlockHeight: 5 }];
+
+    const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
+
+    expect(response.status).toBe(410);
+    expect(mocks.updatedValues).toEqual([
+      expect.objectContaining({ status: "expired" }),
+    ]);
     expect(mocks.sendPool).not.toHaveBeenCalled();
   });
 

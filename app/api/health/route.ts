@@ -58,21 +58,36 @@ async function checkDatabase() {
       guards_ready: boolean;
     }>(sql`
       select
-        (select count(*) = 18 from information_schema.tables
+        (select count(*) = 19 from information_schema.tables
           where table_schema = 'public' and table_name in (
             'users', 'agents', 'assets', 'agent_asset_permissions',
             'strategy_versions', 'risk_policy_versions', 'treasury_accounts',
             'portfolio_snapshots', 'decisions', 'policy_evaluations',
             'execution_attempts', 'proof_receipts', 'market_launches',
             'external_calls', 'auth_challenges', 'execution_events',
-            'execution_intents', 'auth_session_revocations'
+            'execution_intents', 'auth_session_revocations', 'rate_limit_windows'
           ))
           and exists (select 1 from information_schema.columns
             where table_schema = 'public' and table_name = 'agents'
               and column_name = 'client_request_id')
           and exists (select 1 from pg_indexes
             where schemaname = 'public' and tablename = 'agents'
-              and indexname = 'agents_owner_wallet_client_request_unique') as schema_ready,
+              and indexname = 'agents_owner_wallet_client_request_unique')
+          and exists (select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'agents'
+              and column_name = 'is_public_demo')
+          and exists (select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'decisions'
+              and column_name = 'client_request_id')
+          and exists (select 1 from pg_indexes
+            where schemaname = 'public' and tablename = 'agents'
+              and indexname = 'agents_public_demo_slug_unique')
+          and exists (select 1 from pg_indexes
+            where schemaname = 'public' and tablename = 'decisions'
+              and indexname = 'decisions_agent_client_request_unique')
+          and exists (select 1 from pg_indexes
+            where schemaname = 'public' and tablename = 'agents'
+              and indexname = 'agents_external_agent_id_unique') as schema_ready,
         (select count(*) = 7 from pg_trigger t
           join pg_class c on c.oid = t.tgrelid
           join pg_namespace n on n.oid = c.relnamespace
@@ -128,6 +143,11 @@ export async function GET() {
     {
       status: healthy ? "ok" : "degraded",
       checkedAt: new Date().toISOString(),
+      deployment: {
+        commit: /^[a-f0-9]{40}$/i.test(process.env.VERCEL_GIT_COMMIT_SHA ?? "")
+          ? process.env.VERCEL_GIT_COMMIT_SHA
+          : null,
+      },
       mode: capabilities.mode,
       cluster: capabilities.cluster,
       services: {

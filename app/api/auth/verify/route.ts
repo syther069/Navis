@@ -11,6 +11,7 @@ import {
   AuthenticationError,
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
+  revokeAuthenticationSession,
   verifyAuthenticationChallenge,
 } from "@/lib/auth/server";
 
@@ -66,6 +67,21 @@ export async function POST(request: Request) {
       }
     }
     const { user, token } = await verifyAuthenticationChallenge(parsed.data);
+    // Never discard the browser's only copy of an existing session until its
+    // revocation is durable. A failed replacement consumes this challenge, but
+    // leaves the old cookie intact so logout/sign-in can be retried safely.
+    const previousToken = request.headers
+      .get("cookie")
+      ?.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
+    if (
+      previousToken &&
+      (await revokeAuthenticationSession(previousToken)) === "unavailable"
+    ) {
+      return NextResponse.json(
+        { error: "The previous session could not be ended. Try signing in again." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const response = NextResponse.json(
       {
         authenticated: true,

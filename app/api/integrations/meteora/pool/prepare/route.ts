@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, executionIntents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { meteoraPublicErrorMessage } from "@/lib/integrations/meteora/errors";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
@@ -77,6 +79,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const quota = await requireWalletQuota(session, "meteora.pool.prepare");
+  if (quota) return quota;
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
@@ -85,9 +89,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const database = getDatabase();
-
   try {
+    const database = getDatabase();
     const [launch] = await database
       .select({
         id: marketLaunches.id,
@@ -213,10 +216,10 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Meteora pool transaction could not be prepared.",
+        error: meteoraPublicErrorMessage(
+          error,
+          "Meteora pool transaction could not be prepared.",
+        ),
       },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );

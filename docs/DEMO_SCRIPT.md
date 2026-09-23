@@ -2,7 +2,7 @@
 
 This walkthrough is the technical-video source and must remain within five minutes. Prepare a separate pitch edit no longer than three minutes (landing screen, one Balanced run, one Oversized run with the "Why this failed" panel, the proof page).
 
-Verified on the public site: the landing screen, the agent list, the recorded deterministic Atlas walkthrough, the fresh **Run new decision** panel on the PreStocks universe (Balanced approved, Oversized rejected, receipt verified in the browser), the proof verifier, Markets Launch with both Meteora profiles and the PreStocks research view, and real 404s for unknown ids. Narrate those. Do not narrate persistence, on-chain activity or sponsor transactions on the public site; none exist there.
+Demonstrate the landing screen, agent list, **Run new decision** panel on the PreStocks universe, proof verifier and Markets Launch research view. Before recording, confirm deployed capabilities and each run's data-source and persistence notes rather than assuming availability. A database-backed public Atlas run stores the full evidence chain without a wallet; open and reload its decision and proof links. Without a database, explain that the inline result is memory-only. All Atlas executions are simulations or policy rejections, not signed transactions. Do not narrate onchain activity or sponsor transactions; historical local-only devnet artifacts are not current deployed evidence.
 
 Record from a clean browser against https://navis-gilt.vercel.app.
 
@@ -34,9 +34,9 @@ In the **Run new decision** panel leave the asset universe on **PreStocks univer
 Show:
 
 - Balanced: Approved, 10 of 11 checks passed and 1 warned (PreStocks publishes no liquidity figure, so the liquidity rule warns instead of inventing a number). Fresh receipt hash; "Receipt verified" after pressing **Verify receipt**. The assurance badge reads "Offchain integrity" and "Demo simulation".
-- The PreStocks facts under each check (allowlist from the catalogue contract addresses, trade value at the catalogue token price, read time as data age) and the research table under the result: premium or discount to mark, valuation gap, allocation impact.
+- The PreStocks facts under each check (allowlist from catalogue contract addresses, trade value at catalogue token price, successful uncached fetch time as data age) and the research table: premium or discount to mark, valuation gap, allocation impact. Explain that the provider price observation timestamp is unavailable: fetch freshness is not price freshness. The fetch has a five-second timeout; if the result reports a fixture fallback, identify it rather than claiming live PreStocks inputs.
 - Oversized: Rejected on max trade bps and min reserve bps; still a valid receipt. The "Why this failed" panel names the checks that exceeded their limits.
-- The persistence note: kept in memory for this server instance only. There is no detail link for in-memory runs on the public site; do not go looking for one.
+- The persistence note: a database-backed run stores its snapshot, decision, policy evaluation, simulated or rejected attempt and proof receipt atomically. Open its public decision and proof links, then reload to demonstrate storage. Without a database, the result is memory-only and has no durable links. If storage fails, show the error rather than claiming success.
 
 Then click **Inspect decision** on the recorded example (`/agents/atlas/decisions/demo-decision`) and show the deterministic proposal, policy checks and hash, with no explorer link for the simulated receipt.
 
@@ -67,7 +67,7 @@ Show:
 
 - ClawPump: the explicit "Not configured" state card (a failed provider call would show "Unavailable"). Say that Navis supports preflight only.
 - Meteora DBC: the two server-approved quote profiles. `navis-equity-v1` (wrapped SOL, available on devnet) and `navis-stock-exposure-v1` (quoted in a PreStocks exposure token, mainnet only, gated on the Meteora token badge, unavailable on devnet with no substitute mint). Program, market caps, threshold, fees, LP distribution.
-- Transaction builder copy: prepare before sign, simulate before submit, submit before confirm; broadcast hard-blocked.
+- Transaction builder copy: the SOL profile is the explicitly authorised devnet-only test path, gated by devnet mode, cluster, flag, RPC and an authenticated wallet. The mandatory order is prepare, wallet sign, simulate, submit, reconcile. Mainnet is code-blocked; the PreStocks stock-quote profile remains mainnet-only and token-badge gated.
 - PreStocks research view: catalogue read time, source URL, premium or discount, valuation gap, supply; the economic-exposure disclosure and the absence of any trading path.
 
 Say: Navis separates ClawPump, Meteora and PreStocks evidence so one sponsor claim cannot be confused for another.
@@ -91,7 +91,9 @@ Say: The app is deliberately conservative: external credentials, funding, RPC, d
 - Do not call PreStocks tokens shares.
 - Do not imply mainnet execution unless mainnet evidence exists.
 - Do not imply that ClawPump funded launch is available in demo or devnet; the current product supports preflight only.
-- Do not present Meteora submission as live-ready. Signed input is bound to a server-prepared intent, but broadcast is hard-blocked in every mode.
+- Do not describe Meteora as blocked in every mode: the workspace code now permits the explicitly authorised SOL-profile path on devnet when every gate passes. Also do not claim it ran—no transaction was submitted by this change. Signed input must remain bound to a server-prepared intent and follow prepare → wallet sign → simulate → submit → reconcile.
+- Do not imply that the devnet authorisation enables mainnet or the PreStocks stock-quote profile. Mainnet remains code-blocked, and that profile remains mainnet-only/token-badge gated.
+- Do not present the workspace change as already published to Vercel or production; verify and evidence any deployed release separately.
 - Do not claim browser-based real-wallet authentication was verified; only the origin and nonce checks were tested.
 - Do not claim the fresh Atlas decision persists or can be shared by link on the public site.
 

@@ -9,6 +9,7 @@ import {
 export type PreStocksCatalogue = Readonly<{
   assets: PreStocksAsset[];
   sourceUrl: string;
+  /** Successful fetch time, not a provider price observation timestamp (unavailable). */
   capturedAt: string;
 }>;
 
@@ -17,7 +18,9 @@ export async function getPreStocksCatalogue(
 ): Promise<PreStocksCatalogue> {
   const response = await fetcher(env.prestocksApiUrl, {
     headers: { Accept: "application/json" },
-    next: { revalidate: 60 },
+    // Never re-stamp a stale Next.js cache entry as fresh research data.
+    cache: "no-store",
+    signal: AbortSignal.timeout(5_000),
   });
 
   if (!response.ok) {

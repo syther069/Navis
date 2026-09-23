@@ -1,5 +1,56 @@
 @import "tailwindcss";
 
+/* Meteora devnet flow: wallet readiness and transaction timeline */
+.meteora-wallet-readiness {
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+.meteora-readiness-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+.meteora-readiness-list dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+}
+.meteora-readiness-list dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.meteora-timeline {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 10px 0 2px;
+  margin: 0;
+  font-size: 12px;
+}
+.meteora-timeline li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  opacity: 0.45;
+}
+.meteora-timeline li[data-state="done"] {
+  opacity: 1;
+  color: #3fb27f;
+}
+.meteora-timeline li[data-state="current"] {
+  opacity: 1;
+  color: #e8b93e;
+}
+.meteora-timeline li[data-state="failed"] {
+  opacity: 1;
+  color: #e05d5d;
+}
 :root {
   color-scheme: dark;
   --canvas: #080b0f;

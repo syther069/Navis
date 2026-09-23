@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/shared-rate-limit", () => ({
+  consumeSharedRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const mocks = vi.hoisted(() => ({
   launch: {} as Record<string, unknown>,
@@ -17,8 +20,8 @@ vi.mock("../lib/env", async () => {
   const { parseEnvironment, toPublicCapabilities } = await import("../lib/env-core");
   const env = parseEnvironment({
     DATABASE_URL: "configured-database",
-    ENABLE_DEVNET_EXECUTION: "true",
-    NAVIS_EXECUTION_MODE: "devnet",
+    ENABLE_DEVNET_EXECUTION: "false",
+    NAVIS_EXECUTION_MODE: "demo",
     NEXT_PUBLIC_APP_URL: "https://navis.test",
     NEXT_PUBLIC_SOLANA_CLUSTER: "devnet",
     SESSION_SECRET: "s".repeat(32),
@@ -71,7 +74,7 @@ vi.mock("../lib/integrations/meteora/server", () => ({
 import { POST as confirmConfig } from "../app/api/integrations/meteora/config/confirm/route";
 import { POST as submitConfig } from "../app/api/integrations/meteora/config/submit/route";
 import { POST as submitPool } from "../app/api/integrations/meteora/pool/submit/route";
-import { METEORA_BROADCAST_UNAVAILABLE_REASON } from "../lib/integrations/meteora/broadcast-safety";
+import { meteoraBroadcastUnavailableReason } from "../lib/integrations/meteora/broadcast-safety";
 
 const launchId = "58eddfb8-d139-42cd-baf8-1b69896752ce";
 
@@ -141,13 +144,18 @@ describe("Meteora route safety", () => {
   it.each([
     ["/api/integrations/meteora/config/submit", submitConfig],
     ["/api/integrations/meteora/pool/submit", submitPool],
-  ])("hard-blocks configured broadcast at %s", async (path, handler) => {
+  ])("blocks broadcast outside the devnet release at %s", async (path, handler) => {
     const response = await handler(request(path, {}));
 
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({
-      error: METEORA_BROADCAST_UNAVAILABLE_REASON,
+      error: meteoraBroadcastUnavailableReason({
+        executionMode: "demo",
+        cluster: "devnet",
+        devnetExecutionEnabled: false,
+        solanaRpcConfigured: true,
+      }),
     });
   });
 

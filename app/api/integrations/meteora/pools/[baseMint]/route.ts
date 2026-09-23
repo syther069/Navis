@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 
 import { getDatabase } from "@/lib/db/client";
+import { requirePublicRpcQuota } from "@/lib/auth/operation-quota";
 import { marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
@@ -45,7 +46,7 @@ async function loadLaunchEvidence(baseMint: string) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ baseMint: string }> },
 ) {
   if (!env.solanaRpcUrl) {
@@ -55,6 +56,8 @@ export async function GET(
     );
   }
 
+  const quota = await requirePublicRpcQuota(request, "meteora.pool");
+  if (quota) return quota;
   const { baseMint } = await context.params;
   try {
     new PublicKey(baseMint);

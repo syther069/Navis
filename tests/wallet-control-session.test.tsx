@@ -7,6 +7,7 @@ const OTHER_WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
 const adapter = vi.hoisted(() => ({
   disconnect: vi.fn(async () => undefined),
+  signMessage: vi.fn(async () => new Uint8Array(64)),
   refresh: vi.fn(),
 }));
 
@@ -25,7 +26,7 @@ vi.mock("@solana/wallet-adapter-react", () => ({
     select: vi.fn(),
     connect: vi.fn(async () => undefined),
     disconnect: adapter.disconnect,
-    signMessage: vi.fn(),
+    signMessage: adapter.signMessage,
   }),
 }));
 
@@ -79,6 +80,7 @@ describe("wallet control session failure states", () => {
     cleanup();
     vi.unstubAllGlobals();
     adapter.disconnect.mockClear();
+    adapter.signMessage.mockClear();
     adapter.refresh.mockClear();
   });
 
@@ -138,5 +140,134 @@ describe("wallet control session failure states", () => {
     await screen.findByText("Signature required");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("menuitem", { name: /^authenticate$/i })).toBeTruthy();
+  });
+
+  it("revokes on disconnect while the initial session inspection is delayed", async () => {
+    let finishInspection!: (response: Response) => void;
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "DELETE"
+        ? Promise.resolve(jsonResponse({ authenticated: false }))
+        : new Promise<Response>((resolve) => {
+            finishInspection = resolve;
+          }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    expect(screen.getByText("Checking session…")).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/session", { method: "DELETE" });
+    finishInspection(jsonResponse({ authenticated: true, wallet: WALLET_ADDRESS }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(screen.queryByText("Session authenticated")).toBeNull();
+  });
+
+  it.each(["http", "network"])(
+    "blocks sign-in after initial GET %s failure and retries explicit logout",
+    async (failure) => {
+      let deleteAttempts = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+          if (init?.method === "DELETE") {
+            deleteAttempts++;
+            return jsonResponse(
+              deleteAttempts === 1
+                ? { error: "unavailable" }
+                : { authenticated: false },
+              deleteAttempts === 1 ? 503 : 200,
+            );
+          }
+          if (failure === "network") throw new Error("network unavailable");
+          return jsonResponse({ error: "unavailable" }, 503);
+        }),
+      );
+      render(<WalletControl authenticationConfigured={true} />);
+      openMenu();
+      await screen.findByRole("alert");
+      expect(screen.getByText("Checking session…")).toBeTruthy();
+      expect(screen.queryByRole("menuitem", { name: /^authenticate$/i })).toBeNull();
+      fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain("could not end"),
+      );
+      expect(adapter.disconnect).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+      await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+      expect(deleteAttempts).toBe(2);
+    },
+  );
+
+  it("retries revocation on explicit disconnect after wallet-mismatch logout fails", async () => {
+    mockSessionFetch({ sessionWallet: OTHER_WALLET, deleteStatus: 503 });
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    await screen.findByRole("alert");
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ authenticated: false }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    const deletes = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, init]) => init?.method === "DELETE");
+    expect(deletes).toHaveLength(2);
+  });
+
+  it("still requests server logout when inspection reported anonymous", async () => {
+    mockSessionFetch({ sessionWallet: null, deleteStatus: 200 });
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    await screen.findByText("Signature required");
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(fetch).toHaveBeenCalledWith("/api/auth/session", { method: "DELETE" });
+  });
+
+  it("waits for delayed verification before allowing disconnect to revoke the session", async () => {
+    let finishVerification!: (response: Response) => void;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/api/auth/nonce") {
+        return jsonResponse({
+          challengeId: "challenge",
+          nonce: "nonce",
+          message: "Sign in",
+        });
+      }
+      if (input === "/api/auth/verify") {
+        return new Promise<Response>((resolve) => {
+          finishVerification = resolve;
+        });
+      }
+      if (init?.method === "DELETE") return jsonResponse({ authenticated: false });
+      return jsonResponse({ authenticated: false });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    const authenticate = await screen.findByRole("menuitem", {
+      name: /^authenticate$/i,
+    });
+    fireEvent.click(authenticate);
+    fireEvent.click(authenticate);
+    await waitFor(() => expect(finishVerification).toBeTypeOf("function"));
+    const disconnect = screen.getByRole("menuitem", { name: /^disconnect$/i });
+    expect((disconnect as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("status").textContent).toContain("Finish signing in");
+    fireEvent.click(disconnect);
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+    ).toHaveLength(0);
+    expect(adapter.disconnect).not.toHaveBeenCalled();
+    expect(adapter.signMessage).toHaveBeenCalledOnce();
+
+    finishVerification(jsonResponse({ authenticated: true }));
+    await screen.findByText("Session authenticated");
+    await waitFor(() => expect((disconnect as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(disconnect);
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+    ).toHaveLength(1);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });

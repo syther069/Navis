@@ -15,8 +15,11 @@ import type {
   MeteoraQuoteProfileAvailability,
   MeteoraQuoteProfileId,
 } from "@/lib/integrations/meteora/quote-profiles";
+import { signMeteoraDevnetTransaction } from "@/lib/integrations/meteora/wallet-signing";
+import type { SavedMeteoraLaunch } from "@/lib/integrations/meteora/recovery";
 
 import { MeteoraTimeline, type MeteoraTimelineStep } from "./meteora-timeline";
+import { MeteoraLaunchRecovery } from "./meteora-launch-recovery";
 
 /** Base58 transaction signature explorer link for the active cluster. */
 function solanaExplorerTxUrl(signature: string, cluster: string) {
@@ -139,6 +142,7 @@ type SubmitResult = Readonly<{
     status?: string;
     transactionSignature?: string | null;
     config?: string;
+    poolAddress?: string | null;
   };
 }>;
 
@@ -163,7 +167,8 @@ type PrepareState =
   | { status: "loading" }
   | {
       status: "ready";
-      prepared: PreparedConfigTransaction;
+      prepared: PreparedConfigTransaction | null;
+      error?: string;
       signedSerializedTransaction?: string;
       simulation?: SimulationResult;
       simulating?: boolean;
@@ -179,6 +184,7 @@ type PrepareState =
       poolSubmitting?: boolean;
       poolSubmitted?: SubmitResult;
       poolConfirmation?: ConfirmationResult;
+      poolSubmitUncertain?: boolean;
     }
   | { status: "error"; message: string };
 
@@ -209,7 +215,7 @@ export function MeteoraConfigPrepare({
   prestocksSymbols,
 }: MeteoraPrepareProps) {
   const { connection } = useConnection();
-  const { connected, publicKey, signTransaction } = useWallet();
+  const { connected, publicKey, signTransaction, wallet } = useWallet();
   const configKeypairRef = useRef<Keypair | null>(null);
   const poolBaseMintKeypairRef = useRef<Keypair | null>(null);
   const [agentSelectionId, setSelectedAgentId] = useState("");
@@ -330,6 +336,49 @@ export function MeteoraConfigPrepare({
     },
   ];
 
+  function resumeLaunch(launch: SavedMeteoraLaunch) {
+    if (launch.cluster !== cluster) return;
+    configKeypairRef.current = null;
+    poolBaseMintKeypairRef.current = null;
+    setSelectedAgentId(launch.agentId);
+    const configStatus =
+      launch.phase === "config"
+        ? launch.status
+        : launch.configVerification === "protocol_verified"
+          ? "confirmed"
+          : "signature_confirmed";
+    const configLaunch = {
+      id: launch.id,
+      status: configStatus,
+      transactionSignature: launch.configSignature,
+      config: launch.configAddress ?? undefined,
+    };
+    const poolLaunch = {
+      id: launch.id,
+      status: launch.status,
+      transactionSignature: launch.transactionSignature,
+      poolAddress: launch.poolAddress,
+    };
+    setState({
+      status: "ready",
+      prepared: null,
+      submitted: { launch: configLaunch },
+      confirmation: {
+        confirmation: launch.configVerification ?? "pending",
+        launch: configLaunch,
+      },
+      ...(launch.phase === "pool"
+        ? {
+            poolSubmitted: { launch: poolLaunch },
+            poolConfirmation: {
+              confirmation: launch.poolVerification ?? "pending",
+              launch: poolLaunch,
+            },
+          }
+        : {}),
+    });
+  }
+
   async function prepareTransaction() {
     if (!executionEnabled || !connected || !publicKey || !selectedAgentId) return;
     if (!profileReady) return;
@@ -374,7 +423,12 @@ export function MeteoraConfigPrepare({
   }
 
   async function simulatePrepared() {
-    if (state.status !== "ready" || !configKeypairRef.current || !signTransaction) {
+    if (
+      state.status !== "ready" ||
+      !state.prepared ||
+      !configKeypairRef.current ||
+      !signTransaction
+    ) {
       return;
     }
 
@@ -385,7 +439,12 @@ export function MeteoraConfigPrepare({
         base64ToBytes(state.prepared.serializedTransaction),
       );
       transaction.partialSign(configKeypairRef.current);
-      const signed = await signTransaction(transaction);
+      const signed = await signMeteoraDevnetTransaction({
+        adapter: wallet?.adapter ?? null,
+        transaction,
+        cluster,
+        preparedCluster: state.prepared.cluster,
+      });
       const serializedTransaction = bytesToBase64(
         signed.serialize({
           requireAllSignatures: true,
@@ -430,6 +489,7 @@ export function MeteoraConfigPrepare({
   async function submitPrepared() {
     if (
       state.status !== "ready" ||
+      !state.prepared ||
       !state.signedSerializedTransaction ||
       !selectedAgentId ||
       state.simulation?.error !== null
@@ -502,8 +562,9 @@ export function MeteoraConfigPrepare({
       });
     } catch (error) {
       setState({
-        status: "error",
-        message:
+        ...state,
+        confirming: false,
+        error:
           error instanceof Error ? error.message : "Meteora confirmation check failed.",
       });
     }
@@ -512,13 +573,16 @@ export function MeteoraConfigPrepare({
   async function preparePool() {
     if (
       state.status !== "ready" ||
-      state.confirmation?.launch?.status !== "confirmed"
+      state.confirmation?.launch?.status !== "confirmed" ||
+      state.confirmation.confirmation !== "protocol_verified" ||
+      state.poolSubmitted ||
+      state.poolSubmitUncertain
     ) {
       return;
     }
 
     poolBaseMintKeypairRef.current ??= Keypair.generate();
-    setState({ ...state, poolPreparing: true });
+    setState({ ...state, poolPreparing: true, error: undefined });
 
     try {
       const response = await fetch("/api/integrations/meteora/pool/prepare", {
@@ -549,8 +613,9 @@ export function MeteoraConfigPrepare({
       });
     } catch (error) {
       setState({
-        status: "error",
-        message:
+        ...state,
+        poolPreparing: false,
+        error:
           error instanceof Error ? error.message : "Meteora pool preparation failed.",
       });
     }
@@ -566,14 +631,19 @@ export function MeteoraConfigPrepare({
       return;
     }
 
-    setState({ ...state, poolSimulating: true });
+    setState({ ...state, poolSimulating: true, error: undefined });
 
     try {
       const transaction = Transaction.from(
         base64ToBytes(state.poolPrepared.serializedTransaction),
       );
       transaction.partialSign(poolBaseMintKeypairRef.current);
-      const signed = await signTransaction(transaction);
+      const signed = await signMeteoraDevnetTransaction({
+        adapter: wallet?.adapter ?? null,
+        transaction,
+        cluster,
+        preparedCluster: state.poolPrepared.cluster,
+      });
       const serializedTransaction = bytesToBase64(
         signed.serialize({
           requireAllSignatures: true,
@@ -605,9 +675,14 @@ export function MeteoraConfigPrepare({
         poolSimulation: payload as SimulationResult,
       });
     } catch (error) {
+      poolBaseMintKeypairRef.current = null;
       setState({
-        status: "error",
-        message:
+        ...state,
+        poolPrepared: undefined,
+        poolSignedSerializedTransaction: undefined,
+        poolSimulation: undefined,
+        poolSimulating: false,
+        error:
           error instanceof Error ? error.message : "Meteora pool simulation failed.",
       });
     }
@@ -619,12 +694,15 @@ export function MeteoraConfigPrepare({
       !state.submitted?.launch.id ||
       !state.poolPrepared ||
       !state.poolSignedSerializedTransaction ||
+      state.poolSubmitting ||
+      state.poolSubmitted ||
+      state.poolSubmitUncertain ||
       state.poolSimulation?.error !== null
     ) {
       return;
     }
 
-    setState({ ...state, poolSubmitting: true });
+    setState({ ...state, poolSubmitting: true, error: undefined });
 
     try {
       const response = await fetch("/api/integrations/meteora/pool/submit", {
@@ -637,6 +715,30 @@ export function MeteoraConfigPrepare({
       });
       const payload = await readJson(response);
 
+      // Keep any recorded send visible, including unknown outcomes and failures.
+      // Recovery reconciles it; it must never become a new pool submission.
+      if (payload.launch && typeof payload.launch === "object") {
+        setState({
+          ...state,
+          poolSubmitting: false,
+          poolSubmitted: payload as SubmitResult,
+          error: typeof payload.error === "string" ? payload.error : undefined,
+        });
+        return;
+      }
+      if (response.status === 410) {
+        poolBaseMintKeypairRef.current = null;
+        setState({
+          ...state,
+          poolSubmitting: false,
+          poolPrepared: undefined,
+          poolSignedSerializedTransaction: undefined,
+          poolSimulation: undefined,
+          error:
+            "The pool transaction expired before broadcast. Your verified config is safe. Click Prepare pool transaction, approve it again, and submit immediately after simulation passes.",
+        });
+        return;
+      }
       if (!response.ok) {
         throw new Error(
           typeof payload.error === "string"
@@ -645,16 +747,13 @@ export function MeteoraConfigPrepare({
         );
       }
 
+      throw new Error("The server did not return a saved pool transaction.");
+    } catch (error) {
       setState({
         ...state,
         poolSubmitting: false,
-        poolSubmitted: payload as SubmitResult,
-      });
-    } catch (error) {
-      setState({
-        status: "error",
-        message:
-          error instanceof Error ? error.message : "Meteora pool submission failed.",
+        poolSubmitUncertain: true,
+        error: `${error instanceof Error ? error.message : "Meteora pool submission failed."} Load saved launches to check the recorded outcome before trying again.`,
       });
     }
   }
@@ -687,8 +786,9 @@ export function MeteoraConfigPrepare({
       });
     } catch (error) {
       setState({
-        status: "error",
-        message:
+        ...state,
+        confirming: false,
+        error:
           error instanceof Error
             ? error.message
             : "Meteora pool confirmation check failed.",
@@ -701,10 +801,25 @@ export function MeteoraConfigPrepare({
     !connected ||
     !selectedAgentId ||
     state.status === "loading" ||
+    Boolean(flow?.submitted || flow?.submitting) ||
     !profileReady;
 
   return (
     <div className="meteora-prepare">
+      <MeteoraLaunchRecovery
+        key={walletAddress ?? "disconnected"}
+        cluster={cluster}
+        disabled={
+          !connected ||
+          Boolean(
+            flow?.submitting ||
+            flow?.poolSubmitting ||
+            flow?.simulating ||
+            flow?.poolSimulating,
+          )
+        }
+        onResume={resumeLaunch}
+      />
       <div className="meteora-profile-picker">
         <label className="form-field">
           <span>Quote profile</span>
@@ -817,7 +932,7 @@ export function MeteoraConfigPrepare({
             <div>
               <dt>Network fee</dt>
               <dd>
-                {state.status === "ready"
+                {state.status === "ready" && state.prepared
                   ? `${((state.prepared.review.signaturesRequired * LAMPORTS_PER_SIGNATURE) / 1e9).toFixed(6)} SOL plus account rent (itemized in the wallet approval)`
                   : "Shown after preparation"}
               </dd>
@@ -825,6 +940,7 @@ export function MeteoraConfigPrepare({
           </dl>
           {balance.status === "loaded" &&
           state.status === "ready" &&
+          state.prepared &&
           balance.lamports <
             state.prepared.review.signaturesRequired * LAMPORTS_PER_SIGNATURE ? (
             <p className="form-note" role="alert">
@@ -862,7 +978,7 @@ export function MeteoraConfigPrepare({
           poolSubmitting={Boolean(state.poolSubmitting)}
           poolSubmitted={state.poolSubmitted}
           poolConfirmation={state.poolConfirmation}
-          canSimulate={Boolean(signTransaction)}
+          canSimulate={Boolean(signTransaction) && !state.poolSubmitUncertain}
           cluster={cluster}
           broadcastAvailable={broadcastAvailable}
           broadcastBlockedReason={broadcastBlockedReason}
@@ -882,6 +998,11 @@ export function MeteoraConfigPrepare({
         />
       ) : null}
 
+      {state.status === "ready" && state.error ? (
+        <div className="form-error" role="alert">
+          {state.error}
+        </div>
+      ) : null}
       {state.status === "error" ? (
         <div className="form-error" role="status">
           <WarningCircle aria-hidden="true" size={16} />
@@ -928,7 +1049,7 @@ function PreparedTransactionReview({
   onSubmitPool,
   onConfirmPool,
 }: {
-  prepared: PreparedConfigTransaction;
+  prepared: PreparedConfigTransaction | null;
   simulation?: SimulationResult;
   simulating: boolean;
   submitting: boolean;
@@ -969,7 +1090,58 @@ function PreparedTransactionReview({
   onConfirmPool: () => void;
 }) {
   // Pool creation needs the protocol-verified config, not just a confirmed signature.
-  const configConfirmed = confirmation?.launch?.status === "confirmed";
+  const configConfirmed =
+    confirmation?.launch?.status === "confirmed" &&
+    confirmation.confirmation === "protocol_verified" &&
+    !poolSubmitted;
+
+  const poolReview = (
+    <PoolCreationReview
+      enabled={configConfirmed && canSimulate}
+      poolName={poolName}
+      poolSymbol={poolSymbol}
+      poolUri={poolUri}
+      preparing={poolPreparing}
+      prepared={poolPrepared}
+      simulation={poolSimulation}
+      simulating={poolSimulating}
+      submitting={poolSubmitting}
+      submitted={poolSubmitted}
+      confirmation={poolConfirmation}
+      canSimulate={canSimulate}
+      cluster={cluster}
+      broadcastAvailable={broadcastAvailable}
+      broadcastBlockedReason={broadcastBlockedReason}
+      onNameChange={onPoolNameChange}
+      onSymbolChange={onPoolSymbolChange}
+      onUriChange={onPoolUriChange}
+      onPrepare={onPreparePool}
+      onSimulate={onSimulatePool}
+      onSubmit={onSubmitPool}
+      onConfirm={onConfirmPool}
+    />
+  );
+
+  if (!prepared) {
+    return (
+      <div className="meteora-prepared-review">
+        <p className="form-note">
+          Saved launch restored. No signing keys or signed transactions were restored. A
+          new pool preparation requires a new wallet approval.
+        </p>
+        {submitted ? (
+          <SubmitReview
+            submitted={submitted}
+            confirming={confirming}
+            confirmation={confirmation}
+            cluster={cluster}
+            onConfirm={onConfirm}
+          />
+        ) : null}
+        {poolReview}
+      </div>
+    );
+  }
 
   return (
     <div className="meteora-prepared-review">
@@ -1112,33 +1284,10 @@ function PreparedTransactionReview({
           onConfirm={onConfirm}
         />
       ) : null}
-      <PoolCreationReview
-        enabled={configConfirmed}
-        poolName={poolName}
-        poolSymbol={poolSymbol}
-        poolUri={poolUri}
-        preparing={poolPreparing}
-        prepared={poolPrepared}
-        simulation={poolSimulation}
-        simulating={poolSimulating}
-        submitting={poolSubmitting}
-        submitted={poolSubmitted}
-        confirmation={poolConfirmation}
-        canSimulate={canSimulate}
-        cluster={cluster}
-        broadcastAvailable={broadcastAvailable}
-        broadcastBlockedReason={broadcastBlockedReason}
-        onNameChange={onPoolNameChange}
-        onSymbolChange={onPoolSymbolChange}
-        onUriChange={onPoolUriChange}
-        onPrepare={onPreparePool}
-        onSimulate={onSimulatePool}
-        onSubmit={onSubmitPool}
-        onConfirm={onConfirmPool}
-      />
+      {poolReview}
       <p className="form-note">
-        The config private key is retained only in this browser tab for the next signing
-        step. Refreshing the page discards it and requires a new prepared transaction.
+        Signing keys remain only in this tab. After a refresh, use Load saved launches
+        to recover a submitted config rather than creating another one.
       </p>
     </div>
   );
@@ -1274,7 +1423,7 @@ function PoolCreationReview({
             <button
               className="secondary-button"
               type="button"
-              disabled={!canSimulate || simulating}
+              disabled={!canSimulate || simulating || submitting || Boolean(submitted)}
               onClick={onSimulate}
             >
               <FileMagnifyingGlass aria-hidden="true" size={16} />
@@ -1288,6 +1437,8 @@ function PoolCreationReview({
               type="button"
               disabled={
                 !broadcastAvailable ||
+                !canSimulate ||
+                Boolean(submitted) ||
                 submitting ||
                 !simulation ||
                 simulation.error !== null
@@ -1340,7 +1491,9 @@ function SubmitReview({
     <div className="meteora-submit-review">
       <div className="panel-heading">
         <div>
-          <span>{submitted.launch.status ?? "submitted"}</span>
+          <span>
+            {confirmation?.launch?.status ?? submitted.launch.status ?? "submitted"}
+          </span>
           <h3>{kind === "pool" ? "Pool" : "Config"} transaction submitted</h3>
         </div>
         <StatusBadge
@@ -1363,9 +1516,16 @@ function SubmitReview({
           </dd>
         </div>
         <div>
-          <dt>Config</dt>
+          <dt>{kind === "pool" ? "Pool" : "Config"}</dt>
           <dd>
-            <AddressValue value={submitted.launch.config ?? null} label="config" />
+            <AddressValue
+              value={
+                kind === "pool"
+                  ? (submitted.launch.poolAddress ?? null)
+                  : (submitted.launch.config ?? null)
+              }
+              label={kind === "pool" ? "pool" : "config"}
+            />
           </dd>
         </div>
       </dl>
@@ -1398,7 +1558,12 @@ function SubmitReview({
             {confirmation.evidence?.protocol?.address
               ? `, account ${confirmation.evidence.protocol.address.slice(0, 6)}…`
               : ""}
-            . Real pool creation remains separate from this config transaction.
+            .
+            {kind === "config"
+              ? " Pool creation is a separate transaction."
+              : confirmation.confirmation === "protocol_verified"
+                ? " The pool account matches the recorded config and base mint."
+                : " Pool account verification is not complete."}
           </p>
         ) : null}
       </div>

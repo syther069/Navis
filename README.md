@@ -11,10 +11,10 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 ## What changed since the first audit
 
 - The fresh decision journey is live on the public site: `POST /api/decisions/run` with a **Balanced** or **Oversized** scenario returns a fresh proposal, policy evaluation, execution eligibility and a newly hashed receipt; the Atlas page has a **Run new decision** panel that shows the full result inline. In-memory runs (no database) offer no detail link, because on Vercel a later request can land on another serverless instance; unknown decision and proof ids return a real HTTP 404.
-- The Atlas run uses the live PreStocks catalogue as its asset universe by default: allowlist from the validated contract addresses, token price as the research price, read time as data age, no liquidity or quote invented (the liquidity rule warns). Each check shows the PreStocks fact it used, and a research view under the result shows premium or discount to mark, valuation gap, supply and allocation impact. If the catalogue is unreachable the run falls back to the fixture universe with a visible note.
+- The Atlas run uses the live PreStocks catalogue as its asset universe by default: allowlist from the validated contract addresses, token price as the research price, successful fetch time as data age, no liquidity or quote invented (the liquidity rule warns). Fetches bypass the Next.js data cache and time out after five seconds. The provider price observation timestamp is unavailable: fetch freshness does not establish price freshness. Each check shows the PreStocks fact it used, and a research view under the result shows premium or discount to mark, valuation gap, supply and allocation impact. If the catalogue is unreachable the run falls back to the fixture universe with a visible note.
 - Owners can create agents (`/agents/new`) and see them on `/agents`. With a database and wallet session, each demo-mode run is persisted in one transaction as a portfolio snapshot, decision, policy evaluation, simulated execution attempt and proof receipt, with owner-scoped decision and proof pages. Devnet and mainnet agents are refused with 409 because a persisted snapshot does not hold every market fact an honest evaluation needs.
 - A landing screen at `/` states the one-sentence pitch, the three proof points, the mode and cluster banner and the assurance model. Every receipt, decision detail, run result and ledger row carries an assurance badge: offchain integrity, wallet authorization or onchain settlement, plus demo simulation or live. A "Why this passed / failed" panel lists every check with observed value, limit and fact source.
-- Meteora config and pool submission are bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result). The submit routes accept only an intent ID plus signed bytes, and the launch record is persisted as `submitting` with the derived transaction signature before any send, so a repeated submit replays the record instead of sending twice and a timeout after send stays `unknown_pending` until reconciled. Confirmation then decodes the onchain config or pool account and labels the launch `protocol_verified`, `signature_confirmed` or `evidence_incomplete`. Broadcast itself remains hard-blocked in every mode until a separate security review.
+- Meteora config and pool submission are bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result). The submit routes accept only an intent ID plus signed bytes, and the launch record is persisted as `submitting` with the derived transaction signature before any send, so a repeated submit replays the record instead of sending twice and a timeout after send stays `unknown_pending` until reconciled. Confirmation then decodes the onchain config or pool account and labels the launch `protocol_verified`, `signature_confirmed` or `evidence_incomplete`. The owner has now explicitly authorised this path on **devnet only**; the code still requires devnet mode, devnet cluster, the devnet execution flag, wallet authentication and a devnet RPC. Mainnet broadcast remains code-blocked.
 - Same-origin mutation requests are trusted behind the deployment proxy (`x-forwarded-host`), so public decision runs work on Vercel; foreign origins still receive 403. Wallet authentication remains unavailable in production because it needs a database, session secret and configured app origin, none of which the public demo has.
 - The Atlas page opens with a short intro (problem, what Navis does, what to try) and an optional read-only devnet slot probe gated on `SOLANA_RPC_URL`. Production has `SOLANA_RPC_URL` set to the public devnet endpoint, execution flags stay false, and the probe only reads the current slot.
 - Meteora DBC has a second server-approved quote profile, `navis-stock-exposure-v1`, quoted in a PreStocks exposure token chosen from the live catalogue and verified onchain at prepare time (token program, decimals, Token-2022 extensions, Meteora token badge). It is mainnet only and currently gated because no live PreStocks mint carries the badge; no substitute mint is ever used.
@@ -31,19 +31,19 @@ Public demo: https://navis-gilt.vercel.app (Vercel production, built from GitHub
 - PostgreSQL/Drizzle schema for agents, strategies, policies, decisions, execution attempts, events, proofs, market launches, and external calls.
 - AI provider abstraction with deterministic demo provider and OpenAI-compatible provider guards.
 - ClawPump integration for server-side agent linking, live pair discovery, and exact self-funded launch preflight.
-- Meteora DBC integration with official SDK config preview, two server-approved quote profiles (SOL-quoted and stock-paired on a PreStocks mint), config transaction prepare/simulate/submit/confirm, pool creation prepare/simulate/submit, and pool monitor. Submit routes are bound to server-prepared execution intents; broadcast is hard-blocked in every mode pending review.
+- Meteora DBC integration with official SDK config preview, two server-approved quote profiles (SOL-quoted and stock-paired on a PreStocks mint), config transaction prepare/simulate/submit/confirm, pool creation prepare/simulate/submit, and pool monitor. Submit routes are bound to server-prepared execution intents. The SOL-quoted profile is the authorised devnet test path; mainnet broadcast is code-blocked.
 - PreStocks read-only catalogue adapter with schema validation, research view (premium or discount, valuation gap, allocation impact), use as the Atlas asset universe, and explicit economic-exposure/eligibility disclosure.
 - Transaction ledger route for persisted execution attempts and sponsor launch records.
 
 ## Honest limitations
 
-- Fresh demo decisions do not execute onchain. Atlas runs are kept in bounded process memory by design, even with a database attached, and disappear when the server instance restarts.
+- Fresh demo decisions do not execute onchain. With a configured database, public Atlas runs atomically store a portfolio snapshot, decision, policy evaluation, simulated or rejected execution attempt and proof receipt, with public decision and proof links. Without a database, runs stay in bounded process memory, disappear on restart and offer no durable detail link. A configured database failure is an error, not a silent memory fallback.
 - Fresh decisions for owner agents are persisted only in demo mode. Devnet and mainnet agents get a 409 because persisted snapshots do not contain every market fact required for an honest policy evaluation; Navis does not invent missing values.
 - No live ClawPump launch has been submitted from this checkout. `INT-04` requires configured `CLAWPUMP_API_KEY`, authenticated wallet, funding, provider acceptance, and chain confirmation.
 - ClawPump funded launch is unsupported in the current demo/devnet posture. The documented self-funded route has no devnet selector, and Navis currently implements preflight only.
-- No live Meteora config/pool proof is present in this checkout. The builder is implemented, but live proof requires `SOLANA_RPC_URL`, devnet/mainnet execution flags, wallet approval, funding, and confirmation.
-- Meteora signed input is now server-bound to the exact prepared intent, but broadcast stays hard-blocked (the submit routes return 503 before any send) until the protocol is retested against a real cluster.
-- The Vercel demo at https://navis-gilt.vercel.app runs in demo mode. Since 2026-09-21 it has a Neon PostgreSQL database, a session secret and an explicit origin, so wallet sign-in, owner agents and persisted demo runs with a working detail link are available there (`docs/EVIDENCE.md`, "Public health"). Fresh Atlas runs still stay in the memory of the serverless instance that produced them, so no detail link is offered for them; the inline result panel shows the full run. No demo video URL, pitch video URL or technical video URL is recorded.
+- No live Meteora config/pool proof is present in this checkout. No transaction was submitted by the documentation change that enabled the devnet-only posture. A real devnet test still requires a devnet `SOLANA_RPC_URL`, devnet mode and cluster, `ENABLE_DEVNET_EXECUTION=true`, wallet authentication, devnet funding, simulation, submission and reconciliation.
+- Meteora signed input is server-bound to the exact prepared intent. Devnet broadcast is code-enabled only when every devnet gate is satisfied; mainnet broadcast remains an unconditional code hard-stop. The PreStocks stock-quote profile remains mainnet-only and token-badge gated, so it is not the devnet path.
+- The Vercel demo at https://navis-gilt.vercel.app runs in demo mode. Its documented database configuration supports wallet sign-in, owner agents and persisted demo runs (`docs/EVIDENCE.md`, "Public health"). Public Atlas runs use the stored public evidence chain without a wallet; owner-agent records require the owner's session. Check the run's persistence note and open its decision and proof links when it reports database storage; a no-database instance only shows the in-memory result. All Atlas execution remains simulated or rejected, never signed or submitted. No demo video URL, pitch video URL or technical video URL is recorded.
 - Both databases carry migrations `0000` through `0008`: the development database (journal hashes verified by `tests/database-persistence.test.ts`) and the public site's Neon database (applied with `npm run db:migrate` on 2026-09-21).
 - PreStocks is read-only. Navis does not expose buy/sell or launch actions for PreStocks assets.
 - The public health mode is `demo` on `devnet`: database, authentication origin, wallet sessions, PreStocks, the demo AI provider, Meteora SDK reads and a read-only public devnet RPC are configured; ClawPump is not. The public app is deterministic and, for owner agents, persistent; a browser wallet extension has not yet been exercised against it.
@@ -82,6 +82,29 @@ MAINNET_RELEASE_APPROVED=false
 NEXT_PUBLIC_SOLANA_CLUSTER=devnet
 ```
 
+### Authorised Meteora devnet usage
+
+The authorised test path is the SOL-quoted `navis-equity-v1` profile on devnet:
+
+```env
+NAVIS_EXECUTION_MODE=devnet
+NEXT_PUBLIC_SOLANA_CLUSTER=devnet
+ENABLE_DEVNET_EXECUTION=true
+ENABLE_MAINNET_EXECUTION=false
+MAINNET_RELEASE_APPROVED=false
+SOLANA_RPC_URL=https://your-devnet-rpc.example
+```
+
+Also configure `DATABASE_URL`, `SESSION_SECRET` and the app origin, then authenticate
+the funded devnet wallet. The required sequence is **prepare → wallet sign → simulate
+→ submit → reconcile**; authorisation does not permit bypassing any stage. Do not use
+the mainnet cluster or the PreStocks stock-quote profile for this test.
+
+This describes the current workspace/code capability, not a Vercel release. The
+public Vercel URL remains a separately evidenced demo deployment until its deployed
+commit and environment are verified and recorded; this change submitted no
+transaction and did not establish a production publication.
+
 ## Environment variables
 
 | Variable                         | Purpose                                                                             |
@@ -91,8 +114,8 @@ NEXT_PUBLIC_SOLANA_CLUSTER=devnet
 | `NAVIS_EXECUTION_MODE`           | `demo`, `devnet`, or `mainnet`.                                                     |
 | `ENABLE_DEMO_MODE`               | Allows deterministic demo fixtures.                                                 |
 | `ENABLE_DEVNET_EXECUTION`        | Enables devnet value-moving flows when RPC is set.                                  |
-| `ENABLE_MAINNET_EXECUTION`       | Enables mainnet only when explicitly true and cluster matches.                      |
-| `MAINNET_RELEASE_APPROVED`       | Additional server-only mainnet release checklist gate.                              |
+| `ENABLE_MAINNET_EXECUTION`       | Reserved mainnet flag; Meteora mainnet broadcast remains code-blocked.              |
+| `MAINNET_RELEASE_APPROVED`       | Reserved server-only mainnet release flag; it does not bypass the code hard-stop.   |
 | `SOLANA_RPC_URL`                 | Server-side RPC for reads, simulation, submission, and confirmation.                |
 | `DATABASE_URL`                   | PostgreSQL-compatible persistence.                                                  |
 | `SESSION_SECRET`                 | At least 32 characters for signed wallet sessions.                                  |
@@ -143,7 +166,7 @@ NAVIS_REPLAY_BASE_URL=https://your-deployed-origin.example npm run check:browser
 NAVIS_REPLAY_BASE_URL=... node scripts/browser-replay-check.mjs --scenarios=restart,resignin --user-data-dir=/tmp/navis-profile
 ```
 
-It runs three scenarios (page reload, browser closed and reopened on the same profile, browser closed then a different wallet and the same wallet signing in again), each with a throwaway keypair and one agent named `browser-replay-<scenario>-<hex>`, and writes `docs/evidence/browser-replay-check.json` plus the screenshots.
+It runs four scenarios (page reload, browser closed and reopened on the same profile, browser closed then a different wallet and the same wallet signing in again, and two tabs of one browser drafting different mandates), each with a throwaway keypair and agents named `browser-replay-<scenario>-<hex>`, and writes `docs/evidence/browser-replay-check.json` plus the screenshots.
 
 To inspect the submission package for missing evidence rows, TODO markers, and unsupported live claims:
 

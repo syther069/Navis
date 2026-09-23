@@ -1,5 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
@@ -9,8 +11,18 @@ import { executionIntents, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import {
   isMeteoraBroadcastAvailable,
-  METEORA_BROADCAST_UNAVAILABLE_REASON,
+  meteoraBroadcastUnavailableReason,
+  type MeteoraBroadcastCapability,
 } from "@/lib/integrations/meteora/broadcast-safety";
+
+function meteoraBroadcastCapability(): MeteoraBroadcastCapability {
+  return {
+    executionMode: env.executionMode,
+    cluster: env.cluster,
+    devnetExecutionEnabled: env.enableDevnetExecution,
+    solanaRpcConfigured: Boolean(env.solanaRpcUrl),
+  };
+}
 import {
   classifyMeteoraSendError,
   deriveTransactionSignature,
@@ -47,10 +59,12 @@ export async function POST(request: NextRequest) {
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
   }
-  // This hard block remains intentionally ahead of all execution code.
-  if (!isMeteoraBroadcastAvailable()) {
+  // The broadcast gate stays ahead of all execution code. It is released for
+  // devnet only, and only when the audited capability flags all hold.
+  const capability = meteoraBroadcastCapability();
+  if (!isMeteoraBroadcastAvailable(capability)) {
     return NextResponse.json(
-      { error: METEORA_BROADCAST_UNAVAILABLE_REASON },
+      { error: meteoraBroadcastUnavailableReason(capability) },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -75,6 +89,8 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "meteora.config.submit");
+  if (quota) return quota;
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(

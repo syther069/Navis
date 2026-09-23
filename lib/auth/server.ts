@@ -209,8 +209,21 @@ async function createSessionToken(user: { id: string; wallet: string }) {
     .sign(new TextEncoder().encode(env.sessionSecret));
 }
 
-export async function readSessionToken(token: string) {
-  if (!env.sessionSecret) return null;
+export class SessionInspectionUnavailableError extends Error {
+  constructor() {
+    super("The session could not be checked. Try again.");
+    this.name = "SessionInspectionUnavailableError";
+  }
+}
+
+export async function readSessionToken(
+  token: string,
+  options: { reportUnavailable?: boolean } = {},
+) {
+  if (!env.sessionSecret) {
+    if (options.reportUnavailable) throw new SessionInspectionUnavailableError();
+    return null;
+  }
 
   try {
     const { payload } = await jwtVerify(
@@ -238,7 +251,13 @@ export async function readSessionToken(token: string) {
       wallet: claims.data.wallet,
       expiresAt: new Date(claims.data.exp * 1_000).toISOString(),
     };
-  } catch {
+  } catch (error) {
+    if (
+      options.reportUnavailable &&
+      error instanceof SessionInspectionUnavailableError
+    ) {
+      throw error;
+    }
     return null;
   }
 }
@@ -250,7 +269,7 @@ export async function readSessionToken(token: string) {
  * storage down the rest of the app cannot serve authenticated work anyway.
  */
 async function isSessionRevoked(jti: string) {
-  if (!env.databaseUrl) return true;
+  if (!env.databaseUrl) throw new SessionInspectionUnavailableError();
   try {
     const database = getDatabase();
     const [row] = await database
@@ -264,7 +283,7 @@ async function isSessionRevoked(jti: string) {
       "[navis:auth.session] revocation check failed:",
       error instanceof Error ? error.name : typeof error,
     );
-    return true;
+    throw new SessionInspectionUnavailableError();
   }
 }
 

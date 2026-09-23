@@ -3,10 +3,12 @@ import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { executionIntents } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { meteoraPublicErrorMessage } from "@/lib/integrations/meteora/errors";
 import { createServerMeteoraDbcClient } from "@/lib/integrations/meteora/server";
 
 const requestSchema = z.object({
@@ -57,6 +59,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const quota = await requireWalletQuota(session, "meteora.config.simulate");
+  if (quota) return quota;
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
@@ -165,10 +169,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Meteora config transaction could not be simulated.",
+        error: meteoraPublicErrorMessage(
+          error,
+          "Meteora config transaction could not be simulated.",
+        ),
       },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
