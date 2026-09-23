@@ -8,9 +8,11 @@ import {
   ListChecks,
   List,
   LockKey,
+  Plus,
   ShieldWarning,
   SlidersHorizontal,
   X,
+  type Icon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -44,6 +46,52 @@ const navigation = [
   },
 ];
 
+type RouteContext = {
+  icon: Icon;
+  href: string;
+  label: string;
+  detail?: string;
+  technical?: boolean;
+};
+
+/**
+ * Where the reader is, derived from the pathname. The second line is only
+ * shown when it is truthfully known from the route itself.
+ */
+function routeContextFor(pathname: string): RouteContext {
+  if (pathname === "/agents/atlas" || pathname.startsWith("/agents/atlas/")) {
+    return {
+      icon: Compass,
+      href: "/agents/atlas",
+      label: "Atlas",
+      detail: "Demo agent",
+    };
+  }
+  if (pathname === "/agents/new") {
+    return { icon: Plus, href: "/agents/new", label: "New agent", detail: "Agents" };
+  }
+  const agentMatch = /^\/agents\/([^/]+)/.exec(pathname);
+  if (agentMatch) {
+    return {
+      icon: Compass,
+      href: `/agents/${agentMatch[1]}`,
+      label: "Agent",
+      detail: agentMatch[1],
+      technical: true,
+    };
+  }
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+    return { icon: SlidersHorizontal, href: "/settings", label: "Settings" };
+  }
+  const section = navigation.find(
+    ({ match }) => pathname === match || pathname.startsWith(`${match}/`),
+  );
+  if (section) {
+    return { icon: section.icon, href: section.href, label: section.label };
+  }
+  return { icon: Compass, href: "/", label: "Navis", detail: "Overview" };
+}
+
 function BearingMark() {
   return (
     <span className="bearing-mark" aria-hidden="true">
@@ -61,6 +109,8 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
 
   const isCurrent = (match: string) =>
     pathname === match || pathname.startsWith(`${match}/`);
+  const context = routeContextFor(pathname);
+  const ContextIcon = context.icon;
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -129,6 +179,7 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
               <Link
                 className="rail-link"
                 data-current={current || undefined}
+                data-label={label}
                 href={href}
                 key={label}
                 aria-current={current ? "page" : undefined}
@@ -144,6 +195,7 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
           <Link
             className="rail-link"
             data-current={isCurrent("/settings") || undefined}
+            data-label="Settings"
             href="/settings"
             aria-current={isCurrent("/settings") ? "page" : undefined}
           >
@@ -152,7 +204,10 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
           </Link>
           <div className="system-state">
             <LockKey aria-hidden="true" size={16} />
-            <span>{capabilities.mode} safeguards active</span>
+            <span>
+              <span className="system-state-mode">{capabilities.mode}</span> safeguards
+              active
+            </span>
           </div>
         </div>
       </aside>
@@ -221,6 +276,7 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
               data-current={isCurrent("/settings") || undefined}
               href="/settings"
               onClick={() => setMobileNavOpen(false)}
+              aria-current={isCurrent("/settings") ? "page" : undefined}
             >
               <SlidersHorizontal aria-hidden="true" size={20} />
               <span>Settings</span>
@@ -228,24 +284,41 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
           </nav>
           <div className="system-state">
             <LockKey aria-hidden="true" size={16} />
-            <span>{capabilities.mode} safeguards active</span>
+            <span>
+              <span className="system-state-mode">{capabilities.mode}</span> safeguards
+              active
+            </span>
           </div>
         </div>
       ) : null}
 
       <div className="workspace-column" inert={mobileNavOpen ? true : undefined}>
         <header className="workspace-bar">
-          <Link className="agent-switcher" href="/agents/atlas">
-            <span className="agent-glyph">A</span>
-            <span>
-              <strong>Atlas</strong>
-              <small>Balanced equity · demo</small>
+          <Link
+            className="route-context"
+            href={context.href}
+            aria-label={
+              context.detail ? `${context.label}, ${context.detail}` : context.label
+            }
+          >
+            <span className="route-context-icon" aria-hidden="true">
+              <ContextIcon size={16} />
+            </span>
+            <span className="route-context-copy">
+              <strong>{context.label}</strong>
+              {context.detail ? (
+                <small data-technical={context.technical || undefined}>
+                  {context.detail}
+                </small>
+              ) : null}
             </span>
           </Link>
 
           <div className="workspace-actions">
-            <ModeStamp mode={capabilities.mode} />
-            <ClusterStamp cluster={capabilities.cluster} />
+            <span className="network-truth">
+              <ModeStamp mode={capabilities.mode} />
+              <ClusterStamp cluster={capabilities.cluster} />
+            </span>
             <WalletControl
               authenticationConfigured={
                 capabilities.walletAuthenticationConfigured &&

@@ -1,0 +1,677 @@
+/* Market grids may not use a minimum column wider than their container. */
+.meteora-profiles {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.meteora-profile-picker {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+/* Pair descriptions and status controls must fit the smallest viewport. */
+@media (max-width: 620px) {
+  .meteora-profile-heading {
+    flex-wrap: wrap;
+  }
+
+  .pair-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pair-card > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+/*
+ * Surfaces: panels, headers, the home page, the Atlas intro, decision and
+ * proof surfaces, empty states. One border colour, one radius per level, no
+ * gradient washes, no dot grids.
+ */
+
+.route-panel,
+.empty-state,
+.policy-explanation,
+.agent-ledger {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.route-panel,
+.policy-explanation {
+  padding: var(--panel-pad);
+}
+
+.route-panel-muted {
+  background: var(--canvas-subtle);
+}
+
+.route-panel-muted h2 {
+  margin-top: var(--space-6);
+}
+
+/* Route header */
+.route-header {
+  align-items: flex-end;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.route-meta {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--canvas-subtle);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--type-caption);
+}
+
+/* Panel heading: icon, eyebrow, title */
+.panel-heading {
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+
+.panel-heading > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.panel-heading p {
+  margin: var(--space-2) 0 0;
+  font-size: var(--type-secondary);
+}
+
+.ledger-heading > svg {
+  color: var(--text-muted);
+}
+
+/* Agent heading (Atlas overview) */
+.agent-heading {
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.heading-meta {
+  gap: var(--space-2) var(--space-4);
+}
+
+.agent-owner {
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-4);
+}
+
+/* Decision surface: quiet panel, no grid or wash */
+.decision-surface {
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--panel-pad);
+}
+
+.decision-surface::after {
+  content: none;
+}
+
+.decision-copy {
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.decision-state {
+  margin-bottom: var(--space-2);
+}
+
+.decision-context {
+  margin-top: var(--space-6);
+}
+
+.decision-context > div {
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+}
+
+.decision-context strong {
+  font-size: var(--type-secondary);
+  font-weight: 600;
+}
+
+.empty-proof {
+  position: static;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+}
+
+.ledger-section {
+  padding: var(--panel-pad);
+}
+
+.constraint-list {
+  margin-top: var(--space-4);
+}
+
+.constraint-row,
+.policy-result {
+  padding: var(--space-3) 0;
+}
+
+/* Notices */
+.honest-notice {
+  border-color: var(--line-warning);
+  border-radius: var(--radius-lg);
+  background: var(--tint-warning);
+  padding: var(--space-3) var(--space-4);
+}
+
+.honest-notice strong {
+  font-size: var(--type-secondary);
+}
+
+.honest-notice button {
+  border-radius: var(--radius-sm);
+}
+
+/* Home */
+.landing-hero {
+  margin-bottom: var(--section-gap);
+  background: var(--surface);
+}
+
+.landing-banner {
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--canvas-subtle);
+  padding: var(--space-2) var(--space-3);
+}
+
+.landing-banner-copy {
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  letter-spacing: 0;
+}
+
+.landing-actions {
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+/* Proof points: one grouped list, not three cards */
+.landing-proof-points {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-bottom: var(--section-gap);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.landing-proof-points > .landing-proof-point {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--space-3);
+  row-gap: var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: var(--panel-pad);
+}
+
+.landing-proof-points > .landing-proof-point + .landing-proof-point {
+  border-left: 1px solid var(--border);
+}
+
+.landing-proof-point .landing-proof-icon {
+  grid-row: 1;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+}
+
+.landing-proof-point h2 {
+  grid-row: 1;
+  align-self: center;
+}
+
+.landing-proof-point p {
+  grid-column: 2;
+  margin: 0;
+}
+
+/* Assurance levels: numbered because the levels are an ordered ladder */
+.landing-assurance {
+  margin-bottom: var(--section-gap);
+}
+
+.landing-assurance-levels {
+  gap: 0;
+  margin: var(--space-2) 0 var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.landing-assurance-levels li {
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-4) 0;
+}
+
+.landing-assurance-index {
+  padding-top: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-assurance .route-copy {
+  margin: 0;
+  font-size: var(--type-secondary);
+}
+
+/* Entry links: rows with a clear destination, not identical cards */
+.landing-entries {
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-bottom: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.landing-entries > .landing-entry {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon eyebrow cta"
+    "icon title cta"
+    "icon body cta";
+  align-items: center;
+  column-gap: var(--space-4);
+  row-gap: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-4) var(--panel-pad);
+}
+
+.landing-entries > .landing-entry + .landing-entry {
+  border-top: 1px solid var(--border);
+}
+
+.landing-entries > .landing-entry:hover,
+.landing-entries > .landing-entry:focus-visible {
+  background: var(--surface-hover);
+}
+
+.landing-entries > .landing-entry[data-primary] {
+  border-color: var(--border);
+}
+
+.landing-entry .landing-proof-icon {
+  grid-area: icon;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--canvas-subtle);
+  color: var(--text-secondary);
+}
+
+.landing-entry[data-primary] .landing-proof-icon {
+  border-color: var(--line-warning);
+  background: var(--tint-accent);
+  color: var(--accent);
+}
+
+.landing-entry .route-eyebrow {
+  grid-area: eyebrow;
+  margin: 0;
+  font-size: var(--type-caption);
+}
+
+.landing-entry h2 {
+  grid-area: title;
+}
+
+.landing-entry p {
+  grid-area: body;
+  margin: 0;
+}
+
+.landing-entry-cta {
+  grid-area: cta;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+  font-weight: 500;
+}
+
+.landing-entry:hover .landing-entry-cta {
+  color: var(--accent);
+}
+
+/* Atlas intro */
+.navis-intro {
+  margin-bottom: var(--section-gap);
+  background: var(--surface);
+}
+
+.navis-intro-lines {
+  gap: var(--space-5);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+
+.navis-intro-lines dt {
+  margin-bottom: var(--space-1);
+}
+
+.navis-intro-actions {
+  margin-top: var(--space-5);
+}
+
+.navis-intro-footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+}
+
+.navis-intro-stamps {
+  gap: var(--space-2);
+}
+
+.navis-intro-stamps li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--canvas-subtle);
+  color: var(--text-secondary);
+  padding: 0.1875rem 0.5rem;
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.navis-intro-pulse {
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+}
+
+.navis-intro-pulse span {
+  font-family: var(--font-data);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.prepared-example-label {
+  margin: var(--section-gap) 0 var(--space-3);
+}
+
+/* Decision run panel and result */
+.decision-run-panel {
+  margin-bottom: var(--section-gap);
+}
+
+.decision-run-panel form,
+.decision-run-actions {
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.decision-run-panel .primary-button {
+  margin-top: 0;
+}
+
+.decision-run-panel [role="alert"] {
+  margin: var(--space-4) 0 0;
+  border-left: 2px solid var(--danger);
+  color: var(--danger);
+  padding-left: var(--space-3);
+  font-size: var(--type-secondary);
+}
+
+.decision-run-result {
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+
+.decision-run-why {
+  border-left: 2px solid var(--border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--canvas-subtle);
+  font-size: var(--type-secondary);
+  line-height: var(--leading-body);
+}
+
+.decision-run-result[data-outcome="approved"] .decision-run-why {
+  border-left-color: var(--success);
+}
+
+.decision-run-result[data-outcome="rejected"] .decision-run-why {
+  border-left-color: var(--danger);
+}
+
+.decision-run-facts {
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+
+.decision-run-facts > div {
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) 0;
+}
+
+.decision-run-actions {
+  align-items: center;
+}
+
+.decision-run-actions .secondary-button {
+  margin-top: 0;
+}
+
+.decision-run-actions small {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  line-height: 1.45;
+}
+
+/* Policy explanation */
+.policy-explanation {
+  gap: var(--space-4);
+}
+
+.policy-explanation[data-outcome="passed"] {
+  border-left: 3px solid var(--success);
+}
+
+.policy-explanation[data-outcome="failed"] {
+  border-left: 3px solid var(--danger);
+}
+
+.policy-explanation-heading {
+  gap: var(--space-3);
+}
+
+.policy-result-icon {
+  color: var(--success);
+}
+
+.policy-result[data-status="warn"] .policy-result-icon {
+  color: var(--warning);
+}
+
+.policy-result[data-status="block"] .policy-result-icon {
+  color: var(--danger);
+}
+
+.decision-run-result .policy-explanation {
+  padding: var(--space-4);
+  background: var(--canvas-subtle);
+}
+
+/* Proof surfaces */
+.proof-verification-heading {
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.proof-assurance {
+  border-radius: var(--radius-sm);
+  background: var(--canvas-subtle);
+}
+
+.proof-warning {
+  border-color: var(--line-warning);
+  background: var(--tint-warning);
+}
+
+.proof-check-grid {
+  gap: var(--space-2);
+}
+
+.proof-check-grid > div {
+  border-color: var(--line-danger);
+  border-radius: var(--radius-xs);
+  background: var(--tint-danger);
+  color: var(--danger);
+  font-size: var(--type-caption);
+}
+
+.proof-check-grid > div[data-passed] {
+  border-color: var(--line-success);
+  background: var(--tint-success);
+  color: var(--success);
+}
+
+.proof-timeline {
+  margin-top: var(--section-gap);
+}
+
+.field-row {
+  min-height: 0;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+}
+
+/* Empty state */
+.empty-state {
+  min-height: 0;
+  padding: var(--space-12) var(--panel-pad);
+}
+
+.empty-state-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+}
+
+.empty-state .secondary-button {
+  margin-top: var(--space-5);
+}
+
+.empty-state small {
+  margin-top: var(--space-4);
+  color: var(--text-muted);
+}
+
+/* Loading */
+.route-loading {
+  gap: var(--space-3);
+}
+
+/* Responsive structure */
+@media (max-width: 960px) {
+  .landing-proof-points {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-proof-points > .landing-proof-point + .landing-proof-point {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .navis-intro-lines {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 620px) {
+  .route-header {
+    display: grid;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .agent-heading {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .agent-owner {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .landing-entries > .landing-entry {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon eyebrow"
+      "icon title"
+      "body body"
+      "cta cta";
+    row-gap: var(--space-1);
+  }
+
+  .landing-entry p {
+    margin-top: var(--space-2);
+  }
+
+  .landing-entry-cta {
+    margin-top: var(--space-2);
+  }
+
+  .decision-run-facts > div {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-context {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-context > div + div {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .decision-context > div {
+    padding-inline: 0;
+  }
+
+  .landing-actions .primary-button,
+  .landing-actions .secondary-button,
+  .navis-intro-actions .primary-button,
+  .navis-intro-actions .secondary-button {
+    flex: 1 1 100%;
+  }
+}

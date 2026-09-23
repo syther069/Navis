@@ -1,0 +1,280 @@
+/*
+ * Type roles. Geist Sans carries the interface; IBM Plex Mono is reserved for
+ * data (hashes, addresses, amounts, identifiers, cluster names).
+ */
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Display: the one-sentence pitch on the home page only */
+.landing-hero h1 {
+  max-width: 34ch;
+  margin: var(--space-2) 0 0;
+  font-size: var(--type-display);
+  font-weight: 560;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+
+/* H1: route and agent titles */
+.route-header h1,
+.agent-heading h1,
+.agent-heading h2,
+.navis-intro h1,
+.empty-state h1,
+.empty-state h2 {
+  margin: var(--heading-gap) 0 var(--heading-gap);
+  font-size: var(--type-h1);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+}
+
+.navis-intro h1 {
+  max-width: 30ch;
+  margin-bottom: var(--space-4);
+}
+
+.empty-state h1,
+.empty-state h2 {
+  max-width: 34ch;
+}
+
+/* H2: panel titles */
+.panel-heading h2,
+.ledger-heading h2,
+.policy-explanation-heading h2,
+.proof-verification-heading h2,
+.route-panel-muted h2,
+.decision-copy h2,
+.wallet-dialog-heading h2 {
+  margin: var(--heading-gap) 0 0;
+  font-size: var(--type-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--leading-heading);
+}
+
+.decision-copy h2 {
+  max-width: 30ch;
+  font-size: var(--type-h1);
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+}
+
+.policy-explanation-heading h2 {
+  margin-bottom: var(--space-2);
+}
+
+/* H3: sub-sections and list titles */
+.landing-proof-point h2,
+.landing-entry h2,
+.timeline h2,
+.proof-registry-row h2 {
+  margin: 0;
+  font-size: var(--type-h3);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+/* Body and secondary copy */
+.route-header p,
+.agent-heading p,
+.decision-copy p,
+.route-copy,
+.route-panel-muted p,
+.panel-heading p {
+  max-width: var(--measure);
+  color: var(--text-secondary);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+
+.route-header p,
+.agent-heading p {
+  margin: 0;
+}
+
+.decision-copy p {
+  margin-top: var(--space-3);
+}
+
+.landing-proof-point p,
+.landing-entry p,
+.empty-state p,
+.honest-notice p,
+.policy-explanation-heading p,
+.navis-intro-lines dd,
+.landing-assurance-levels p,
+.timeline p {
+  color: var(--text-secondary);
+  font-size: var(--type-secondary);
+  line-height: var(--leading-body);
+}
+
+/*
+ * Labels and eyebrows: sentence case in the UI face. Class names are kept so
+ * markup and tests stay stable; only the treatment changes.
+ */
+.route-eyebrow,
+.route-meta,
+.heading-meta,
+.section-kicker,
+.panel-heading span,
+.ledger-heading span,
+.timeline span,
+.decision-context span,
+.decision-run-facts dt,
+.navis-intro-lines dt,
+.wallet-menu-heading span,
+.prestocks-research-table thead th,
+.empty-state small,
+.form-error p,
+.wallet-option-state,
+.system-state,
+.landing-entry-cta,
+.landing-assurance-index,
+.decision-state {
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.route-eyebrow,
+.panel-heading span,
+.ledger-heading span,
+.timeline span,
+.decision-context span,
+.decision-run-facts dt,
+.navis-intro-lines dt,
+.wallet-menu-heading span {
+  color: var(--text-muted);
+}
+
+.route-eyebrow {
+  display: block;
+}
+
+.section-kicker,
+.heading-meta {
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+
+.decision-state {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.navis-intro-lines dt {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.prestocks-research-table thead th {
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  font-weight: 500;
+}
+
+.empty-state small,
+.form-error p {
+  font-size: var(--type-caption);
+  font-weight: 400;
+}
+
+.form-error p {
+  color: var(--text-secondary);
+}
+
+/* Captions and notes */
+.policy-explanation-note,
+.policy-result-fact,
+.decision-run-scenario-note,
+.decision-run-universe-note,
+.wallet-dialog-footnote,
+.form-note,
+.form-field small,
+.field-row small,
+.constraint-row small,
+.policy-result small,
+.treasury-position-list small {
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Data: numbers and technical strings */
+.amount-value,
+.constraint-row strong,
+.policy-result strong,
+.treasury-priced-total > strong,
+.meteora-metrics strong,
+.prestocks-research-table td {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.amount-value,
+.constraint-row strong,
+.policy-result strong {
+  font-size: var(--type-numeric);
+  font-weight: 500;
+}
+
+.treasury-priced-total > strong {
+  font-size: 1.375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.field-row strong,
+.decision-run-facts dd,
+.address-value code,
+.proof-registry-row code,
+.wallet-menu-heading strong,
+.cluster-stamp,
+.cluster-label,
+.source-stamp,
+.owned-agent-links small {
+  font-family: var(--font-data);
+  font-size: var(--type-technical);
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+.field-row strong {
+  font-weight: 500;
+}
+
+.decision-run-facts dd {
+  color: var(--text-secondary);
+}
+
+/* Field labels in the reading column */
+.field-row span,
+.decision-run-panel label,
+.form-field label,
+.form-field > span {
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+  font-weight: 500;
+}
+
+/* Wallet dialog title stays in the H2 role */
+.wallet-dialog-heading h2 {
+  font-size: 1.25rem;
+}

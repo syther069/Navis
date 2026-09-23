@@ -12,6 +12,7 @@ import {
 import { PreStocksResearchView } from "@/components/markets/prestocks/prestocks-research";
 import { AssuranceBadge } from "@/components/shared/assurance-badge";
 import { StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
 import { PolicyExplanationPanel } from "@/components/shared/policy-explanation-panel";
 import { assuranceForReceipt } from "@/lib/assurance";
 import { describeDecisionDetailAccess } from "@/lib/decisions/detail-link";
@@ -222,10 +223,11 @@ export function DecisionRunResultView({
           </div>
         ) : null}
       </dl>
-      <div className="decision-run-actions">
+      <div className="decision-run-actions info-hint-anchor">
         <button className="secondary-button" type="button" onClick={verify}>
           Verify receipt
         </button>
+        <InfoHint topic="verifyReceipt" label="About verifying a receipt" />
         <StatusBadge tone={verified ? "pass" : "block"}>
           {verified ? "Receipt verified" : "Receipt invalid"}
         </StatusBadge>
@@ -328,13 +330,16 @@ export function RunDecisionPanel({
 
   return (
     <section className="route-panel decision-run-panel" aria-labelledby="run-title">
-      <div className="panel-heading">
+      <div className="panel-heading info-hint-anchor">
         <div>
           <span>Live service path</span>
-          <h2 id="run-title">
-            {persisted ? "Generate decision" : "Run new decision"}
-            {agentName ? ` for ${agentName}` : ""}
-          </h2>
+          <div className="heading-with-hint">
+            <h2 id="run-title">
+              {persisted ? "Generate decision" : "Run new decision"}
+              {agentName ? ` for ${agentName}` : ""}
+            </h2>
+            <InfoHint topic="runDecision" label="About running a decision" />
+          </div>
           <p>
             {persisted
               ? "Generate a fresh proposal, let the policy code approve or reject it, and store the decision, evaluation and receipt for this wallet. Demo mode never submits an onchain transaction."

@@ -1,0 +1,354 @@
+/*
+ * Controls: one state model for every button, input and select.
+ * hover -> surface shift, pressed -> 1px translate, focus -> accent ring,
+ * loading -> aria-busy or disabled with progress cursor, disabled -> 46%.
+ */
+
+.primary-button,
+.secondary-button,
+.icon-button,
+.wallet-button,
+.text-link {
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-press) var(--ease-standard);
+}
+
+/* Primary: the one accent-filled action on a surface */
+.primary-button {
+  min-height: var(--control-primary);
+  gap: var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 0 var(--space-4);
+  font-size: var(--type-secondary);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.primary-button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.primary-button:active:not(:disabled) {
+  border-color: var(--accent-active);
+  background: var(--accent-active);
+}
+
+.primary-button:disabled,
+.primary-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.primary-button[aria-busy="true"],
+.primary-button:disabled[data-pending] {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+/* Secondary: bordered, raised surface */
+.secondary-button {
+  min-height: var(--control-default);
+  gap: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  padding: 0 var(--space-4);
+  font-size: var(--type-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border-strong) 60%, var(--text-muted));
+  background: var(--surface-hover);
+}
+
+.secondary-button:disabled,
+.secondary-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+  opacity: 0.7;
+}
+
+/* Icon-only */
+.icon-button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+/* Wallet */
+.wallet-button {
+  min-height: var(--control-default);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  padding: 0 var(--space-3);
+  font-size: var(--type-secondary);
+  font-weight: 500;
+}
+
+.wallet-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border-strong) 60%, var(--text-muted));
+  background: var(--surface-hover);
+}
+
+.wallet-live-dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--tint-success);
+}
+
+.wallet-menu {
+  z-index: var(--z-popover);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+}
+
+.wallet-menu > button {
+  border-radius: var(--radius-sm);
+  font-size: var(--type-secondary);
+}
+
+.wallet-menu-error,
+.wallet-error {
+  color: var(--danger);
+}
+
+.wallet-error {
+  border-color: var(--line-danger);
+  background: var(--tint-danger);
+}
+
+.wallet-dialog-backdrop {
+  z-index: var(--z-dialog);
+}
+
+.wallet-dialog {
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
+}
+
+.wallet-option-mark {
+  border-color: var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--canvas-subtle);
+  color: var(--accent);
+}
+
+.wallet-options > button {
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.wallet-options > button:disabled {
+  opacity: 0.46;
+}
+
+.wallet-session-state[data-state="authenticated"],
+.wallet-session-state[data-state="authenticated"] > span {
+  color: var(--success);
+}
+
+.wallet-session-state[data-state="authenticated"] > span {
+  background: var(--success);
+}
+
+/* Text link */
+.text-link {
+  color: var(--accent);
+  font-size: var(--type-label);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.text-link:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
+}
+
+/* Inputs and selects */
+.form-field input,
+.form-field textarea,
+.form-field select,
+.decision-run-panel select {
+  min-height: var(--control-default);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--canvas-subtle);
+  color: var(--text-primary);
+  font-size: var(--type-secondary);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.decision-run-panel select {
+  background: var(--canvas-subtle);
+}
+
+.form-field input:hover:not(:disabled),
+.form-field textarea:hover:not(:disabled),
+.form-field select:hover:not(:disabled),
+.decision-run-panel select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border-strong) 60%, var(--text-muted));
+}
+
+.form-field input:focus-visible,
+.form-field textarea:focus-visible,
+.form-field select:focus-visible,
+.decision-run-panel select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.form-field input:disabled,
+.form-field textarea:disabled,
+.form-field select:disabled,
+.decision-run-panel select:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-field input[aria-invalid="true"],
+.form-field textarea[aria-invalid="true"],
+.form-field select[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.form-error {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Status badge: icon + label + tone, tinted so tone is not colour only */
+.status-badge {
+  gap: 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.1875rem 0.5rem;
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.status-badge[data-tone="active"],
+.status-badge[data-tone="pass"] {
+  border-color: var(--line-success);
+  background: var(--tint-success);
+  color: var(--success);
+}
+
+.status-badge[data-tone="warn"],
+.status-badge[data-tone="pending"] {
+  border-color: var(--line-warning);
+  background: var(--tint-warning);
+  color: var(--warning);
+}
+
+.status-badge[data-tone="block"] {
+  border-color: var(--line-danger);
+  background: var(--tint-danger);
+  color: var(--danger);
+}
+
+.status-badge[data-tone="simulation"] {
+  border-color: var(--line-simulation);
+  background: var(--tint-simulation);
+  color: var(--simulation);
+}
+
+/* Network seal: the one deliberate uppercase element */
+.mode-stamp {
+  border: 1px solid var(--line-simulation);
+  border-radius: var(--radius-xs);
+  background: var(--tint-simulation);
+  color: var(--simulation);
+  padding: 0.1875rem 0.4375rem;
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.mode-stamp[data-mode="devnet"] {
+  border-color: var(--line-info);
+  background: var(--tint-info);
+  color: var(--info);
+}
+
+.mode-stamp[data-mode="mainnet"] {
+  border-color: var(--line-warning);
+  background: var(--tint-warning);
+  color: var(--warning);
+}
+
+.cluster-stamp,
+.cluster-label {
+  gap: 0.375rem;
+  color: var(--text-secondary);
+}
+
+.cluster-stamp > span:first-child,
+.cluster-label > span:first-child {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--info);
+}
+
+/* Source stamp: freshness of a data read */
+.source-stamp strong,
+.source-stamp small {
+  font-size: var(--type-technical);
+}
+
+.source-stamp[data-state="stale"] {
+  color: var(--warning);
+}
+
+.source-stamp[data-state="unavailable"] {
+  color: var(--danger);
+}
+
+/* Inline copy buttons next to addresses */
+.address-value button {
+  border-radius: var(--radius-sm);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+/* Skeleton loading stays a shape, never a spinner */
+.skeleton {
+  border-radius: var(--radius-sm);
+}

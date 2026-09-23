@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import { FieldRow, RouteHeader } from "@/components/route-primitives";
 import { AssuranceBadge } from "@/components/shared/assurance-badge";
+import { InfoHint } from "@/components/shared/info-hint";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
 import { PolicyExplanationPanel } from "@/components/shared/policy-explanation-panel";
 import { assuranceForReceipt } from "@/lib/assurance";
@@ -52,9 +53,10 @@ export function ProofReceiptView({
         }
       />
       <section className="route-panel proof-card">
-        <div className="proof-warning">
+        <div className="proof-warning info-hint-anchor">
           <WarningCircle aria-hidden="true" size={19} />
           <span>{origin.note}</span>
+          <InfoHint topic="proofReceipt" label="About what this page checks" />
         </div>
         <div className="proof-assurance">
           <AssuranceBadge assurance={assurance} />

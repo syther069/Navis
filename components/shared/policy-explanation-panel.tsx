@@ -1,4 +1,5 @@
 import { PolicyResult, StatusBadge } from "./domain-primitives";
+import { InfoHint } from "./info-hint";
 
 export type PolicyExplanationCheck = Readonly<{
   rule: string;
@@ -53,10 +54,13 @@ export function PolicyExplanationPanel({
       data-testid="policy-explanation"
       data-outcome={approved ? "passed" : "failed"}
     >
-      <div className="policy-explanation-heading">
+      <div className="policy-explanation-heading info-hint-anchor">
         <div>
           <span className="route-eyebrow">Policy verdict</span>
-          <h2 id={headingId}>{`Why this ${approved ? "passed" : "failed"}`}</h2>
+          <div className="heading-with-hint">
+            <h2 id={headingId}>{`Why this ${approved ? "passed" : "failed"}`}</h2>
+            <InfoHint topic="policyVerdict" label="About the policy verdict" />
+          </div>
           <p>{summarizePolicyOutcome(approved, checks)}</p>
         </div>
         <StatusBadge tone={approved ? "pass" : "block"}>

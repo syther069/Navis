@@ -1,5 +1,6 @@
 import type { Assurance, AssuranceLevel } from "../../lib/assurance";
 import { StatusBadge, type StatusTone } from "./domain-primitives";
+import { InfoHint } from "./info-hint";
 
 const levelTones: Readonly<Record<AssuranceLevel, StatusTone>> = {
   offchain_integrity: "neutral",
@@ -35,6 +36,7 @@ export function AssuranceBadge({
       >
         {assurance.originLabel}
       </StatusBadge>
+      {compact ? null : <InfoHint topic="assurance" label="About assurance levels" />}
     </span>
   );
 }

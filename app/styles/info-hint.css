@@ -1,0 +1,199 @@
+/*
+ * InfoHint: an accessible disclosure for unfamiliar actions.
+ * The trigger is a real button; the panel is in the DOM and answers
+ * what / why / next. Not hover-only.
+ */
+
+.info-hint-anchor {
+  position: relative;
+}
+
+.info-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+/* Inside an anchor the panel aligns to the anchor's edge, not the trigger */
+.info-hint-anchor .info-hint {
+  position: static;
+}
+
+.info-hint-trigger {
+  position: relative;
+  display: inline-grid;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.info-hint-trigger:hover,
+.info-hint-trigger[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.info-hint-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.info-hint-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-popover);
+  width: min(24rem, calc(100vw - 2rem));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-popover);
+  color: var(--text-secondary);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-ui);
+  font-size: var(--type-secondary);
+  font-weight: 400;
+  line-height: var(--leading-body);
+}
+
+.info-hint-panel[hidden] {
+  display: none;
+}
+
+.info-hint-panel[data-align="end"] {
+  right: 0;
+  left: auto;
+}
+
+.info-hint-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--type-label);
+  font-weight: 600;
+}
+
+.info-hint-panel-heading button {
+  display: grid;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0;
+}
+
+.info-hint-panel-heading button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.info-hint-panel dl {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.info-hint-panel dt {
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  font-weight: 500;
+}
+
+.info-hint-panel dd {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 860px) {
+  .info-hint-panel,
+  .info-hint-panel[data-align="end"] {
+    position: fixed;
+    top: auto;
+    bottom: max(var(--space-4), env(safe-area-inset-bottom));
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-height: 70dvh;
+    overflow-y: auto;
+  }
+}
+
+/* Inline mode: the panel flows in the document instead of floating */
+.info-hint[data-inline] {
+  display: contents;
+}
+
+.info-hint[data-inline] > .info-hint-panel {
+  position: static;
+  width: 100%;
+  margin-top: var(--space-2);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .info-hint-panel:not([hidden]) {
+    animation: info-hint-in var(--duration-state) var(--ease-standard);
+  }
+}
+
+@keyframes info-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Placement helpers for the surfaces that carry a hint */
+.heading-with-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.assurance-badge {
+  position: relative;
+}
+
+.assurance-badge .info-hint {
+  position: static;
+}
+
+.proof-warning .info-hint {
+  margin-left: auto;
+}
+
+.decision-run-actions .info-hint {
+  margin-top: 0;
+}
+
+.heading-with-hint > h2 {
+  margin: 0;
+}
