@@ -1429,6 +1429,20 @@ button:active:not(:disabled) {
   margin-top: var(--space-4);
 }
 
+.pair-group {
+  margin-top: var(--space-4);
+}
+
+.pair-group > .pair-list {
+  margin-top: var(--space-2);
+}
+
+.pair-group-collapsed > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-label);
+}
+
 .pair-card {
   display: grid;
   grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) auto auto;
