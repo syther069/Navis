@@ -3,6 +3,7 @@ import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { executionIntents } from "@/lib/db/schema";
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const quota = await requireWalletQuota(session, "meteora.pool.simulate");
+  if (quota) return quota;
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(

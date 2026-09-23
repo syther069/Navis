@@ -1,6 +1,9 @@
 import bs58 from "bs58";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/shared-rate-limit", () => ({
+  consumeSharedRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const intentId = "58eddfb8-d139-42cd-baf8-1b69896752ce";
 const mocks = vi.hoisted(() => ({

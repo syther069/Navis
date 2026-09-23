@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { allowMutationRequest, clientIdentifier } from "@/lib/auth/rate-limit";
 import { consumeSharedRateLimit } from "@/lib/auth/shared-rate-limit";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
@@ -177,6 +178,8 @@ export async function POST(request: Request) {
     if (!session) {
       return json({ error: "Authenticate a connected wallet to run this agent." }, 401);
     }
+    const quota = await requireWalletQuota(session, "decisions.run");
+    if (quota) return quota;
     const database = getDatabase();
     const bundle = await getPersistentAgentForOwner(
       parsed.data.agentSlug,

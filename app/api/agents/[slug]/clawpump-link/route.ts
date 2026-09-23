@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { env } from "@/lib/env";
@@ -55,6 +56,8 @@ export async function GET(
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "clawpump.identity");
+  if (quota) return quota;
   if (!env.databaseUrl) {
     return NextResponse.json({ error: "Storage is not configured." }, { status: 503 });
   }
@@ -92,6 +95,8 @@ export async function POST(
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "clawpump.link");
+  if (quota) return quota;
   if (!env.clawpumpApiKey) {
     return NextResponse.json(
       {

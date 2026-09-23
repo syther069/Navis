@@ -26,7 +26,7 @@ describe("read-only devnet slot probe", () => {
 
   it("returns the current slot without caching", async () => {
     mocks.getSlot.mockResolvedValue(412_345_678);
-    const response = await GET();
+    const response = await GET(new Request("https://navis.test/api/solana/slot"));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
@@ -37,7 +37,7 @@ describe("read-only devnet slot probe", () => {
 
   it("reports unreachable without leaking the RPC endpoint", async () => {
     mocks.getSlot.mockRejectedValue(new Error(`fetch failed for ${mocks.rpcUrl}`));
-    const response = await GET();
+    const response = await GET(new Request("https://navis.test/api/solana/slot"));
     expect(response.status).toBe(503);
     const text = await response.text();
     expect(text).toContain("unreachable");

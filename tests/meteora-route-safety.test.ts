@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/shared-rate-limit", () => ({
+  consumeSharedRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const mocks = vi.hoisted(() => ({
   launch: {} as Record<string, unknown>,

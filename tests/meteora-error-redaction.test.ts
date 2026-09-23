@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/operation-quota", () => ({
+  requireWalletQuota: vi.fn().mockResolvedValue(null),
+}));
 
 const mocks = vi.hoisted(() => ({ failure: new Error("infrastructure failure") }));
 

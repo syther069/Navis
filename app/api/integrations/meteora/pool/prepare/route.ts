@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, executionIntents, marketLaunches } from "@/lib/db/schema";
@@ -78,6 +79,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const quota = await requireWalletQuota(session, "meteora.pool.prepare");
+  if (quota) return quota;
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(

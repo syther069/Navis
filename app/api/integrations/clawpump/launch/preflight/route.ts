@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
+import { and, eq } from "drizzle-orm";
 
 import { hasTrustedMutationOrigin } from "@/lib/auth/request";
+import { requireWalletQuota } from "@/lib/auth/operation-quota";
 import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
+import { agents } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import {
   ClawPumpError,
@@ -37,6 +40,8 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+  const quota = await requireWalletQuota(session, "clawpump.preflight");
+  if (quota) return quota;
   if (!env.clawpumpApiKey) {
     return NextResponse.json(
       {
@@ -58,12 +63,24 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as unknown;
+    // Authorize before catalogue/RPC dependency loading, not just in the
+    // preflight service before its ClawPump calls.
+    const { localAgentId } = z.object({ localAgentId: z.uuid() }).parse(body);
+    const database = getDatabase();
+    const [owned] = await database
+      .select({ id: agents.id })
+      .from(agents)
+      .where(and(eq(agents.id, localAgentId), eq(agents.ownerId, session.userId)))
+      .limit(1);
+    if (!owned) {
+      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    }
     const dependencies = await loadClawPumpPreflightDependencies();
     const result = await createLaunchPreflight(body, {
       userId: session.userId,
       wallet: session.wallet,
       client: createClawPumpClient(),
-      database: getDatabase(),
+      database,
       ...dependencies,
     });
     return NextResponse.json(result, {

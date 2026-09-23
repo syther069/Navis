@@ -301,6 +301,28 @@ describe("decision run routes", () => {
     expect(response.status).toBe(401);
   });
 
+  it("stops owner runs at the wallet quota before owner reads or decision writes", async () => {
+    mocks.databaseUrl = "postgres://configured";
+    mocks.sharedAllowed = false;
+    const { getPersistentAgentForOwner } = await import("../lib/services/agents");
+    vi.mocked(getPersistentAgentForOwner).mockClear();
+    const response = await post(
+      { agentSlug: "persistent-agent", scenario: "balanced" },
+      "valid-session",
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("retry-after")).toBe("42");
+    expect(mocks.sharedCalls).toEqual([
+      expect.objectContaining({
+        scope: "wallet.decisions.run",
+        client: "owner-wallet",
+      }),
+    ]);
+    expect(getPersistentAgentForOwner).not.toHaveBeenCalled();
+    expect(mocks.publicRuns).toEqual([]);
+  });
+
   it("does not cache a persistent request for unauthenticated or other-wallet reads", async () => {
     mocks.databaseUrl = "postgres://configured";
     const decisionId = "11111111-1111-4111-8111-111111111111";
