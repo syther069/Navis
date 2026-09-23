@@ -46,6 +46,7 @@ export function WalletControl({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sessionState, setSessionState] = useState<SessionState>("checking");
+  const sessionInspectionRef = useRef<AbortController | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const connectingWalletRef = useRef<WalletName | null>(null);
@@ -94,6 +95,7 @@ export function WalletControl({
     if (!connected || !address || !authenticationConfigured) return;
 
     const controller = new AbortController();
+    sessionInspectionRef.current = controller;
     queueMicrotask(() => {
       if (!controller.signal.aborted) setSessionState("checking");
     });
@@ -105,6 +107,11 @@ export function WalletControl({
       .then(async (response) => {
         const session = await readJson(response);
         if (controller.signal.aborted) return;
+        if (!response.ok || typeof session.authenticated !== "boolean") {
+          throw new Error(
+            "Navis could not check the session. Try disconnecting again.",
+          );
+        }
 
         if (session.authenticated === true && session.wallet === address) {
           setSessionState("authenticated");
@@ -115,6 +122,7 @@ export function WalletControl({
           const logout = await fetch("/api/auth/session", {
             method: "DELETE",
           }).catch(() => null);
+          if (controller.signal.aborted) return;
           if (!logout || !logout.ok) {
             // The previous wallet's session could not be ended on the server.
             // Stay in the checking state so this wallet cannot authenticate
@@ -129,7 +137,7 @@ export function WalletControl({
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
-        setSessionState("anonymous");
+        setSessionState("checking");
         setError(readableError(cause));
       });
 
@@ -208,19 +216,17 @@ export function WalletControl({
 
   async function disconnectWallet() {
     setError(null);
-    if (sessionState === "authenticated") {
-      const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
-        () => null,
+    sessionInspectionRef.current?.abort();
+    // The cookie may exist even while inspection is pending or unavailable.
+    // Explicit disconnect must always ask the server to end it.
+    const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
+      () => null,
+    );
+    if (!logout || !logout.ok) {
+      setError(
+        "Navis could not end the session on the server. Try disconnecting again.",
       );
-      // Stay signed in and keep the menu open when the server could not
-      // durably end the session, so the error stays visible and the owner can
-      // retry instead of losing the only revocable copy.
-      if (!logout || !logout.ok) {
-        setError(
-          "Navis could not end the session on the server. Try disconnecting again.",
-        );
-        return;
-      }
+      return;
     }
     setMenuOpen(false);
     setSessionState("anonymous");

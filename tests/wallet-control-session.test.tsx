@@ -139,4 +139,85 @@ describe("wallet control session failure states", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("menuitem", { name: /^authenticate$/i })).toBeTruthy();
   });
+
+  it("revokes on disconnect while the initial session inspection is delayed", async () => {
+    let finishInspection!: (response: Response) => void;
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "DELETE"
+        ? Promise.resolve(jsonResponse({ authenticated: false }))
+        : new Promise<Response>((resolve) => {
+            finishInspection = resolve;
+          }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    expect(screen.getByText("Checking session…")).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/session", { method: "DELETE" });
+    finishInspection(jsonResponse({ authenticated: true, wallet: WALLET_ADDRESS }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(screen.queryByText("Session authenticated")).toBeNull();
+  });
+
+  it.each(["http", "network"])(
+    "blocks sign-in after initial GET %s failure and retries explicit logout",
+    async (failure) => {
+      let deleteAttempts = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+          if (init?.method === "DELETE") {
+            deleteAttempts++;
+            return jsonResponse(
+              deleteAttempts === 1
+                ? { error: "unavailable" }
+                : { authenticated: false },
+              deleteAttempts === 1 ? 503 : 200,
+            );
+          }
+          if (failure === "network") throw new Error("network unavailable");
+          return jsonResponse({ error: "unavailable" }, 503);
+        }),
+      );
+      render(<WalletControl authenticationConfigured={true} />);
+      openMenu();
+      await screen.findByRole("alert");
+      expect(screen.getByText("Checking session…")).toBeTruthy();
+      expect(screen.queryByRole("menuitem", { name: /^authenticate$/i })).toBeNull();
+      fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain("could not end"),
+      );
+      expect(adapter.disconnect).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+      await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+      expect(deleteAttempts).toBe(2);
+    },
+  );
+
+  it("retries revocation on explicit disconnect after wallet-mismatch logout fails", async () => {
+    mockSessionFetch({ sessionWallet: OTHER_WALLET, deleteStatus: 503 });
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    await screen.findByRole("alert");
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ authenticated: false }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    const deletes = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, init]) => init?.method === "DELETE");
+    expect(deletes).toHaveLength(2);
+  });
+
+  it("still requests server logout when inspection reported anonymous", async () => {
+    mockSessionFetch({ sessionWallet: null, deleteStatus: 200 });
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    await screen.findByText("Signature required");
+    fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(fetch).toHaveBeenCalledWith("/api/auth/session", { method: "DELETE" });
+  });
 });
