@@ -6,6 +6,7 @@ import { readSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db/client";
 import { agents, executionIntents } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { meteoraPublicErrorMessage } from "@/lib/integrations/meteora/errors";
 import {
   METEORA_QUOTE_PROFILE_IDS,
   MeteoraQuoteProfileError,
@@ -151,10 +152,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Meteora config transaction could not be prepared.",
+        error: meteoraPublicErrorMessage(
+          error,
+          "Meteora config transaction could not be prepared.",
+        ),
       },
       {
         status: error instanceof MeteoraQuoteProfileError ? error.status : 400,

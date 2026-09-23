@@ -1,4 +1,5 @@
 import {
+  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
@@ -6,7 +7,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getNavisMeteoraCurvePreview,
@@ -15,6 +16,7 @@ import {
   WRAPPED_SOL_MINT,
 } from "../lib/integrations/meteora/config";
 import { MeteoraDbcClient } from "../lib/integrations/meteora/client";
+import { SOLANA_GENESIS_HASHES } from "../lib/integrations/solana/config";
 import { resolveMeteoraQuoteProfile } from "../lib/integrations/meteora/quote-profiles";
 
 const solQuote = resolveMeteoraQuoteProfile({
@@ -23,6 +25,13 @@ const solQuote = resolveMeteoraQuoteProfile({
 });
 
 describe("Navis Meteora DBC configuration", () => {
+  beforeEach(() => {
+    vi.spyOn(Connection.prototype, "getGenesisHash").mockResolvedValue(
+      SOLANA_GENESIS_HASHES.devnet,
+    );
+  });
+  afterEach(() => vi.restoreAllMocks());
+
   it("builds and validates the exact equity-like profile with the official SDK", () => {
     const receiver = Keypair.generate().publicKey.toBase58();
     const generated = validateNavisMeteoraConfig(receiver);

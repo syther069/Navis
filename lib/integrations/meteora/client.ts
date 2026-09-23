@@ -8,6 +8,8 @@ import { Connection, PublicKey, Transaction, type Commitment } from "@solana/web
 import { createHash } from "node:crypto";
 
 import type { SolanaCluster } from "@/lib/env-core";
+import { SOLANA_GENESIS_HASHES } from "../solana/config";
+import { MeteoraClusterError } from "./errors";
 
 import {
   METEORA_DBC_PROGRAM_ID,
@@ -166,6 +168,17 @@ export class MeteoraDbcClient {
     this.sdk = new DynamicBondingCurveClient(this.connection, commitment);
   }
 
+  /** Recheck at each operation; configuration labels are not network evidence. */
+  async assertRpcCluster(): Promise<void> {
+    try {
+      const genesisHash = await this.connection.getGenesisHash();
+      if (genesisHash === SOLANA_GENESIS_HASHES[this.config.cluster]) return;
+    } catch {
+      // Never expose the RPC URL or provider error, and never fail open.
+    }
+    throw new MeteoraClusterError();
+  }
+
   async getPoolByBaseMint(baseMint: string): Promise<MeteoraPoolStatus | null> {
     const mint = new PublicKey(baseMint);
     const [pool, contextSlot] = await Promise.all([
@@ -287,6 +300,7 @@ export class MeteoraDbcClient {
     leftoverReceiver?: string;
     quote: ResolvedMeteoraQuoteProfile;
   }): Promise<PreparedMeteoraConfigTransaction> {
+    await this.assertRpcCluster();
     if (input.quote.cluster !== this.config.cluster) {
       throw new MeteoraQuoteProfileError(
         "Quote profile was resolved for a different cluster.",
@@ -379,6 +393,7 @@ export class MeteoraDbcClient {
     expectedMessageSha256: string;
     expectedPayer: string;
   }): Promise<MeteoraSignedSimulationResult> {
+    await this.assertRpcCluster();
     const { transaction, feePayer, messageSha256, signatureCount } =
       this.parseVerifiedSignedTransaction(input);
     const response = await this.connection.simulateTransaction(transaction);
@@ -401,6 +416,7 @@ export class MeteoraDbcClient {
     expectedMessageSha256: string;
     expectedPayer: string;
   }): Promise<MeteoraSubmitResult> {
+    await this.assertRpcCluster();
     const { transaction, feePayer, messageSha256, signatureCount } =
       this.parseVerifiedSignedTransaction(input);
     const transactionSignature = await this.connection.sendRawTransaction(
@@ -457,6 +473,7 @@ export class MeteoraDbcClient {
     symbol: string;
     uri: string;
   }): Promise<PreparedMeteoraPoolTransaction> {
+    await this.assertRpcCluster();
     const config = new PublicKey(input.config);
     const baseMint = new PublicKey(input.baseMint);
     const payer = new PublicKey(input.payer);
@@ -547,6 +564,7 @@ export class MeteoraDbcClient {
     expectedMessageSha256: string;
     expectedPayer: string;
   }): Promise<MeteoraSignedSimulationResult> {
+    await this.assertRpcCluster();
     const { transaction, feePayer, messageSha256, signatureCount } =
       this.parseVerifiedSignedTransaction(input);
     const response = await this.connection.simulateTransaction(transaction);
@@ -569,6 +587,7 @@ export class MeteoraDbcClient {
     expectedMessageSha256: string;
     expectedPayer: string;
   }): Promise<MeteoraSubmitResult> {
+    await this.assertRpcCluster();
     const { transaction, feePayer, messageSha256, signatureCount } =
       this.parseVerifiedSignedTransaction(input);
     const transactionSignature = await this.connection.sendRawTransaction(

@@ -6,6 +6,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { describe, expect, it, vi } from "vitest";
 
 import { MeteoraDbcClient } from "../lib/integrations/meteora/client";
+import { SOLANA_GENESIS_HASHES } from "../lib/integrations/solana/config";
 import {
   getNavisMeteoraCurvePreview,
   getNavisMeteoraCurvePreviews,
@@ -158,6 +159,9 @@ describe("Meteora quote profile allowlist", () => {
     const baseMint = Keypair.generate().publicKey;
     const payer = Keypair.generate().publicKey;
     const quoteMint = new PublicKey(catalogue[0]!.contract_address);
+    vi.spyOn(client.connection, "getGenesisHash").mockResolvedValue(
+      SOLANA_GENESIS_HASHES["mainnet-beta"],
+    );
     vi.spyOn(client.connection, "getLatestBlockhash").mockResolvedValue({
       blockhash: Keypair.generate().publicKey.toBase58(),
       lastValidBlockHeight: 1,
@@ -203,6 +207,9 @@ describe("Meteora quote profile allowlist", () => {
       quoteSymbol: "OPENAI",
       prestocksCatalogue: catalogue,
     });
+    vi.spyOn(client.connection, "getGenesisHash").mockResolvedValue(
+      SOLANA_GENESIS_HASHES.devnet,
+    );
     await expect(
       client.prepareCreateConfigTransaction({
         config: Keypair.generate().publicKey.toBase58(),
