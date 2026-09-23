@@ -37,11 +37,6 @@ vi.mock("../lib/auth/server", () => ({
   }),
 }));
 
-vi.mock("../lib/integrations/meteora/broadcast-safety", () => ({
-  isMeteoraBroadcastAvailable: () => true,
-  METEORA_BROADCAST_UNAVAILABLE_REASON: "blocked",
-}));
-
 function updateBuilder(values: Record<string, unknown>) {
   mocks.updatedValues.push(values);
   const result = mocks.updateResults.shift() ?? [];
@@ -173,6 +168,18 @@ describe("Meteora intent concurrency", () => {
     const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
 
     expect(response.status).toBe(409);
+    expect(mocks.sendPool).not.toHaveBeenCalled();
+  });
+
+  it("marks a blockheight-expired pool intent expired before returning", async () => {
+    mocks.selectedRows = [{ ...intent("meteora.pool"), lastValidBlockHeight: 5 }];
+
+    const response = await submitPool(request("/api/integrations/meteora/pool/submit"));
+
+    expect(response.status).toBe(410);
+    expect(mocks.updatedValues).toEqual([
+      expect.objectContaining({ status: "expired" }),
+    ]);
     expect(mocks.sendPool).not.toHaveBeenCalled();
   });
 

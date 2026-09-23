@@ -53,7 +53,7 @@ Only claims backed by `docs/EVIDENCE.md` are kept.
 
 ### Meteora DBC (recommended track)
 
-> Navis integrates the official Meteora Dynamic Bonding Curve SDK with two server-approved quote profiles: a SOL-quoted equity curve and a stock-paired curve quoted in a PreStocks exposure token, verified onchain at prepare time (token program, decimals, Token-2022 extensions, Meteora token badge). Submission is bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result) and the launch record is persisted before any send, but broadcast is hard-blocked in every mode pending a review on a real cluster. No config, pool or transaction is claimed on any cluster.
+> Navis integrates the official Meteora Dynamic Bonding Curve SDK with two server-approved quote profiles. The owner has explicitly authorised the SOL-quoted equity curve as a **devnet-only** test path: code requires devnet mode, devnet cluster, the devnet execution flag, a devnet RPC and wallet authentication, followed by prepare, wallet sign, simulate, submit and reconcile. Submission is bound to a server-prepared execution intent (owner, cluster, expiry, message hash, simulation result), and the launch record is persisted before any send. Mainnet broadcast remains code-blocked. The PreStocks stock-paired curve remains mainnet-only and gated by onchain token-program, decimals, Token-2022 extension and Meteora token-badge checks; it is not a devnet path. No config, pool or transaction is claimed on any cluster.
 
 Config transaction signature, pool transaction signature, pool address, base mint and quote mint: not available.
 
@@ -112,7 +112,8 @@ npm audit --omit=dev
 - PreStocks tokens are presented as economic exposure, not legal shares.
 - Demo receipts are simulations.
 - Risk, privacy, and eligibility disclosures are visible at `/disclosures`.
-- Mainnet flags and human wallet approval are necessary but not sufficient. ClawPump has no funded-launch code, and Meteora broadcast is hard-blocked until retested on a real cluster.
+- Meteora execution is authorised only for the SOL profile on devnet with all code gates satisfied and the complete prepare → wallet sign → simulate → submit → reconcile sequence. Mainnet remains code-blocked; flags and wallet approval cannot bypass that stop. ClawPump has no funded-launch code.
 - No live ClawPump or Meteora address should be claimed without matching evidence in `docs/EVIDENCE.md`.
+- This documentation update submitted no transaction and establishes no production or Vercel publication. Do not turn workspace capability into a deployed-success or bounty claim.
 - Atlas runs remain demo simulations: PreStocks research uses mainnet-beta asset identifiers, not mainnet execution. A configured database stores the public Atlas snapshot, decision, policy evaluation, simulated or rejected attempt and proof receipt atomically; public links need no wallet. Owner-agent records are session-scoped. Without a database, runs are memory-only with no durable links; database write failures must be shown as errors. This is not a real treasury-to-trade execution flow, a wallet signature, or onchain settlement. Confirm deployed capabilities and the displayed persistence result before recording; historical local-only devnet artifacts are not evidence of deployed execution.
 - Open-source and sponsor resources are credited in `docs/ATTRIBUTIONS.md`; the code is released under the MIT licence.

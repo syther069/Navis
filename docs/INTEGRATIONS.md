@@ -9,11 +9,11 @@ confirmed onchain result.
 
 ## Execution modes
 
-| Mode    | Current product behavior                                                                                   | Required evidence before live execution                                                                                            |
-| ------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Demo    | Local demo fixtures and deterministic service results are allowed.                                         | None beyond repository fixtures and tests.                                                                                         |
-| Devnet  | Read-only RPC paths are allowed when `SOLANA_RPC_URL` is set and the environment enables devnet execution. | Wallet authentication, funded devnet wallet, RPC health, decoded unsigned transaction, simulation result, and confirmed signature. |
-| Mainnet | Mainnet execution remains gated by explicit environment flags and real RPC configuration.                  | The same evidence as devnet plus production policy approval and funded wallet consent.                                             |
+| Mode    | Current product behavior                                                                                                                                                      | Required evidence before execution                                                                                                              |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Demo    | Local demo fixtures and deterministic service results are allowed.                                                                                                            | None beyond repository fixtures and tests.                                                                                                      |
+| Devnet  | The owner has explicitly authorised Meteora devnet tests. Value-moving code requires devnet mode, devnet cluster, `ENABLE_DEVNET_EXECUTION=true` and a configured devnet RPC. | Wallet authentication, funded devnet wallet, RPC health, decoded unsigned transaction, successful simulation, submission and reconciled result. |
+| Mainnet | Meteora mainnet broadcast is code-blocked regardless of environment flags. ClawPump remains preflight-only.                                                                   | Not releasable in the current code posture. A later reviewed code and policy release would be required.                                         |
 
 ## ClawPump
 
@@ -38,12 +38,12 @@ Official references: https://clawpump.tech/developers (Partner API v1), https://
 | Pool read                       | Implemented, RPC-configured  | `/api/integrations/meteora/pools/[baseMint]` reads DBC pool state from the configured Solana RPC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Config transaction preparation  | Implemented, execution-gated | `/api/integrations/meteora/config/prepare` returns an unsigned create-config transaction after wallet auth, trusted origin, live-mode flags, and RPC blockhash.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Config transaction simulation   | Implemented, execution-gated | `/api/integrations/meteora/config/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Config transaction submission   | Intent-bound, hard-blocked   | `/api/integrations/meteora/config/submit` accepts only a server-prepared intent ID plus signed bytes, checks owner, cluster, expiry, message hash and simulation, derives the signature from the signed bytes and persists `submitting` with that signature on the intent and launch before send. Repeated submits for a submitting, submitted, unknown_pending or consumed intent return the stored record and never send twice. Broadcast itself is hard-blocked in every mode pending review; no evidence migration `0006` is applied anywhere.                                                  |
+| Config transaction submission   | Intent-bound, devnet-only    | `/api/integrations/meteora/config/submit` accepts only a server-prepared intent ID plus signed bytes, checks owner, cluster, expiry, message hash and simulation, derives the signature from the signed bytes and persists `submitting` with that signature on the intent and launch before send. Repeated submits for a submitting, submitted, unknown_pending or consumed intent return the stored record and never send twice. Broadcast is allowed only through the authorised devnet gate; mainnet is code-blocked. No submission is evidenced by this documentation change.                   |
 | Config transaction confirmation | Implemented, RPC-configured  | `/api/integrations/meteora/config/confirm` reconciles submitting, submitted, unknown_pending and signature_confirmed config and pool records from Solana RPC status, then decodes the promised config or pool account and labels the result `protocol_verified`, `signature_confirmed` (signature landed, account not yet readable) or `evidence_incomplete` (account missing fields or mismatched). Slot, fee and verified account address are stored separately in launch metadata and shown on the transactions ledger and pool monitor. Only `protocol_verified` moves a launch to `confirmed`. |
 | Pool transaction preparation    | Implemented, execution-gated | `/api/integrations/meteora/pool/prepare` requires owned confirmed config evidence, creates an unsigned transaction, and returns the derived pool address as preview evidence only.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Pool transaction simulation     | Implemented, execution-gated | `/api/integrations/meteora/pool/simulate` checks the prepared message hash, authenticated payer, and required signatures before RPC simulation.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Pool transaction submission     | Intent-bound, hard-blocked   | Same intent binding as config submission; a second pool intent is refused once the launch has moved. Broadcast is hard-blocked in every mode until the protocol is retested on a real cluster.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Live pool proof                 | External blocker             | Requires configured RPC, authenticated wallet, funded devnet/mainnet account, and successful onchain execution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Pool transaction submission     | Intent-bound, devnet-only    | Same intent binding as config submission; a second pool intent is refused once the launch has moved. Broadcast is allowed only when all devnet gates pass; mainnet is code-blocked.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Live pool proof                 | Not yet established          | Requires configured devnet RPC, authenticated and funded devnet wallet, successful prepare/sign/simulate/submit/reconcile flow, and confirmed onchain evidence.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ### Quote profiles (server-approved allowlist)
 
@@ -104,23 +104,28 @@ a pool when the config's quote mint differs from the launch record.
 
 #### Status and devnet rehearsal
 
-No Meteora config, pool, or transaction signature exists on any cluster from
-this codebase. Broadcast is hard-blocked in every mode. The stock-paired profile
-cannot be rehearsed on devnet at all because no PreStocks mint exists there, and
-on mainnet it is gated until Meteora issues a token badge for a PreStocks mint;
-mainnet execution flags remain off in any case.
+No Meteora config, pool, or transaction signature is established by the evidence
+currently recorded for this codebase. The owner has explicitly authorised the
+SOL-quoted profile as a devnet test path, but this documentation change submitted
+no transaction. The stock-paired profile cannot be rehearsed on devnet because no
+PreStocks mint exists there; on mainnet it remains token-badge gated, and all
+Meteora mainnet broadcast remains code-blocked.
 
 Owner devnet rehearsal of `navis-equity-v1` (the only profile available there):
 
-1. Set `EXECUTION_MODE=devnet`, `ENABLE_DEVNET_EXECUTION=true`, a devnet
+1. Set `NAVIS_EXECUTION_MODE=devnet`, `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`,
+   `ENABLE_DEVNET_EXECUTION=true`, a devnet
    `SOLANA_RPC_URL`, `DATABASE_URL`, and `SESSION_SECRET`; create a devnet agent.
 2. Connect and authenticate a funded devnet wallet on `/markets/launch`.
-3. Select profile `navis-equity-v1`, prepare, sign, simulate.
-4. Record in `docs/EVIDENCE.md`: intent id, `messageSha256`, `feePayer`,
+3. Select profile `navis-equity-v1`; prepare, wallet-sign, simulate, submit, then
+   reconcile. Every stage remains mandatory.
+4. Only after a real result, record in `docs/EVIDENCE.md`: intent id,
+   `messageSha256`, `feePayer`,
    `accounts.config`, `accounts.quoteMint` (must equal wrapped SOL), the
-   simulation `contextSlot`, `unitsConsumed`, and `error` (must be null).
-5. Submission stays blocked until the broadcast gate is lifted in a separate
-   reviewed change; do not record a signature that does not exist.
+   simulation `contextSlot`, `unitsConsumed`, `error` (must be null), signature
+   and reconciliation result.
+5. Do not record a signature, address, confirmation, bounty result or deployment
+   that does not exist. Never switch this procedure to mainnet.
 
 ### Navis equity-themed DBC profile (`navis-equity-v1`)
 
@@ -220,25 +225,27 @@ four fictional fixture tokens:
 
 - Meteora read calls require `SOLANA_RPC_URL`; without it the API returns an
   explicit unavailable state.
-- Meteora config and pool transaction preparation, simulation, submission, and
-  confirmation remain disabled for live use. All live flags are false. Server-prepared
-  intent and simulation binding is implemented and tested. The broadcast-error path
+- Meteora config and pool preparation, simulation, submission and reconciliation
+  are authorised only for devnet when devnet mode, devnet cluster, the execution
+  flag and devnet RPC all agree. Server-prepared intent and simulation binding is
+  implemented and tested. The broadcast-error path
   now records the signature before the send; a send error that is not a clear
   preflight rejection leaves the record `unknown_pending` with the signature, and
-  reconciliation settles it later. Broadcast still stays hard-blocked before live
-  release.
-- Local remediation now also hard-blocks both Meteora broadcast endpoints regardless
-  of environment toggles. Configuration/simulation inspection remains available when
-  its existing prerequisites are configured. New config confirmations require
+  reconciliation settles it later. Mainnet remains code-blocked.
+- Historical remediation evidence recorded that both Meteora broadcast endpoints
+  were hard-blocked regardless of environment toggles. That statement describes the
+  earlier reviewed baseline, not the current devnet-only gate. Its statement that
+  evidence migration `0006` was not applied anywhere also belongs to that earlier
+  baseline, not the current database posture. New config confirmations require
   complete, consistent successful RPC transaction evidence and real block time.
-  This safety block is not completion of the missing live transaction protocol.
+  Devnet authorisation is not evidence that a transaction completed.
 - Meteora prepare now stores a 90-second execution intent containing the owner,
   cluster, blockhash, signer set, accounts, and message hash. Simulation and submit
   accept that intent id instead of trusting client-supplied launch details or hashes.
   Submit locks the intent, derives the transaction signature from the signed bytes and
   persists `submitting` with that signature before an RPC broadcast, so retries return
-  the stored record instead of broadcasting the same intent twice. No live broadcast
-  was tested.
+  the stored record instead of broadcasting the same intent twice. No broadcast
+  success is added to the evidence record by this documentation change.
 - ClawPump `/launch/self-funded` has no documented devnet or cluster selector.
   Current Navis posture supports preflight only. A funded launch requires an
   owner-approved mainnet release plus safe paid-retry, signature, and persistence

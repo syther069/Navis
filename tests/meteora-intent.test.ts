@@ -45,11 +45,6 @@ vi.mock("../lib/auth/server", () => ({
   }),
 }));
 
-vi.mock("../lib/integrations/meteora/broadcast-safety", () => ({
-  isMeteoraBroadcastAvailable: () => true,
-  METEORA_BROADCAST_UNAVAILABLE_REASON: "blocked",
-}));
-
 function returning(value: Record<string, unknown>) {
   mocks.updated.push(value);
   return {

@@ -67,7 +67,7 @@ Show:
 
 - ClawPump: the explicit "Not configured" state card (a failed provider call would show "Unavailable"). Say that Navis supports preflight only.
 - Meteora DBC: the two server-approved quote profiles. `navis-equity-v1` (wrapped SOL, available on devnet) and `navis-stock-exposure-v1` (quoted in a PreStocks exposure token, mainnet only, gated on the Meteora token badge, unavailable on devnet with no substitute mint). Program, market caps, threshold, fees, LP distribution.
-- Transaction builder copy: prepare before sign, simulate before submit, submit before confirm; broadcast hard-blocked.
+- Transaction builder copy: the SOL profile is the explicitly authorised devnet-only test path, gated by devnet mode, cluster, flag, RPC and an authenticated wallet. The mandatory order is prepare, wallet sign, simulate, submit, reconcile. Mainnet is code-blocked; the PreStocks stock-quote profile remains mainnet-only and token-badge gated.
 - PreStocks research view: catalogue read time, source URL, premium or discount, valuation gap, supply; the economic-exposure disclosure and the absence of any trading path.
 
 Say: Navis separates ClawPump, Meteora and PreStocks evidence so one sponsor claim cannot be confused for another.
@@ -91,7 +91,9 @@ Say: The app is deliberately conservative: external credentials, funding, RPC, d
 - Do not call PreStocks tokens shares.
 - Do not imply mainnet execution unless mainnet evidence exists.
 - Do not imply that ClawPump funded launch is available in demo or devnet; the current product supports preflight only.
-- Do not present Meteora submission as live-ready. Signed input is bound to a server-prepared intent, but broadcast is hard-blocked in every mode.
+- Do not describe Meteora as blocked in every mode: the workspace code now permits the explicitly authorised SOL-profile path on devnet when every gate passes. Also do not claim it ran—no transaction was submitted by this change. Signed input must remain bound to a server-prepared intent and follow prepare → wallet sign → simulate → submit → reconcile.
+- Do not imply that the devnet authorisation enables mainnet or the PreStocks stock-quote profile. Mainnet remains code-blocked, and that profile remains mainnet-only/token-badge gated.
+- Do not present the workspace change as already published to Vercel or production; verify and evidence any deployed release separately.
 - Do not claim browser-based real-wallet authentication was verified; only the origin and nonce checks were tested.
 - Do not claim the fresh Atlas decision persists or can be shared by link on the public site.
 

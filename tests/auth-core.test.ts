@@ -6,6 +6,7 @@ import {
   AuthenticationError,
   assertChallengeUsable,
   buildSignInMessage,
+  createAuthNonce,
   hashAuthNonce,
   verifyWalletSignature,
   walletSchema,
@@ -15,24 +16,56 @@ const issuedAt = new Date("2026-09-17T08:00:00.000Z");
 const expiresAt = new Date("2026-09-17T08:05:00.000Z");
 
 describe("wallet authentication primitives", () => {
+  it("generates SIWS-compatible alphanumeric nonces with 192 bits of entropy", () => {
+    const nonces = Array.from({ length: 64 }, () => createAuthNonce());
+    for (const nonce of nonces) {
+      expect(nonce).toMatch(/^[a-f0-9]{48}$/);
+      expect(Buffer.from(nonce, "hex")).toHaveLength(24);
+    }
+    expect(new Set(nonces).size).toBe(nonces.length);
+  });
+
   it("builds a domain, nonce, cluster, and expiry-bound message", () => {
     const keypair = nacl.sign.keyPair();
     const wallet = bs58.encode(keypair.publicKey);
+    const nonce = createAuthNonce();
     const message = buildSignInMessage({
       domain: "navis.example",
       wallet,
       statement: "Authenticate to Navis.",
       uri: "https://navis.example",
-      nonce: "nonce-with-enough-entropy",
+      nonce,
       issuedAt,
       expiresAt,
       cluster: "devnet",
     });
 
-    expect(message).toContain("navis.example wants you to sign in");
-    expect(message).toContain(`Nonce: nonce-with-enough-entropy`);
-    expect(message).toContain("Chain ID: devnet");
-    expect(message).toContain(`Expiration Time: ${expiresAt.toISOString()}`);
+    expect(message).toBe(
+      [
+        "navis.example wants you to sign in with your Solana account:",
+        wallet,
+        "",
+        "Authenticate to Navis.",
+        "",
+        "URI: https://navis.example",
+        "Version: 1",
+        "Chain ID: devnet",
+        `Nonce: ${nonce}`,
+        `Issued At: ${issuedAt.toISOString()}`,
+        `Expiration Time: ${expiresAt.toISOString()}`,
+      ].join("\n"),
+    );
+    const signature = bs58.encode(
+      nacl.sign.detached(new TextEncoder().encode(message), keypair.secretKey),
+    );
+    expect(verifyWalletSignature({ message, signature, wallet })).toBe(true);
+    expect(
+      verifyWalletSignature({
+        message: message.replace("Chain ID: devnet", "Chain ID: mainnet"),
+        signature,
+        wallet,
+      }),
+    ).toBe(false);
   });
 
   it("accepts the matching detached signature and rejects message tampering", () => {
