@@ -47,6 +47,13 @@ export function WalletControl({
   const [copied, setCopied] = useState(false);
   const [sessionState, setSessionState] = useState<SessionState>("checking");
   const sessionInspectionRef = useRef<AbortController | null>(null);
+  // Serialize explicit session operations in this mounted control. A verify
+  // response sets a cookie, so aborting its fetch is not a safe way to log out.
+  // This is not a cross-tab session-issuance lock.
+  const sessionOperationRef = useRef<"authenticate" | "disconnect" | null>(null);
+  const [sessionOperation, setSessionOperation] = useState<
+    "authenticate" | "disconnect" | null
+  >(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const connectingWalletRef = useRef<WalletName | null>(null);
@@ -158,11 +165,14 @@ export function WalletControl({
   }
 
   async function authenticate() {
+    if (sessionOperationRef.current) return;
     if (!address || !signMessage) {
       setError("This wallet does not support message signing.");
       return;
     }
 
+    sessionOperationRef.current = "authenticate";
+    setSessionOperation("authenticate");
     setError(null);
     setSessionState("authenticating");
 
@@ -211,27 +221,40 @@ export function WalletControl({
     } catch (cause) {
       setSessionState("anonymous");
       setError(readableError(cause));
+    } finally {
+      sessionOperationRef.current = null;
+      setSessionOperation(null);
     }
   }
 
   async function disconnectWallet() {
+    if (sessionOperationRef.current) return;
+    sessionOperationRef.current = "disconnect";
+    setSessionOperation("disconnect");
     setError(null);
     sessionInspectionRef.current?.abort();
     // The cookie may exist even while inspection is pending or unavailable.
     // Explicit disconnect must always ask the server to end it.
-    const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
-      () => null,
-    );
-    if (!logout || !logout.ok) {
-      setError(
-        "Navis could not end the session on the server. Try disconnecting again.",
+    try {
+      const logout = await fetch("/api/auth/session", { method: "DELETE" }).catch(
+        () => null,
       );
-      return;
+      if (!logout || !logout.ok) {
+        setError(
+          "Navis could not end the session on the server. Try disconnecting again.",
+        );
+        return;
+      }
+      setSessionState("anonymous");
+      await disconnect();
+      setMenuOpen(false);
+      router.refresh();
+    } catch (cause) {
+      setError(readableError(cause));
+    } finally {
+      sessionOperationRef.current = null;
+      setSessionOperation(null);
     }
-    setMenuOpen(false);
-    setSessionState("anonymous");
-    await disconnect();
-    router.refresh();
   }
 
   if (connected && address) {
@@ -263,12 +286,17 @@ export function WalletControl({
                   : sessionState === "checking"
                     ? "Checking session…"
                     : sessionState === "authenticating"
-                      ? "Awaiting signature…"
+                      ? "Signing in…"
                       : "Signature required"
                 : "Authentication not configured"}
             </div>
             {authenticationConfigured && sessionState === "anonymous" ? (
-              <button type="button" role="menuitem" onClick={authenticate}>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={sessionOperation !== null}
+                onClick={authenticate}
+              >
                 <ShieldCheck size={17} />
                 Authenticate
               </button>
@@ -280,12 +308,19 @@ export function WalletControl({
             <button
               type="button"
               role="menuitem"
-              disabled={disconnecting}
+              disabled={disconnecting || sessionOperation !== null}
               onClick={() => void disconnectWallet()}
             >
               <SignOut size={17} />
-              {disconnecting ? "Disconnecting…" : "Disconnect"}
+              {disconnecting || sessionOperation === "disconnect"
+                ? "Disconnecting…"
+                : "Disconnect"}
             </button>
+            {sessionOperation === "authenticate" ? (
+              <p className="wallet-session-state" role="status">
+                Finish signing in before disconnecting.
+              </p>
+            ) : null}
             {error ? (
               <p className="wallet-menu-error" role="alert">
                 {error}

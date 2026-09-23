@@ -7,6 +7,7 @@ const OTHER_WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
 const adapter = vi.hoisted(() => ({
   disconnect: vi.fn(async () => undefined),
+  signMessage: vi.fn(async () => new Uint8Array(64)),
   refresh: vi.fn(),
 }));
 
@@ -25,7 +26,7 @@ vi.mock("@solana/wallet-adapter-react", () => ({
     select: vi.fn(),
     connect: vi.fn(async () => undefined),
     disconnect: adapter.disconnect,
-    signMessage: vi.fn(),
+    signMessage: adapter.signMessage,
   }),
 }));
 
@@ -79,6 +80,7 @@ describe("wallet control session failure states", () => {
     cleanup();
     vi.unstubAllGlobals();
     adapter.disconnect.mockClear();
+    adapter.signMessage.mockClear();
     adapter.refresh.mockClear();
   });
 
@@ -219,5 +221,53 @@ describe("wallet control session failure states", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /^disconnect$/i }));
     await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
     expect(fetch).toHaveBeenCalledWith("/api/auth/session", { method: "DELETE" });
+  });
+
+  it("waits for delayed verification before allowing disconnect to revoke the session", async () => {
+    let finishVerification!: (response: Response) => void;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/api/auth/nonce") {
+        return jsonResponse({
+          challengeId: "challenge",
+          nonce: "nonce",
+          message: "Sign in",
+        });
+      }
+      if (input === "/api/auth/verify") {
+        return new Promise<Response>((resolve) => {
+          finishVerification = resolve;
+        });
+      }
+      if (init?.method === "DELETE") return jsonResponse({ authenticated: false });
+      return jsonResponse({ authenticated: false });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WalletControl authenticationConfigured={true} />);
+    openMenu();
+    const authenticate = await screen.findByRole("menuitem", {
+      name: /^authenticate$/i,
+    });
+    fireEvent.click(authenticate);
+    fireEvent.click(authenticate);
+    await waitFor(() => expect(finishVerification).toBeTypeOf("function"));
+    const disconnect = screen.getByRole("menuitem", { name: /^disconnect$/i });
+    expect((disconnect as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("status").textContent).toContain("Finish signing in");
+    fireEvent.click(disconnect);
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+    ).toHaveLength(0);
+    expect(adapter.disconnect).not.toHaveBeenCalled();
+    expect(adapter.signMessage).toHaveBeenCalledOnce();
+
+    finishVerification(jsonResponse({ authenticated: true }));
+    await screen.findByText("Session authenticated");
+    await waitFor(() => expect((disconnect as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(disconnect);
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce());
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+    ).toHaveLength(1);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });
