@@ -50,22 +50,41 @@ Changes are intentionally narrow. No mainnet execution enablement, funds, produc
 
 ## Validation and deployment ledger
 
-This section is completed after the coherent change set is ready. Pending is not passing.
+The complete local check ran successfully on implementation/report commit `b5b3df1` (the subsequent report update changes documentation only). The final PR head must independently pass the required GitHub check before release. Pending is not passing.
 
-| Check                                                         | Result                                                              |
-| ------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Production auth/session/replay/isolation/nonce limit baseline | PASS, 23 Sep 2026 08:17 UTC                                         |
-| Production judge smoke baseline                               | PASS, real persisted PreStocks simulation and proof                 |
-| Security scanners baseline                                    | SAST/privacy no findings; 4 high + 2 moderate dependency advisories |
-| Burst limiter and health targeted tests                       | PASS, 8 tests                                                       |
-| Clean candidate install                                       | PASS, Node 22.23.2 and npm 11.19.1, 833 packages                    |
-| Candidate format/lint/typecheck/unit+route+DB tests           | Pending                                                             |
-| Candidate production build / smoke / submission audit         | Pending                                                             |
-| Browser validation                                            | Pending                                                             |
-| GitHub required checks                                        | Pending                                                             |
-| Candidate tested SHA                                          | Pending                                                             |
-| GitHub main SHA                                               | `ae137135dec290a20ced16a2f516befcf1c63c25` at initial check         |
-| Vercel production SHA                                         | `ae137135dec290a20ced16a2f516befcf1c63c25` at initial check         |
-| Audit fixes deployed?                                         | Not yet established                                                 |
+| Check                                                         | Result                                                                                                                                                           |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production auth/session/replay/isolation/nonce limit baseline | PASS, 23 Sep 2026 08:17 UTC                                                                                                                                      |
+| Production judge smoke baseline                               | PASS, real persisted PreStocks simulation and proof                                                                                                              |
+| Security scanners baseline                                    | SAST/privacy no findings; 4 high + 2 moderate dependency advisories                                                                                              |
+| Burst limiter and health targeted tests                       | PASS, 8 tests                                                                                                                                                    |
+| Clean candidate install                                       | PASS, Node 22.23.2 and npm 11.19.1, 833 packages                                                                                                                 |
+| Candidate format/lint/typecheck/unit+route+DB tests           | PASS; 67 files, 511 tests, including enabled development DB tests                                                                                                |
+| Candidate production build / smoke / submission audit         | PASS; build, judge smoke, registry gate, Drizzle check and submission audit                                                                                      |
+| Browser validation                                            | Production baseline PASS: Chromium reload, restart and re-sign-in; candidate logout failures covered by interaction tests, not an extension-wallet browser claim |
+| GitHub required checks                                        | Pending                                                                                                                                                          |
+| Candidate locally tested implementation/report SHA            | `b5b3df1`; exact final PR head is tested again by required GitHub CI                                                                                             |
+| GitHub main SHA                                               | `ae137135dec290a20ced16a2f516befcf1c63c25` at initial check                                                                                                      |
+| Vercel production SHA                                         | `ae137135dec290a20ced16a2f516befcf1c63c25` at initial check                                                                                                      |
+| Audit fixes deployed?                                         | Not yet established                                                                                                                                              |
 
 No statement that tested == GitHub main == Vercel may be made while the candidate is pending or only on a PR branch.
+
+## Implementation and regression coverage
+
+| Fixes       | Files changed                                                                                           | Added or expanded tests and result                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| F01         | `package-lock.json` only                                                                                | Original EUSAGE reproduced; clean copy without node_modules, Node 22.23.2/npm 11.19.1 install PASS; registry gate PASS |
+| F02         | Local main only: `lib/integrations/meteora/broadcast-safety.ts`, `tests/meteora-broadcast-gate.test.ts` | Six gate tests PASS; local stop commit `9cb855a`; release gate already unconditionally false and unchanged             |
+| F03/F07     | `lib/integrations/meteora/client.ts`, `errors.ts`; config/pool prepare/simulate routes                  | Cluster-binding and error-redaction tests, updated config/quote-profile fixtures; 70 targeted tests PASS               |
+| F04/F23     | `lib/auth/server.ts`, auth session/verify routes, `components/wallet/wallet-control.tsx`                | Session replacement/outage and delayed-verify interaction coverage; 59 targeted auth/security tests PASS               |
+| F05/F06     | `lib/auth/rate-limit.ts`, health route                                                                  | Bounded-rate-limit and expanded health-route tests; eight tests PASS                                                   |
+| F08         | README, `docs/SUBMISSION_DRAFT.md`, `SUBMISSION_READINESS.md`, `DEMO_SCRIPT.md`                         | Submission audit PASS, no fabricated transaction or sponsor claim                                                      |
+| F09/F10     | `lib/integrations/prestocks/client.ts`, `components/proofs/proof-receipt-view.tsx`                      | Fresh/no-store/timeout/schema tests and approved-with-warning/rejected view tests; 15 targeted tests PASS              |
+| F11-F22/F24 | Audit and submission disclosures rather than fabricated implementations                                 | See audit report for source/runtime evidence and unresolved/external classification                                    |
+
+## Deployment handoff
+
+The fixes are not claimed deployed merely because this ledger is committed. Keep production at the existing verified SHA until the protected audit PR passes and is explicitly released. The final delivery includes the PR URL, its exact head, CI status and independently retrieved production SHA. A subsequent release must rerun live auth/replay/persistence/health checks on that SHA.
+
+No execution flags or validated threshold/genesis constants were changed. Verification sessions used ephemeral unfunded test keypairs. The browser replay check necessarily created three test agents; no existing user data was deleted.
