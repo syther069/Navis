@@ -41,7 +41,7 @@ const checks = [
       "Verify a receipt",
       "No live execution",
       "Atlas",
-      "Constraint ledger",
+      "Deterministic Policy",
       "Demo portfolio snapshot",
     ],
   },
