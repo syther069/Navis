@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
 import type { ClawPumpVerificationRecord } from "@/lib/services/clawpump-verification";
 
 /**
@@ -46,7 +47,10 @@ export function ClawPumpVerificationCard({
       className="route-panel route-panel-muted"
       data-testid="clawpump-verification"
     >
-      <span className="route-eyebrow">Provider verification</span>
+      <div className="clawpump-card-label">
+        <span className="route-eyebrow">Provider verification</span>
+        <InfoHint topic="providerState" label="About provider state" />
+      </div>
       {record ? (
         <>
           <h2>
@@ -71,43 +75,72 @@ export function ClawPumpVerificationCard({
             source={`ClawPump GET ${record.endpoint}`}
             timestamp={record.providerTimestamp ?? record.checkedAt}
           />
-          <dl className="preflight-breakdown">
-            <div>
-              <dt>HTTP status</dt>
-              <dd>{record.httpStatus ?? "none"}</dd>
+          <details className="tech-disclosure">
+            <summary>Verification evidence and provider metadata</summary>
+            <div className="tech-disclosure-body">
+              <dl className="preflight-breakdown">
+                <div>
+                  <dt>HTTP status</dt>
+                  <dd>
+                    {record.httpStatus ?? (
+                      <span
+                        className="unavailable"
+                        aria-label="HTTP status unavailable"
+                      >
+                        —
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Request id</dt>
+                  <dd>
+                    {record.requestId ?? (
+                      <span className="unavailable" aria-label="Request id unavailable">
+                        —
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Validated response</dt>
+                  <dd>
+                    {record.responseType ?? (
+                      <span
+                        className="unavailable"
+                        aria-label="Validated response unavailable"
+                      >
+                        —
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Agent access (GET /agents)</dt>
+                  <dd>
+                    {record.agentAccess === "granted"
+                      ? `granted, ${record.agentCount} agent(s) under the key`
+                      : record.agentAccess === "forbidden"
+                        ? "refused: key not linked to an account"
+                        : record.agentAccessError
+                          ? "not determined: GET /agents failed for another reason"
+                          : "not checked"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Network</dt>
+                  <dd>{record.network} (provider documentation)</dd>
+                </div>
+                <div>
+                  <dt>Stored</dt>
+                  <dd>{record.stored ? "yes" : "no database"}</dd>
+                </div>
+              </dl>
+              {record.agentIds.length > 0 ? (
+                <p>Agent ids: {record.agentIds.join(", ")}</p>
+              ) : null}
             </div>
-            <div>
-              <dt>Request id</dt>
-              <dd>{record.requestId ?? "none"}</dd>
-            </div>
-            <div>
-              <dt>Validated response</dt>
-              <dd>{record.responseType ?? "none"}</dd>
-            </div>
-            <div>
-              <dt>Agent access (GET /agents)</dt>
-              <dd>
-                {record.agentAccess === "granted"
-                  ? `granted, ${record.agentCount} agent(s) under the key`
-                  : record.agentAccess === "forbidden"
-                    ? "refused: key not linked to an account"
-                    : record.agentAccessError
-                      ? "not determined: GET /agents failed for another reason"
-                      : "not checked"}
-              </dd>
-            </div>
-            <div>
-              <dt>Network</dt>
-              <dd>{record.network} (provider documentation)</dd>
-            </div>
-            <div>
-              <dt>Stored</dt>
-              <dd>{record.stored ? "yes" : "no database"}</dd>
-            </div>
-          </dl>
-          {record.agentIds.length > 0 ? (
-            <p>Agent ids: {record.agentIds.join(", ")}</p>
-          ) : null}
+          </details>
           {record.agentAccessError ? (
             <p className="form-error">
               {record.agentAccessError} Agent create, attach and launch preflight stay

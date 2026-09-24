@@ -14,7 +14,7 @@ const statusCopy: Readonly<
   loading: { badge: "Loading", tone: "pending" },
   empty: { badge: "Empty", tone: "neutral" },
   error: { badge: "Unavailable", tone: "block" },
-  not_configured: { badge: "Not configured", tone: "warn" },
+  not_configured: { badge: "Unavailable", tone: "neutral" },
 };
 
 /**

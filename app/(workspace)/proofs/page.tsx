@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { RouteHeader } from "@/components/route-primitives";
 import { AssuranceBadge } from "@/components/shared/assurance-badge";
+import { InfoHint } from "@/components/shared/info-hint";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
 import { assuranceForReceipt } from "@/lib/assurance";
 import { demoProof } from "@/fixtures/demo-proof";
@@ -44,61 +45,94 @@ export default async function ProofsPage() {
             : "1 demo receipt"
         }
       />
-      <section className="route-panel proof-registry" aria-label="Proof receipts">
+      <div className="proof-ledger-heading">
+        <div>
+          <span className="receipt-kicker">Evidence / Register</span>
+          <h2>
+            Receipt ledger{" "}
+            <InfoHint topic="proofReceipt" label="About proof receipts" />
+          </h2>
+        </div>
+        <span>
+          {stored.length + 1} record{stored.length === 0 ? "" : "s"} · newest first
+        </span>
+      </div>
+      <section className="proof-registry data-table-wrap" aria-label="Proof receipts">
+        <div className="proof-ledger-columns" aria-hidden="true">
+          <span>Record / agent</span>
+          <span>Recorded at</span>
+          <span>Evidence</span>
+          <span>Execution state</span>
+          <span>Review</span>
+        </div>
         {stored.map((proof) => (
           <article
             key={proof.proofId}
             className="proof-registry-row"
             data-testid="stored-proof-row"
           >
-            <span className="proof-registry-icon" aria-hidden="true">
-              <Fingerprint size={20} />
-            </span>
-            <div>
-              <span>
-                {proof.mode.toUpperCase()} RECEIPT · {proof.agent.name}
-                {proof.visibility === "public" ? " · public record" : ""}
+            <div className="proof-ledger-identity">
+              <span className="proof-ledger-mark">
+                <Fingerprint size={18} aria-hidden="true" />
               </span>
-              <h2>
-                {proof.approved
-                  ? "Approved proposal, simulated execution"
-                  : "Rejected proposal, no execution"}
-              </h2>
-              <SourceStamp source="database" timestamp={proof.finalizedAt} />
-              <AssuranceBadge assurance={assuranceForReceipt(proof.receipt)} compact />
+              <div>
+                <span>
+                  {proof.mode.toUpperCase()} RECEIPT · {proof.agent.name}
+                  {proof.visibility === "public" ? " · public record" : ""}
+                </span>
+                <h3>
+                  {proof.approved
+                    ? "Approved proposal, simulated execution"
+                    : "Rejected proposal, no execution"}
+                </h3>
+                <code title={proof.receiptHash}>
+                  Hash {proof.receiptHash.slice(0, 16)}…
+                </code>
+              </div>
             </div>
-            <code>{proof.receiptHash.slice(0, 16)}…</code>
+            <SourceStamp source="database" timestamp={proof.finalizedAt} />
+            <AssuranceBadge assurance={assuranceForReceipt(proof.receipt)} compact />
             <StatusBadge tone={proof.approved ? "simulation" : "block"}>
               {proof.executionState}
             </StatusBadge>
             <Link className="secondary-button" href={`/proofs/${proof.proofId}`}>
-              Verify <ArrowRight size={16} />
+              Verify <ArrowRight size={16} aria-hidden="true" />
             </Link>
           </article>
         ))}
         <article className="proof-registry-row">
-          <span className="proof-registry-icon" aria-hidden="true">
-            <Fingerprint size={20} />
-          </span>
-          <div>
-            <span>DEMO RECEIPT</span>
-            <h2>{demoProof.title}</h2>
-            <SourceStamp
-              source="demo_fixture"
-              timestamp={demoProof.document.generatedAt}
-            />
-            <AssuranceBadge
-              assurance={assuranceForReceipt(demoProof.document)}
-              compact
-            />
+          <div className="proof-ledger-identity">
+            <span className="proof-ledger-mark">
+              <Fingerprint size={18} aria-hidden="true" />
+            </span>
+            <div>
+              <span>DEMO RECEIPT</span>
+              <h3>{demoProof.title}</h3>
+              <code title={demoProof.receiptHash}>
+                Hash {demoProof.receiptHash.slice(0, 16)}…
+              </code>
+            </div>
           </div>
-          <code>{demoProof.receiptHash.slice(0, 16)}…</code>
+          <SourceStamp
+            source="demo_fixture"
+            timestamp={demoProof.document.generatedAt}
+          />
+          <AssuranceBadge assurance={assuranceForReceipt(demoProof.document)} compact />
           <StatusBadge tone="simulation">Simulation</StatusBadge>
           <Link className="secondary-button" href={`/proofs/${demoProof.id}`}>
-            Verify <ArrowRight size={16} />
+            Verify <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </article>
       </section>
+      {stored.length === 0 ? (
+        <div className="proof-ledger-empty">
+          <Fingerprint size={18} aria-hidden="true" />
+          <p>
+            No stored receipts are visible to this session. The prepared demo receipt
+            above remains available for inspecting the verifier.
+          </p>
+        </div>
+      ) : null}
       <p className="route-copy" data-testid="proof-registry-note">
         {note}
       </p>

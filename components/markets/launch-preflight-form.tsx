@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
 import type { LaunchPreflightResult } from "@/lib/services/launch-preflight";
 
 export type PreflightPairOption = Readonly<{
@@ -47,8 +48,11 @@ export function PreflightResultView({ result }: { result: LaunchPreflightResult 
     >
       <div className="preflight-result-heading">
         <div>
-          <span className="route-eyebrow">
-            {result.state === "quoted" ? "Provider quote" : "Preflight rejected"}
+          <span className="clawpump-card-label">
+            <span className="route-eyebrow">
+              {result.state === "quoted" ? "Provider quote" : "Preflight rejected"}
+            </span>
+            <InfoHint topic="preflight" label="About preflight" />
           </span>
           <h3>
             {result.state === "quoted" && result.quote
@@ -76,109 +80,116 @@ export function PreflightResultView({ result }: { result: LaunchPreflightResult 
           timestamp={result.quote.meta.timestamp}
         />
       ) : null}
-      <dl className="preflight-breakdown">
-        <div>
-          <dt>Agent</dt>
-          <dd>
-            {result.agent.name} → {result.agent.externalAgentId}
-          </dd>
-        </div>
-        <div>
-          <dt>Token</dt>
-          <dd>
-            {result.tokenConfig.name} ({result.tokenConfig.symbol}), fee{" "}
-            {result.tokenConfig.creatorFeeBps} bps, initial buy{" "}
-            {result.tokenConfig.devBuySol} SOL
-          </dd>
-        </div>
-        <div>
-          <dt>Quote asset</dt>
-          <dd>
-            {result.quoteAsset
-              ? `${result.quoteAsset.symbol} · ${classificationLabel(result.quoteAsset.classification)} · ${
-                  result.quoteAsset.tokenProgram.status === "verified"
-                    ? result.quoteAsset.tokenProgram.program
-                    : "token program unverified"
-                }`
-              : "not in catalogue"}
-          </dd>
-        </div>
-        <div>
-          <dt>Network</dt>
-          <dd>{result.network}</dd>
-        </div>
-        <div>
-          <dt>Provider validation</dt>
-          <dd>
-            {result.providerValidation.result === "accepted"
-              ? `accepted (request ${result.providerValidation.requestId})`
-              : result.providerValidation.result === "rejected"
-                ? `rejected${result.providerValidation.httpStatus ? ` HTTP ${result.providerValidation.httpStatus}` : ""}${
-                    result.providerValidation.code
-                      ? ` [${result.providerValidation.code}]`
-                      : ""
-                  }`
-                : `not requested: ${result.providerValidation.reason}`}
-          </dd>
-        </div>
-        <div>
-          <dt>Required wallet</dt>
-          <dd>
-            <AddressValue value={result.requiredWallet} label="Required wallet" />
-          </dd>
-        </div>
-        {result.costEstimate ? (
-          <div>
-            <dt>Cost discovery</dt>
-            <dd>
-              {result.costEstimate.standardCostSol} SOL standard (creation{" "}
-              {result.costEstimate.creationFeeSol} SOL), request{" "}
-              {result.costEstimate.requestId}
-            </dd>
-          </div>
-        ) : null}
-        {result.quote ? (
-          <>
+      <details className="tech-disclosure">
+        <summary>Exact terms and provider evidence</summary>
+        <div className="tech-disclosure-body">
+          <dl className="preflight-breakdown">
             <div>
-              <dt>Exact amount</dt>
-              <dd>{result.quote.payment.amountLamports.toLocaleString()} lamports</dd>
-            </div>
-            <div>
-              <dt>Pay to</dt>
+              <dt>Agent</dt>
               <dd>
-                <AddressValue
-                  value={result.quote.payment.payTo}
-                  label="Payment recipient"
-                />
+                {result.agent.name} → {result.agent.externalAgentId}
               </dd>
             </div>
             <div>
-              <dt>Pay from</dt>
+              <dt>Token</dt>
               <dd>
-                <AddressValue value={result.quote.payment.payFrom} label="Payer" />
+                {result.tokenConfig.name} ({result.tokenConfig.symbol}), fee{" "}
+                {result.tokenConfig.creatorFeeBps} bps, initial buy{" "}
+                {result.tokenConfig.devBuySol} SOL
               </dd>
             </div>
             <div>
-              <dt>Validity</dt>
-              <dd>{result.quote.payment.validForSeconds} seconds</dd>
-            </div>
-            <div>
-              <dt>Breakdown</dt>
+              <dt>Quote asset</dt>
               <dd>
-                {Object.entries(result.quote.payment.breakdown)
-                  .map(([key, value]) => `${key} ${String(value)}`)
-                  .join(", ")}
+                {result.quoteAsset
+                  ? `${result.quoteAsset.symbol} · ${classificationLabel(result.quoteAsset.classification)} · ${
+                      result.quoteAsset.tokenProgram.status === "verified"
+                        ? result.quoteAsset.tokenProgram.program
+                        : "token program unverified"
+                    }`
+                  : "not in catalogue"}
               </dd>
             </div>
-          </>
-        ) : null}
-        {result.walletBalanceLamports !== null ? (
-          <div>
-            <dt>Payer mainnet balance</dt>
-            <dd>{result.walletBalanceLamports.toLocaleString()} lamports</dd>
-          </div>
-        ) : null}
-      </dl>
+            <div>
+              <dt>Network</dt>
+              <dd>{result.network}</dd>
+            </div>
+            <div>
+              <dt>Provider validation</dt>
+              <dd>
+                {result.providerValidation.result === "accepted"
+                  ? `accepted (request ${result.providerValidation.requestId})`
+                  : result.providerValidation.result === "rejected"
+                    ? `rejected${result.providerValidation.httpStatus ? ` HTTP ${result.providerValidation.httpStatus}` : ""}${
+                        result.providerValidation.code
+                          ? ` [${result.providerValidation.code}]`
+                          : ""
+                      }`
+                    : `not requested: ${result.providerValidation.reason}`}
+              </dd>
+            </div>
+            <div>
+              <dt>Required wallet</dt>
+              <dd>
+                <AddressValue value={result.requiredWallet} label="Required wallet" />
+              </dd>
+            </div>
+            {result.costEstimate ? (
+              <div>
+                <dt>Cost discovery</dt>
+                <dd>
+                  {result.costEstimate.standardCostSol} SOL standard (creation{" "}
+                  {result.costEstimate.creationFeeSol} SOL), request{" "}
+                  {result.costEstimate.requestId}
+                </dd>
+              </div>
+            ) : null}
+            {result.quote ? (
+              <>
+                <div>
+                  <dt>Exact amount</dt>
+                  <dd>
+                    {result.quote.payment.amountLamports.toLocaleString()} lamports
+                  </dd>
+                </div>
+                <div>
+                  <dt>Pay to</dt>
+                  <dd>
+                    <AddressValue
+                      value={result.quote.payment.payTo}
+                      label="Payment recipient"
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Pay from</dt>
+                  <dd>
+                    <AddressValue value={result.quote.payment.payFrom} label="Payer" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Validity</dt>
+                  <dd>{result.quote.payment.validForSeconds} seconds</dd>
+                </div>
+                <div>
+                  <dt>Breakdown</dt>
+                  <dd>
+                    {Object.entries(result.quote.payment.breakdown)
+                      .map(([key, value]) => `${key} ${String(value)}`)
+                      .join(", ")}
+                  </dd>
+                </div>
+              </>
+            ) : null}
+            {result.walletBalanceLamports !== null ? (
+              <div>
+                <dt>Payer mainnet balance</dt>
+                <dd>{result.walletBalanceLamports.toLocaleString()} lamports</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+      </details>
       <div className="preflight-prerequisites" data-testid="preflight-prerequisites">
         <span className="route-eyebrow">Outstanding prerequisites</span>
         {result.prerequisites.length === 0 ? (
@@ -298,7 +309,9 @@ export function LaunchPreflightForm({
         <div className="panel-heading">
           <LockKey aria-hidden="true" size={20} />
           <div>
-            <span>Bound preflight</span>
+            <span className="clawpump-card-label">
+              Bound preflight <InfoHint topic="preflight" label="About preflight" />
+            </span>
             <h2>Define exact launch terms</h2>
           </div>
         </div>

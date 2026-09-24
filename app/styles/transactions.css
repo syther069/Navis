@@ -1,1 +1,366 @@
 /* Transactions ledger. Owned by this screen only; shared workflow primitives live in workflow.css. */
+
+.transaction-lifecycle {
+  overflow: hidden;
+  margin-bottom: var(--section-gap);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--canvas-subtle);
+}
+
+.transaction-lifecycle-intro {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.transaction-kicker,
+.transaction-lifecycle-count,
+.transaction-lifecycle-index {
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+
+.transaction-kicker {
+  color: var(--accent);
+}
+.transaction-lifecycle-count {
+  white-space: nowrap;
+  font-family: var(--font-data);
+}
+.transaction-lifecycle h2,
+.transaction-empty h2 {
+  margin: var(--space-2) 0 0;
+  color: var(--text-primary);
+  font-size: var(--type-h2);
+  letter-spacing: -0.01em;
+}
+
+.transaction-lifecycle h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.transaction-lifecycle-intro p,
+.transaction-empty p {
+  max-width: 64ch;
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--type-secondary);
+  line-height: 1.55;
+}
+
+.transaction-lifecycle-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.transaction-lifecycle-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.transaction-lifecycle-item:nth-child(3n) {
+  border-right: 0;
+}
+.transaction-lifecycle-item:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+.transaction-lifecycle-index {
+  font-family: var(--font-data);
+}
+.transaction-lifecycle-description {
+  flex-basis: 100%;
+  padding-left: 2.05rem;
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  line-height: 1.4;
+}
+
+.transaction-empty {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) minmax(13rem, 0.65fr);
+  gap: var(--space-6);
+  align-items: start;
+  margin-bottom: var(--section-gap);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.transaction-empty-copy {
+  padding-top: var(--space-1);
+}
+
+.transaction-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+}
+.transaction-empty .transaction-empty-note {
+  margin-top: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+.transaction-empty-link {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  color: var(--accent);
+  font-size: var(--type-label);
+  text-decoration: none;
+}
+.transaction-empty-link:hover {
+  text-decoration: underline;
+}
+
+.transaction-empty-index {
+  display: grid;
+  align-self: stretch;
+  align-content: center;
+  gap: 0;
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--border-strong);
+}
+.transaction-empty-index-title {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+.transaction-empty-index > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.transaction-empty-index > div span {
+  color: var(--accent);
+  font-family: var(--font-data);
+  font-size: var(--type-technical);
+}
+.transaction-empty-index > div strong {
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+  font-weight: 500;
+}
+
+.transaction-grid {
+  gap: var(--section-gap);
+}
+.transaction-filters {
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.transaction-filters a {
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.transaction-filters a[data-current] {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--text-primary);
+}
+.transaction-ledger {
+  gap: var(--space-5);
+}
+.transaction-list {
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+.transaction-entry {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.transaction-entry:last-child {
+  border-bottom: 0;
+}
+.transaction-entry-main {
+  display: grid;
+  grid-template-columns:
+    minmax(11rem, 1.3fr) minmax(10rem, 1fr) minmax(10rem, 1fr)
+    minmax(7rem, 0.65fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-2);
+}
+.transaction-entry-main > * {
+  min-width: 0;
+}
+.transaction-entry-identity,
+.transaction-entry-status,
+.transaction-entry-measure {
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: var(--space-1);
+}
+.transaction-entry-date,
+.transaction-entry-sub,
+.transaction-entry-status small,
+.transaction-entry-measure > span:first-child {
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+.transaction-entry-date {
+  font-family: var(--font-data);
+}
+.transaction-entry-identity h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-secondary);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.transaction-entry-measure strong {
+  color: var(--text-primary);
+  font-size: var(--type-numeric);
+  font-weight: 500;
+}
+.transaction-entry-measure .address-value {
+  font-size: var(--type-technical);
+}
+.transaction-unmapped {
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+}
+.transaction-entry-error {
+  margin: 0 var(--space-2) var(--space-3);
+  padding: var(--space-2);
+  border-left: 2px solid var(--danger);
+  color: var(--danger);
+  font-size: var(--type-label);
+}
+.transaction-details {
+  margin: 0 var(--space-2) var(--space-3);
+  background: var(--canvas-subtle);
+}
+.transaction-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+.transaction-detail-grid > div {
+  min-width: 0;
+}
+.transaction-detail-grid dt {
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+}
+.transaction-detail-grid dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+  overflow-wrap: anywhere;
+}
+.transaction-detail-grid dd:has(.address-value) {
+  overflow-wrap: normal;
+}
+.transaction-signature {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.transaction-explorer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: var(--accent);
+  font-size: var(--type-caption);
+  text-decoration: none;
+}
+.transaction-explorer:hover {
+  text-decoration: underline;
+}
+.transaction-entry .unavailable {
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .transaction-empty {
+    grid-template-columns: 4rem minmax(0, 1fr);
+  }
+  .transaction-empty-index {
+    display: none;
+  }
+  .transaction-lifecycle-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .transaction-lifecycle-item:nth-child(3n) {
+    border-right: 1px solid var(--border);
+  }
+  .transaction-lifecycle-item:nth-child(2n) {
+    border-right: 0;
+  }
+  .transaction-lifecycle-item:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border);
+  }
+  .transaction-lifecycle-item:last-child {
+    border-bottom: 0;
+  }
+  .transaction-entry-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  .transaction-lifecycle-intro {
+    padding: var(--space-4);
+  }
+  .transaction-lifecycle-list {
+    grid-template-columns: 1fr;
+  }
+  .transaction-lifecycle-item,
+  .transaction-lifecycle-item:nth-child(3n) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .transaction-lifecycle-item:last-child {
+    border-bottom: 0;
+  }
+  .transaction-lifecycle-description {
+    padding-left: 2.05rem;
+  }
+  .transaction-empty {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+  .transaction-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .transaction-filters a {
+    flex: none;
+  }
+  .transaction-entry-main {
+    gap: var(--space-4) var(--space-2);
+  }
+  .transaction-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

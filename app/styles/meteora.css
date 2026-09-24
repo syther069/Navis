@@ -1,1 +1,448 @@
 /* Meteora DBC workflow. Owned by this screen only; shared workflow primitives live in workflow.css. */
+
+.meteora-panel {
+  margin-top: var(--space-6);
+  min-width: 0;
+}
+
+.meteora-panel-heading {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.meteora-panel > .route-copy {
+  max-width: 76ch;
+  margin-bottom: var(--space-8);
+}
+
+.meteora-section-heading {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-8) 0 var(--space-4);
+}
+
+.meteora-section-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--type-h2);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.meteora-section-heading p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: var(--type-secondary);
+}
+
+.meteora-metrics {
+  gap: 0;
+  margin-top: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--canvas-subtle);
+}
+
+.meteora-metrics article {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: var(--space-2);
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-5);
+}
+
+.meteora-metrics article:last-child {
+  border-right: 0;
+}
+.meteora-metrics article::before {
+  content: "";
+  position: absolute;
+  left: var(--space-5);
+  top: 0;
+  width: 1.75rem;
+  height: 2px;
+  background: var(--accent);
+}
+
+.meteora-metrics span {
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  color: var(--text-secondary);
+}
+
+.meteora-metrics strong {
+  margin-top: var(--space-3);
+  font-family: var(--font-data);
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.meteora-metrics .meteora-spec-description {
+  font-family: var(--font-ui);
+  font-size: var(--type-secondary);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.meteora-metrics small {
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.meteora-profiles {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+}
+
+.meteora-profile-card {
+  min-width: 0;
+  gap: var(--space-3);
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-subtle);
+  padding: var(--space-5);
+}
+
+.meteora-profile-heading {
+  flex-wrap: wrap;
+}
+.meteora-profile-heading h3 code {
+  font-size: var(--type-technical);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.meteora-profile-card > .route-copy {
+  margin: 0;
+}
+.meteora-profile-card > .form-note {
+  margin: 0;
+}
+.meteora-rationale {
+  gap: var(--space-3);
+}
+.meteora-rationale dt {
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 1;
+  color: var(--text-muted);
+}
+.meteora-rationale dd {
+  overflow-wrap: anywhere;
+}
+
+.meteora-technical {
+  margin-top: var(--space-4);
+}
+.meteora-config-grid {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.meteora-config-grid dl > div,
+.meteora-address-list > div {
+  align-items: baseline;
+  min-width: 0;
+}
+.meteora-config-grid dt,
+.meteora-address-list dt {
+  flex: 0 0 34%;
+  font-size: var(--type-label);
+}
+.meteora-config-grid dd,
+.meteora-address-list dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.meteora-config-grid dd code,
+.meteora-address-list dd code {
+  overflow-wrap: anywhere;
+}
+.meteora-addresses {
+  font-size: var(--type-technical);
+  overflow-wrap: anywhere;
+}
+
+.meteora-execution-gate {
+  display: block;
+  margin-top: var(--space-10);
+  padding: var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-top: 2px solid var(--accent);
+  background: var(--surface);
+}
+.meteora-gate-intro {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.meteora-gate-intro svg {
+  color: var(--accent);
+}
+.meteora-gate-intro strong {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-h3);
+}
+.meteora-gate-intro p {
+  grid-column: 2;
+  margin: 0;
+  max-width: 68ch;
+}
+.meteora-prepare {
+  display: grid;
+  justify-items: stretch;
+  width: 100%;
+  min-width: 0;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+}
+.meteora-prepare .form-note,
+.meteora-prepare .form-error {
+  max-width: none;
+}
+.meteora-profile-picker {
+  margin: 0;
+}
+.meteora-prepare > .primary-button {
+  justify-self: start;
+}
+.meteora-wallet-readiness {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-subtle);
+  padding: var(--space-4);
+}
+.meteora-readiness-list dt {
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 1;
+  color: var(--text-muted);
+}
+.meteora-readiness-list dd {
+  font-family: var(--font-data);
+  overflow-wrap: anywhere;
+}
+.meteora-flow {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--canvas-subtle);
+}
+.meteora-flow .meteora-section-heading {
+  margin: 0 0 var(--space-6);
+}
+.meteora-flow .stage-track {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6) var(--space-4);
+}
+.meteora-flow .stage-track-head {
+  flex-wrap: wrap;
+}
+.meteora-flow .stage-track-item {
+  padding-right: var(--space-4);
+}
+.meteora-flow .stage-track-item:nth-child(3)::after {
+  display: none;
+}
+.meteora-flow .stage-track-label {
+  font-size: var(--type-label);
+}
+.meteora-flow .stage-track-detail {
+  max-width: 36ch;
+}
+.meteora-prepared-review {
+  width: 100%;
+  border-color: var(--border-strong);
+  background: var(--canvas-subtle);
+  padding: var(--space-5);
+}
+.meteora-prepared-review .panel-heading {
+  padding-bottom: var(--space-2);
+}
+.meteora-action-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.meteora-submit-actions {
+  border-top-color: var(--border-strong);
+}
+.meteora-submit-review,
+.meteora-pool-result {
+  border-color: var(--border-strong);
+  background: var(--canvas-subtle);
+}
+.meteora-prepare > .meteora-submit-review {
+  margin: 0;
+}
+.meteora-submit-review > .meteora-submit-review {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+.meteora-submit-review > .meteora-submit-review .form-note {
+  grid-column: 1;
+  margin: 0;
+}
+.meteora-submit-review > .meteora-submit-review button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.meteora-simulation-review {
+  border-color: var(--line-simulation);
+  background: var(--tint-simulation);
+}
+.meteora-simulation-review[data-status="fail"] {
+  border-color: var(--line-danger);
+  background: var(--tint-danger);
+}
+.meteora-monitor-section {
+  grid-template-columns: minmax(12rem, 0.6fr) minmax(0, 1.4fr);
+  margin-top: var(--space-10);
+  border-top-color: var(--border-strong);
+}
+.meteora-monitor-section h3 {
+  font-size: var(--type-h2);
+}
+.meteora-monitor-section p {
+  font-size: var(--type-secondary);
+}
+.meteora-pool-result .panel-heading {
+  justify-content: space-between;
+}
+.meteora-launch-evidence {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .meteora-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .meteora-metrics article:nth-child(2) {
+    border-right: 0;
+  }
+  .meteora-metrics article:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+  .meteora-flow .stage-track {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .meteora-flow .stage-track-item {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: none;
+    padding: 0 0 var(--space-4);
+  }
+  .meteora-flow .stage-track-item:nth-child(3)::after {
+    display: block;
+  }
+  .meteora-flow .stage-track-item:not(:last-child)::after {
+    top: 1.625rem;
+    bottom: 0.25rem;
+    left: 0.6875rem;
+    right: auto;
+    width: 1px;
+    height: auto;
+  }
+  .meteora-flow .stage-track-detail {
+    max-width: none;
+  }
+}
+@media (max-width: 760px) {
+  .meteora-panel-heading {
+    flex-wrap: wrap;
+  }
+  .meteora-heading-stamps {
+    justify-content: flex-start;
+  }
+  .meteora-config-grid,
+  .meteora-monitor-section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .meteora-execution-gate {
+    padding: var(--space-4);
+  }
+  .meteora-gate-intro p {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 540px) {
+  .meteora-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .meteora-metrics article {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .meteora-metrics article:last-child {
+    border-bottom: 0;
+  }
+  .meteora-profile-card {
+    padding: var(--space-4);
+  }
+  .meteora-profile-heading {
+    display: grid;
+  }
+  .meteora-flow {
+    padding: var(--space-4);
+  }
+  .meteora-readiness-list {
+    grid-template-columns: 1fr 1fr;
+  }
+  .meteora-pool-fields,
+  .meteora-monitor form {
+    grid-template-columns: 1fr;
+  }
+  .meteora-submit-review > .meteora-submit-review {
+    grid-template-columns: 1fr;
+  }
+  .meteora-submit-review > .meteora-submit-review button {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+  .meteora-prepared-review {
+    padding: var(--space-4);
+  }
+  .meteora-address-list > div {
+    display: grid;
+    gap: var(--space-1);
+  }
+  .meteora-address-list dd {
+    text-align: left;
+  }
+}
