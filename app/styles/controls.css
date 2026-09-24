@@ -494,6 +494,101 @@
   color: var(--simulation);
 }
 
+/* 7 Unmistakable Decision Status States */
+.status-badge[data-tone="proposed"] {
+  border-color: color-mix(in srgb, var(--info) 48%, var(--border-strong));
+  background: color-mix(in srgb, var(--info) 10%, var(--surface-raised));
+  color: var(--info);
+}
+
+.status-badge[data-tone="approved"] {
+  border-color: color-mix(in srgb, var(--simulation) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--simulation) 15%, var(--surface-raised));
+  color: #c4bbf0;
+}
+
+.status-badge[data-tone="signing"] {
+  border-color: var(--line-warning);
+  background: var(--tint-warning);
+  color: var(--warning);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+.status-badge[data-tone="signing"] svg {
+  animation: badge-signing-pulse 1.8s ease-in-out infinite;
+}
+
+.status-badge[data-tone="submitted"] {
+  border-color: color-mix(in srgb, var(--info) 70%, transparent);
+  background: color-mix(in srgb, var(--info) 16%, var(--surface-raised));
+  color: #7ec4ff;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--info) 25%, transparent);
+}
+
+.status-badge[data-tone="submitted"] svg {
+  animation: badge-submitted-wave 2s ease-in-out infinite;
+}
+
+.status-badge[data-tone="confirmed"] {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 16%, var(--surface-raised));
+  color: var(--success);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--success) 22%, transparent);
+  font-weight: 600;
+}
+
+.status-badge[data-tone="failed"] {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface-raised));
+  color: var(--danger);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.status-badge[data-tone="blocked"] {
+  border-color: color-mix(in srgb, var(--danger) 85%, #000);
+  background: color-mix(in srgb, var(--danger) 24%, #180a0a);
+  color: #ffa39e;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 45%, transparent);
+  font-weight: 600;
+}
+
+@keyframes badge-signing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes badge-submitted-wave {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-1px);
+  }
+}
+
+.decision-state-container,
+.decision-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.decision-state-badge-sub {
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  font-family: var(--font-ui);
+}
+
 /* Network seal: the one deliberate uppercase element */
 .mode-stamp {
   border: 1px solid var(--line-simulation);
