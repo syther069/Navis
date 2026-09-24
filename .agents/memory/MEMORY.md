@@ -1,1 +1,2 @@
-- [NAVIS data honesty](navis-data-honesty.md) — primary workspace excludes inherited demo fixtures; policy approval, wallet consent, simulation, and settlement stay distinct.- [GitHub main + Vercel release](github-vercel-release.md) — main is protected, integration cannot write; push branch with user token, keep Vercel build green.
+- [NAVIS data honesty](navis-data-honesty.md) — primary workspace excludes inherited demo fixtures; policy approval, wallet consent, simulation, and settlement stay distinct.
+- [GitHub main + Vercel release](github-vercel-release.md) — main is protected, integration cannot write; push branch with user token, keep Vercel build green.

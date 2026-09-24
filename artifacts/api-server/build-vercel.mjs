@@ -4,14 +4,10 @@
  *   functions/api.func/  -> the Express API as one Node.js serverless function
  * Run after `pnpm --filter @workspace/navis run build`.
  */
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { build as esbuild } from "esbuild";
-import esbuildPluginPino from "esbuild-plugin-pino";
-
-globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(artifactDir, "..", "..");
@@ -38,7 +34,10 @@ async function main() {
     outdir: functionDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
-    plugins: [esbuildPluginPino({ transports: ["pino-pretty"] })],
+    // Vercel always runs deployments with NODE_ENV=production. Fixing it here keeps
+    // the pino-pretty worker transport out of the bundle, so no worker file paths
+    // from the build machine are baked into the function.
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
     banner: {
       js: `import { createRequire as __bannerCrReq } from 'node:module';
 import __bannerPath from 'node:path';
