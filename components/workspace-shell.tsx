@@ -373,6 +373,9 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
         </nav>
 
         <div className="rail-footer">
+          <Link className="public-discovery-link" href="/welcome">
+            What is NAVIS?
+          </Link>
           <Link
             className="rail-link"
             data-current={isCurrent("/settings") || undefined}
@@ -442,6 +445,13 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
             </button>
           </div>
           <nav className="mobile-navigation" aria-label="Mobile navigation">
+            <Link
+              className="rail-link"
+              href="/welcome"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              What is NAVIS?
+            </Link>
             {navigation.map(({ label, icon: Icon, href, match, helpTopic }) => {
               const current = isCurrent(match);
               return (
