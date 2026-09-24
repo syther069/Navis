@@ -47,14 +47,3 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-
-# Canonical Next.js app and preserved migration material
-.next/
-out/
-.restoration/
-.migration-backup/
-.env*
-!.env.example
-.config/
-coverage/
-ci-artifacts

@@ -1,0 +1,31 @@
+modules = ["nodejs-20", "web"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[workflows]
+runButton = "Project"
+
+[agent]
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
+
+[userenv]
+
+[userenv.shared]
+AI_PROVIDER = "demo"
+ENABLE_DEMO_MODE = "true"
+ENABLE_DEVNET_EXECUTION = "false"
+ENABLE_MAINNET_EXECUTION = "false"
+MAINNET_RELEASE_APPROVED = "false"
+NAVIS_EXECUTION_MODE = "demo"
+NEXT_PUBLIC_SOLANA_CLUSTER = "devnet"
+
+[userenv.development]
+
+[nix]
+channel = "stable-25_05"

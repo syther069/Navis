@@ -1,41 +1,45 @@
-# Navis
+# [Project name]
 
-Navis is the existing governed Solana equity-agent workspace. The canonical
-Next.js App Router application lives at the repository root and uses npm with
-`package-lock.json`. Do not convert it to pnpm, Vite, Express, or a static export.
+_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
 
-## Run and validate
+## Run & Operate
 
-- `npm install` installs the original application dependencies.
-- `npm run dev` runs Next.js development.
-- `npm run check` runs all eight validation gates.
-- `npm run build` and `npm run start` build and serve the Next.js production app.
-- `npm audit --omit=dev` reports production dependency advisories separately.
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm run typecheck` — full typecheck across all packages
+- `pnpm run build` — typecheck + build all packages
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- Required env: `DATABASE_URL` — Postgres connection string
 
-The sole Replit service descriptor is
-`artifacts/navis/.replit-artifact/artifact.toml`. It runs root npm commands and
-routes `/` and its API paths to Next.js. This directory does not contain a second
-application. The API and canvas starter services are archived, not active.
+## Stack
 
-## Sources of truth
+- pnpm workspaces, Node.js 24, TypeScript 5.9
+- API: Express 5
+- DB: PostgreSQL + Drizzle ORM
+- Validation: Zod (`zod/v4`), `drizzle-zod`
+- API codegen: Orval (from OpenAPI spec)
+- Build: esbuild (CJS bundle)
 
-Read `AGENTS.md` and the installed Next.js documentation before framework changes.
-Preserve `README.md`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `PHASES.md`,
-`TASKS.md`, and `docs/`. Do not replace them with generic templates.
+## Where things live
 
-## Safety
+_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
 
-Keep demo enabled, live execution disabled, and mainnet release approval false.
-AI proposals cannot authorize transactions. Preserve deterministic policy,
-nonce/domain/replay protection, trusted mutation origins, human signatures, and
-truthful pending states. Simulated proofs must never contain onchain evidence.
+## Architecture decisions
 
-Use the existing PostgreSQL/Drizzle model. Managed production schema changes go
-through the user's Publish flow, never build/startup DDL. Publishing, funded
-actions, wallet signatures, and final hackathon submission require user action.
+_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
 
-## Preservation
+## Product
 
-The original `.migration-backup` remains unchanged. A pre-restoration archive
-and separated scaffold/in-progress work are retained under `.restoration/`.
-These are recovery material, not active application sources or test targets.
+_Describe the high-level user-facing capabilities of this app once they exist._
+
+## User preferences
+
+_Populate as you build — explicit user instructions worth remembering across sessions._
+
+## Gotchas
+
+_Populate as you build — sharp edges, "always run X before Y" rules._
+
+## Pointers
+
+- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
