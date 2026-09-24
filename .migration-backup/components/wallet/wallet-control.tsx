@@ -3,7 +3,15 @@
 import { WalletReadyState, type WalletName } from "@solana/wallet-adapter-base";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
-import { Check, Copy, ShieldCheck, SignOut, Wallet, X } from "@phosphor-icons/react";
+import {
+  CaretDown,
+  Check,
+  Copy,
+  ShieldCheck,
+  SignOut,
+  Wallet,
+  X,
+} from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -95,6 +103,34 @@ export function WalletControl({
       trigger?.focus();
     };
   }, [dialogOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node) &&
+        !(event.target as HTMLElement).closest(".wallet-menu")
+      ) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [menuOpen]);
 
   const address = publicKey?.toBase58();
 
@@ -271,6 +307,7 @@ export function WalletControl({
         >
           <span className="wallet-live-dot" aria-hidden="true" />
           <span>{shortenAddress(address)}</span>
+          <CaretDown size={12} aria-hidden="true" className="wallet-caret" />
         </button>
         {menuOpen ? (
           <div className="wallet-menu" role="menu">
