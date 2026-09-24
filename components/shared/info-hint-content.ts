@@ -165,7 +165,7 @@ export const infoHintContent = {
     title: "Bonding curve configuration",
     what: "The Meteora DBC config: price band, fees, migration threshold and locked liquidity for a launch.",
     why: "The config fixes launch economics before any pool exists. Profiles come from the server allowlist.",
-    next: "A validated config moves to transaction preparation and simulation. Broadcasting is disabled in Navis.",
+    next: "A validated config moves to transaction preparation and simulation. Broadcast runs only where the deployment allows it, and only after your wallet signature.",
   },
   marketSource: {
     title: "Market data source",

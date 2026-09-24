@@ -1336,7 +1336,7 @@ function PreparedTransactionReview({
             ? simulation && simulation.error === null
               ? `Simulation passed. Submission broadcasts the signed transaction to ${cluster}; the signature and outcome are recorded for reconciliation.`
               : "Submission unlocks after the signed transaction passes simulation."
-            : `${broadcastBlockedReason} Broadcasting is intentionally disabled in Navis. A prepared transaction is not executed; preparation and simulation remain available for review.`}
+            : `${broadcastBlockedReason} Broadcasting is disabled for this deployment. A prepared transaction is not executed; preparation and simulation remain available for review.`}
         </p>
       </div>
       {submitted ? (
@@ -1520,7 +1520,7 @@ function PoolCreationReview({
                 ? simulation && simulation.error === null
                   ? `Pool simulation passed. Submission broadcasts to ${cluster} and records the signature.`
                   : "Pool submission unlocks after a passing pool simulation."
-                : `${broadcastBlockedReason} Broadcasting is intentionally disabled in Navis. A prepared transaction is not executed.`}
+                : `${broadcastBlockedReason} Broadcasting is disabled for this deployment. A prepared transaction is not executed.`}
             </p>
           </div>
         </div>
