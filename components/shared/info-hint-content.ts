@@ -101,6 +101,90 @@ export const infoHintContent = {
     why: "Provides independent verifiable accountability. Anyone can recompute document hashes locally in their browser without trusting NAVIS servers.",
     next: "Open the receipt in the verifier or inspect the canonical hash chain to audit decision integrity.",
   },
+  preparation: {
+    title: "Transaction preparation",
+    what: "The server builds an unsigned transaction from approved inputs. Nothing has been signed or sent at this point.",
+    why: "Preparing first lets you inspect accounts, amounts and fees before any wallet is asked to sign.",
+    next: "A prepared transaction still needs simulation and your wallet signature. It has not moved any value.",
+  },
+  signing: {
+    title: "Wallet signing",
+    what: "Your wallet shows the transaction and asks you to sign it. Navis never holds or sees private keys.",
+    why: "A signature is your explicit authorization. Policy approval alone can never sign or send a transaction.",
+    next: "After signing, the signed transaction is submitted to the network. Rejecting in the wallet stops the flow.",
+  },
+  broadcast: {
+    title: "Broadcast",
+    what: "Sending a signed transaction to the Solana network so validators can include it in a block.",
+    why: "Broadcast is the first step that can move value. It only happens after simulation and your wallet signature.",
+    next: "A broadcast transaction still has to be confirmed. Where broadcasting is disabled, this step does not run.",
+  },
+  confirmation: {
+    title: "Confirmation",
+    what: "The network reports that the transaction landed in a block at the requested commitment level.",
+    why: "Only a confirmed signature is evidence of onchain settlement. Submitted is not the same as confirmed.",
+    next: "Open the signature in an explorer to verify it independently.",
+  },
+  transactionLifecycle: {
+    title: "Transaction lifecycle",
+    what: "Preparing, Simulation, Awaiting wallet, Signing, Submitted, Confirming, Confirmed, Failed and Blocked are separate recorded states.",
+    why: "Each state is shown only when the ledger recorded it, so a prepared or simulated transaction is never presented as executed.",
+    next: "Fields such as fees, signature and explorer link appear only once the record actually contains them.",
+  },
+  networkFees: {
+    title: "Network fees",
+    what: "The SOL fee paid to the network for a transaction, as reported by the record or simulation.",
+    why: "Fees are shown only when recorded. Navis does not estimate or invent a fee.",
+    next: "Compare the recorded fee with the explorer entry for the signature.",
+  },
+  signature: {
+    title: "Transaction signature",
+    what: "The unique identifier of a submitted Solana transaction.",
+    why: "A signature exists only after a signed transaction is submitted. Simulations and prepared transactions have none.",
+    next: "Use the explorer link to look the signature up on the network yourself.",
+  },
+  preflight: {
+    title: "Preflight",
+    what: "Read-only checks run before a launch: pair availability, payment, payout and fee consequences.",
+    why: "Preflight surfaces problems before you authorize anything. Passing preflight does not launch a token.",
+    next: "A launch still needs preparation, a transaction and your wallet approval.",
+  },
+  providerState: {
+    title: "Provider state",
+    what: "What the external provider itself reports about the integration, separate from whether Navis could reach it.",
+    why: "Reachable is not the same as ready. A provider can answer and still refuse or block a launch.",
+    next: "Each state shown comes from a real request. Unavailable or blocked states are shown as they are.",
+  },
+  integrationConnectivity: {
+    title: "Connectivity",
+    what: "Whether Navis is configured for the provider and could complete an authenticated read-only request.",
+    why: "A configured key is not proof of connectivity. Only a successful request counts as connected.",
+    next: "If connectivity fails, later steps stay unavailable rather than showing a guessed result.",
+  },
+  meteoraConfig: {
+    title: "Bonding curve configuration",
+    what: "The Meteora DBC config: price band, fees, migration threshold and locked liquidity for a launch.",
+    why: "The config fixes launch economics before any pool exists. Profiles come from the server allowlist.",
+    next: "A validated config moves to transaction preparation and simulation. Broadcasting is disabled in Navis.",
+  },
+  marketSource: {
+    title: "Market data source",
+    what: "Where a price came from and when Navis read it.",
+    why: "The timestamp is Navis's read time, not a verified exchange quote. Upstream freshness may be unknown.",
+    next: "Treat these prices as research inputs, not execution quotes.",
+  },
+  atlasSignal: {
+    title: "Atlas signal",
+    what: "The deterministic premium or discount of a token price against its mark price, which Atlas uses to rank rebalance candidates.",
+    why: "It is computed only from the listed token and mark prices. When either price is missing, no signal is shown.",
+    next: "A signal is an input to a proposal, not a recommendation. Policy checks still apply.",
+  },
+  marketRisk: {
+    title: "Market risk",
+    what: "Known risk facts for the asset, such as eligibility limits and economic-exposure-only rights.",
+    why: "These tokens may lose all value and are not available to every person. Navis does not score risk beyond what the provider discloses.",
+    next: "Read the provider disclosure before relying on any figure.",
+  },
 } as const satisfies Record<string, InfoHintEntry>;
 
 export type InfoHintKey = keyof typeof infoHintContent;
