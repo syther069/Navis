@@ -27,9 +27,13 @@ import { getDatabase } from "@/lib/db/client";
 import { agents } from "@/lib/db/schema";
 import {
   buildPairCatalogueView,
+  groupPairsForDisplay,
+  pairDisplayName,
   readTokenPrograms,
+  type AnnotatedPair,
   type PairCatalogueView,
 } from "@/lib/integrations/clawpump/pairs";
+import { StockPairFilter } from "@/components/markets/stock-pair-filter";
 import {
   createClawPumpClient,
   loadClawPumpPreflightDependencies,
@@ -259,6 +263,87 @@ function toPairOption(pair: PairCatalogueView["pairs"][number]): PreflightPairOp
   };
 }
 
+function PairTableHead() {
+  return (
+    <thead>
+      <tr>
+        <th scope="col">Quote asset</th>
+        <th scope="col">Classification</th>
+        <th scope="col">Mint / network</th>
+        <th scope="col" className="num">
+          Decimals
+        </th>
+      </tr>
+    </thead>
+  );
+}
+
+function PairCells({ asset }: { asset: AnnotatedPair }) {
+  return (
+    <>
+      <td>
+        <strong>{asset.symbol}</strong>
+        <span>{pairDisplayName(asset)}</span>
+      </td>
+      <td>
+        <StatusBadge
+          tone={
+            asset.classification === "tokenized_stock"
+              ? "pass"
+              : asset.classification === "unclassified"
+                ? "warn"
+                : "neutral"
+          }
+        >
+          {asset.classification === "tokenized_stock"
+            ? "Tokenized stock"
+            : asset.classification === "wrapped_sol"
+              ? "Wrapped SOL pair"
+              : asset.classification === "stablecoin"
+                ? "Stablecoin"
+                : "Unconfirmed"}
+        </StatusBadge>
+        <small>{asset.classificationSource}</small>
+      </td>
+      <td>
+        <AddressValue value={asset.mint} label={`${asset.symbol} mint`} />
+        <small>
+          {asset.tokenProgram.status === "verified"
+            ? asset.tokenProgram.program
+            : "token program unverified"}{" "}
+          · {asset.cluster}
+          {asset.prestocks ? ` · PreStocks ${asset.prestocks.symbol}` : ""}
+          {asset.onchainMetadata
+            ? ` · on-chain "${asset.onchainMetadata.name}" (${asset.onchainMetadata.symbol})`
+            : ""}
+        </small>
+      </td>
+      <td className="num">{asset.decimals}</td>
+    </>
+  );
+}
+
+function PairTable({ pairs }: { pairs: readonly AnnotatedPair[] }) {
+  return (
+    <div className="data-table-wrap clawpump-pair-table">
+      <table className="data-table">
+        <PairTableHead />
+        <tbody>
+          {pairs.map((asset) => (
+            <tr
+              key={asset.mint}
+              data-classification={asset.classification}
+              data-testid="clawpump-pair-card"
+            >
+              <PairCells asset={asset} />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 async function ClawPumpSection({
   clawpumpPromise,
   contextPromise,
@@ -273,6 +358,7 @@ async function ClawPumpSection({
 
   const catalogue =
     clawpump.pairs.status === "available" ? clawpump.pairs.catalogue : null;
+  const groups = groupPairsForDisplay(catalogue?.pairs ?? []);
   const states = deriveClawPumpStates({
     configured: clawpump.configured,
     verified: clawpump.verification?.result === "connected",
@@ -449,69 +535,48 @@ async function ClawPumpSection({
                 not presented as stock pairs.
               </p>
             ) : null}
-            <div className="data-table-wrap clawpump-pair-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Quote asset</th>
-                    <th scope="col">Classification</th>
-                    <th scope="col">Mint / network</th>
-                    <th scope="col" className="num">
-                      Decimals
-                    </th>
+            {groups.stock.length > 0 ? (
+              <StockPairFilter
+                pairs={groups.stock.map((asset) => ({
+                  mint: asset.mint,
+                  symbol: asset.symbol,
+                  name: pairDisplayName(asset),
+                }))}
+                head={<PairTableHead />}
+              >
+                {groups.stock.map((asset) => (
+                  <tr
+                    key={asset.mint}
+                    data-pair-mint={asset.mint}
+                    data-classification={asset.classification}
+                    data-testid="clawpump-pair-card"
+                  >
+                    <PairCells asset={asset} />
                   </tr>
-                </thead>
-                <tbody>
-                  {catalogue.pairs.map((asset) => (
-                    <tr key={asset.mint} data-classification={asset.classification}>
-                      <td>
-                        <strong>{asset.symbol}</strong>
-                        <span>{asset.name}</span>
-                      </td>
-                      <td>
-                        <StatusBadge
-                          tone={
-                            asset.classification === "tokenized_stock"
-                              ? "pass"
-                              : asset.classification === "unclassified"
-                                ? "warn"
-                                : "neutral"
-                          }
-                        >
-                          {asset.classification === "tokenized_stock"
-                            ? "Tokenized stock"
-                            : asset.classification === "wrapped_sol"
-                              ? "Wrapped SOL pair"
-                              : asset.classification === "stablecoin"
-                                ? "Stablecoin"
-                                : "Unconfirmed"}
-                        </StatusBadge>
-                        <small>{asset.classificationSource}</small>
-                      </td>
-                      <td>
-                        <AddressValue
-                          value={asset.mint}
-                          label={`${asset.symbol} mint`}
-                        />
-                        <small>
-                          {asset.tokenProgram.status === "verified"
-                            ? asset.tokenProgram.program
-                            : "token program unverified"}{" "}
-                          · {asset.cluster}
-                          {asset.prestocks
-                            ? ` · PreStocks ${asset.prestocks.symbol}`
-                            : ""}
-                          {asset.onchainMetadata
-                            ? ` · on-chain "${asset.onchainMetadata.name}" (${asset.onchainMetadata.symbol})`
-                            : ""}
-                        </small>
-                      </td>
-                      <td className="num">{asset.decimals}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </StockPairFilter>
+            ) : null}
+            {groups.cash.length > 0 ? (
+              <div className="pair-group" data-testid="clawpump-cash-pairs">
+                <span className="route-eyebrow">
+                  Wrapped SOL and stablecoins ({groups.cash.length})
+                </span>
+                <PairTable pairs={groups.cash} />
+              </div>
+            ) : null}
+            {groups.unclassified.length > 0 ? (
+              <details
+                className="pair-group pair-group-collapsed"
+                data-testid="clawpump-unclassified-pairs"
+              >
+                <summary>
+                  {groups.unclassified.length} unconfirmed pair
+                  {groups.unclassified.length === 1 ? "" : "s"}: not confirmed as a
+                  tokenized stock, never selectable for a stock preflight
+                </summary>
+                <PairTable pairs={groups.unclassified} />
+              </details>
+            ) : null}
           </section>
           <LaunchPreflightForm
             pairs={catalogue.pairs.map(toPairOption)}
