@@ -14,6 +14,12 @@
 @import "./styles/shell.css" layer(navis-system);
 @import "./styles/surfaces.css" layer(navis-system);
 @import "./styles/info-hint.css" layer(navis-system);
+@import "./styles/workflow.css" layer(navis-system);
+@import "./styles/markets.css" layer(navis-system);
+@import "./styles/transactions.css" layer(navis-system);
+@import "./styles/meteora.css" layer(navis-system);
+@import "./styles/clawpump.css" layer(navis-system);
+@import "./styles/receipts.css" layer(navis-system);
 
 @theme inline {
   --font-sans: var(--font-ui);
