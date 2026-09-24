@@ -59,7 +59,9 @@ export function ClawPumpIdentityChain({
         {identity.externalAgentId ? (
           <code>{identity.externalAgentId}</code>
         ) : (
-          <strong>None</strong>
+          <strong className="unavailable" aria-label="No ClawPump agent id available">
+            —
+          </strong>
         )}
         {live.status === "refreshed" ? (
           <small>
@@ -77,7 +79,12 @@ export function ClawPumpIdentityChain({
             label="ClawPump agent wallet"
           />
         ) : (
-          <strong>None</strong>
+          <strong
+            className="unavailable"
+            aria-label="No linked public wallet available"
+          >
+            —
+          </strong>
         )}
       </li>
       <li>
@@ -85,8 +92,8 @@ export function ClawPumpIdentityChain({
         {tokenAddress ? (
           <AddressValue value={tokenAddress} label="Token address" />
         ) : (
-          <strong>
-            {identity.integrationStatus === "linked" ? "No token yet" : "None"}
+          <strong className="unavailable" aria-label="Token address unavailable">
+            —
           </strong>
         )}
       </li>
