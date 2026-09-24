@@ -1,0 +1,526 @@
+NAVIS FRONTEND REDESIGN — MASTER DESIGN BRIEF
+
+You are redesigning the EXISTING NAVIS application.
+
+NAVIS is an existing full-stack Solana/Web3 product. This is NOT a request to create a new static prototype from scratch.
+
+Your job is to improve the visual design, typography, spacing, color system, UX, responsiveness and overall product quality while preserving all existing functionality.
+
+IMPORTANT:
+Do not break backend logic, APIs, database, authentication, wallet sessions, Atlas, market data, PreStocks, ClawPump, Meteora, Pyth, transaction preparation, proof receipts or existing routes.
+
+Do not invent functionality.
+
+Do not create fake data.
+
+Do not create fake integration statuses.
+
+Do not create fake transaction signatures.
+
+Do not claim something is live if it is only simulated, prepared, devnet, blocked or planned.
+
+==================================================
+1. REQUIRED SKILLS — RUN FIRST
+==================================================
+
+Before making UI changes, run these EXACTLY IN THIS ORDER:
+
+1.
+npx skills use "https://github.com/anthropics/skills" --skill "frontend-design"
+
+2.
+npx skills use "https://uizze.com/" --skill "anti-ui-slop"
+
+3.
+npx skills use "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill" --skill "ui-ux-pro-max"
+
+4.
+npx skills use "https://github.com/leonxlnx/taste-skill" --skill "redesign-existing-projects"
+
+5.
+npx skills use "https://github.com/emilkowalski/skills" --skill "pick-ui-library"
+
+Read the COMPLETE output of every skill.
+
+If the output is too long for the terminal:
+- redirect it to a temporary file
+- read the entire file
+- do not rely on truncated output
+
+If ANY skill command fails:
+STOP immediately and report:
+- skill
+- exact command
+- exact error
+- whether files were changed
+
+Do not silently skip a skill.
+
+==================================================
+2. DESIGN RESOURCES
+==================================================
+
+Primary references:
+
+Pryzm:
+https://pryzm.design/studio
+
+Jiro:
+https://jiro.build
+
+FerraUI:
+https://feralui.dev/gradients
+
+Skiper UI:
+https://skiper-ui.com/components
+
+Additional resources:
+
+Taste Skill:
+https://tasteskill.dev/
+https://github.com/Leonxlnx/taste-skill
+
+21st MCP:
+https://github.com/21st-dev/magic-mcp
+
+Vercel Web Design Guidelines:
+https://github.com/vercel-labs/agent-skills
+
+Image to Code:
+https://github.com/Leonxlnx/taste-skill
+Use the image-to-code-skill when appropriate.
+
+Awesome Design:
+https://github.com/VoltAgent/awesome-design-md
+
+Playwright CLI:
+https://github.com/microsoft/playwright-cli
+
+Open Design:
+https://github.com/nexu-io/open-design
+
+Hallmark:
+https://github.com/nutlope/hallmark
+
+Use these as references and tools, not as templates to copy blindly.
+
+==================================================
+3. DESIGN PRIORITY
+==================================================
+
+Priority order:
+
+1. Actual NAVIS product behavior
+2. Existing codebase
+3. Required design skills
+4. Accessibility and usability
+5. Visual hierarchy
+6. Typography
+7. Spacing
+8. Color system
+9. Interaction design
+10. Decorative details
+
+Never prioritize decoration over functionality.
+
+==================================================
+4. FIRST: AUDIT THE EXISTING APP
+==================================================
+
+Before redesigning:
+
+Inspect:
+- package.json
+- framework
+- Next.js
+- React
+- TypeScript
+- Tailwind/CSS
+- component library
+- animation libraries
+- routes
+- layouts
+- app shell
+- dashboard
+- markets
+- Atlas
+- transactions
+- proof/receipts
+- wallet UX
+- Meteora
+- ClawPump
+- authentication
+- documentation
+- landing page
+- FAQ
+- footer
+- loading states
+- errors
+- empty states
+
+Also inspect the currently rendered application, not only source files.
+
+Identify:
+- visual inconsistencies
+- weak hierarchy
+- spacing problems
+- typography problems
+- poor color choices
+- excessive cards
+- excessive borders
+- excessive rounded corners
+- unclear buttons
+- unclear status states
+- mobile problems
+- accessibility problems
+- fake-looking UI
+- unnecessary UI
+- inconsistent components
+
+Do not immediately rewrite everything.
+
+==================================================
+5. NAVIS PRODUCT MODEL
+==================================================
+
+The product should communicate this workflow:
+
+MARKET DATA
+↓
+ATLAS ANALYSIS
+↓
+POLICY / RISK
+↓
+PROPOSAL
+↓
+USER REVIEW
+↓
+WALLET SIGNATURE
+↓
+ONCHAIN ACTION
+↓
+PROOF / RECEIPT
+
+The user remains in control.
+
+Atlas proposes.
+Policy constrains.
+User approves.
+Wallet signs.
+Blockchain confirms.
+Receipt proves.
+
+==================================================
+6. VISUAL DIRECTION
+==================================================
+
+NAVIS should feel like:
+
+- professional financial software
+- modern onchain infrastructure
+- serious Web3 product
+- premium but restrained
+- technical without looking like a terminal
+- trustworthy
+- highly readable
+- easy to understand
+
+It should NOT feel like:
+
+- generic AI dashboard
+- generic crypto dashboard
+- terminal UI
+- black/purple AI cliché
+- component showcase
+- excessive glassmorphism
+- neon Web3 template
+- AI-generated landing page
+
+==================================================
+7. TYPOGRAPHY — REDESIGN IT
+==================================================
+
+Do NOT simply preserve the existing typography.
+
+Audit:
+- font family
+- weights
+- type scale
+- heading hierarchy
+- body text
+- labels
+- metadata
+- buttons
+- numerical values
+- tables
+- docs
+- code
+- line-height
+- letter-spacing
+
+Create a deliberate NAVIS typography system.
+
+Use clear hierarchy for:
+- Display
+- H1
+- H2
+- H3
+- body
+- secondary text
+- labels
+- captions
+- numerical values
+- technical data
+
+Financial numbers must be easy to scan.
+
+Do not use enormous headings everywhere.
+
+Do not use generic typography without a reason.
+
+==================================================
+8. SPACING — REDESIGN IT
+==================================================
+
+Do NOT preserve arbitrary existing margins/padding.
+
+Establish a coherent spacing scale.
+
+Audit:
+- page padding
+- section spacing
+- card padding
+- dashboard spacing
+- navigation spacing
+- table density
+- form spacing
+- modal spacing
+- docs spacing
+- footer spacing
+- mobile spacing
+
+Create consistent visual rhythm.
+
+Related things should be close.
+
+Unrelated things should have larger separation.
+
+Avoid both:
+- cramped layouts
+- excessive empty space
+
+==================================================
+9. COLOR PALETTE — REDESIGN IT
+==================================================
+
+Do NOT merely recolor individual components.
+
+Create a complete semantic color system.
+
+Define:
+
+- background
+- elevated surface
+- muted surface
+- border
+- strong border
+- primary text
+- secondary text
+- muted text
+- disabled text
+- accent
+- accent hover
+- accent active
+- success
+- warning
+- danger
+- info
+
+The palette should feel appropriate for serious financial/onchain software.
+
+Avoid generic:
+- black + purple AI styling
+- rainbow colors
+- neon overload
+- excessive gradients
+- random accent colors
+- low-contrast text
+
+Color should communicate hierarchy and state, not decorate every component.
+
+==================================================
+10. ANTI-UI-SLOP RULE
+==================================================
+
+Avoid generic AI-generated combinations such as:
+
+- giant hero typography
+- three identical cards
+- excessive pills
+- excessive rounded rectangles
+- fake bento grids
+- terminal windows
+- sparkle icons
+- animated arrows everywhere
+- floating radial orbs
+- dot grids
+- huge icons
+- rainbow gradients
+- fake testimonials
+- fake statistics
+- fake logos
+- excessive glassmorphism
+- excessive glow
+- hover animations everywhere
+
+This does not mean every one of these is forbidden individually.
+
+Use an element only if it improves NAVIS.
+
+==================================================
+11. INFORMATION "(i)" SYSTEM
+==================================================
+
+Important actions and unfamiliar concepts should have contextual help.
+
+Examples:
+
+Generate Decision
+ⓘ explanation
+
+Prepare Transaction
+ⓘ explanation
+
+Simulate
+ⓘ explanation
+
+Approve
+ⓘ explanation
+
+Proof Receipt
+ⓘ explanation
+
+Meteora
+ⓘ explanation
+
+ClawPump
+ⓘ explanation
+
+Use:
+- tooltip for short explanation
+- popover for medium explanation
+- modal/side panel/docs for complex explanation
+
+Every explanation should answer:
+
+WHAT IS IT?
+WHY DOES IT MATTER?
+WHAT HAPPENS NEXT?
+
+==================================================
+12. INTERACTION
+==================================================
+
+Every interactive element needs:
+
+- hover
+- active
+- pressed
+- loading
+- success
+- error
+- disabled
+
+states where appropriate.
+
+Use subtle, fast animations.
+
+Respect:
+prefers-reduced-motion
+
+Do not add decorative animation just for the sake of motion.
+
+==================================================
+13. RESPONSIVENESS
+==================================================
+
+Design and test:
+
+320px
+375px
+414px
+768px
+1024px
+1280px+
+
+Do not simply shrink desktop.
+
+Check:
+- navigation
+- tables
+- buttons
+- dialogs
+- wallet controls
+- typography
+- spacing
+- docs
+- FAQ
+- footer
+- dashboard
+
+==================================================
+14. PRODUCT HONESTY
+==================================================
+
+Meteora broadcasting is intentionally disabled.
+
+Do NOT enable it merely to make the UI look complete.
+
+ClawPump must reflect the actual integration state.
+
+Clearly distinguish:
+- live
+- connected
+- read-only
+- devnet
+- simulation
+- transaction preparation
+- blocked
+- unavailable
+- planned
+
+Never fake success.
+
+==================================================
+15. IMPORTANT
+==================================================
+
+For this first task:
+
+DO NOT attempt to redesign the entire application in one giant pass.
+
+First:
+1. audit the project
+2. establish the new design direction
+3. establish typography
+4. establish spacing
+5. establish color palette
+6. establish reusable design tokens
+7. identify the core components that should be redesigned
+
+Then show/implement the first coherent design-system pass.
+
+Preserve application behavior.
+
+Do not touch unrelated backend code.
+
+At the end report:
+- what you inspected
+- what was wrong
+- typography direction
+- spacing direction
+- color direction
+- component/system decisions
+- files changed
+- functionality preserved
+- anything that still needs work
