@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/navis/http.test.ts"
+    "test": "tsx --test src/navis/http.test.ts",
+    "build:vercel": "node ./build-vercel.mjs"
   },
   "dependencies": {
     "@solana/web3.js": "^1.99.0",
