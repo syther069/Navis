@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CaretRight,
   ChartDonut,
   Compass,
   FileMagnifyingGlass,
@@ -20,6 +21,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { PublicCapabilities } from "@/lib/env-core";
 import { ClusterStamp, ModeStamp } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
+import type { InfoHintKey } from "@/components/shared/info-hint-content";
 import { WalletControl } from "@/components/wallet/wallet-control";
 
 type WorkspaceShellProps = {
@@ -27,17 +30,43 @@ type WorkspaceShellProps = {
   children: React.ReactNode;
 };
 
-const navigation = [
+type NavItem = {
+  label: string;
+  icon: Icon;
+  href: string;
+  match: string;
+  helpTopic?: InfoHintKey;
+};
+
+const navigation: readonly NavItem[] = [
   { label: "Agents", icon: Compass, href: "/agents", match: "/agents" },
-  { label: "Decisions", icon: Gauge, href: "/decisions", match: "/decisions" },
-  { label: "Markets", icon: ChartDonut, href: "/markets/launch", match: "/markets" },
+  {
+    label: "Decisions",
+    icon: Gauge,
+    href: "/decisions",
+    match: "/decisions",
+    helpTopic: "navDecisions",
+  },
+  {
+    label: "Markets",
+    icon: ChartDonut,
+    href: "/markets/launch",
+    match: "/markets",
+    helpTopic: "navMarkets",
+  },
   {
     label: "Transactions",
     icon: ListChecks,
     href: "/transactions",
     match: "/transactions",
   },
-  { label: "Proofs", icon: FileMagnifyingGlass, href: "/proofs", match: "/proofs" },
+  {
+    label: "Proofs",
+    icon: FileMagnifyingGlass,
+    href: "/proofs",
+    match: "/proofs",
+    helpTopic: "navProofs",
+  },
   {
     label: "Disclosures",
     icon: ShieldWarning,
@@ -46,50 +75,195 @@ const navigation = [
   },
 ];
 
+type BreadcrumbSegment = {
+  label: string;
+  href?: string;
+  technical?: boolean;
+};
+
 type RouteContext = {
   icon: Icon;
   href: string;
   label: string;
+  breadcrumbs: BreadcrumbSegment[];
   detail?: string;
   technical?: boolean;
 };
 
 /**
- * Where the reader is, derived from the pathname. The second line is only
- * shown when it is truthfully known from the route itself.
+ * Where the reader is, derived from the pathname. The second line and breadcrumb
+ * hierarchy are only shown when they are truthfully known from the route itself.
  */
 function routeContextFor(pathname: string): RouteContext {
-  if (pathname === "/agents/atlas" || pathname.startsWith("/agents/atlas/")) {
+  if (pathname.startsWith("/agents/atlas/decisions/")) {
+    const match = /^\/agents\/atlas\/decisions\/([^/]+)/.exec(pathname);
+    const id = match ? match[1].slice(0, 8) : "detail";
+    return {
+      icon: Gauge,
+      href: pathname,
+      label: "Decision",
+      breadcrumbs: [
+        { label: "Agents", href: "/agents" },
+        { label: "Atlas", href: "/agents/atlas" },
+        { label: `Decision ${id}`, technical: true },
+      ],
+      detail: "Demo run",
+    };
+  }
+
+  if (pathname === "/agents/atlas") {
     return {
       icon: Compass,
       href: "/agents/atlas",
       label: "Atlas",
+      breadcrumbs: [
+        { label: "Agents", href: "/agents" },
+        { label: "Atlas", href: "/agents/atlas" },
+      ],
       detail: "Demo agent",
     };
   }
+
   if (pathname === "/agents/new") {
-    return { icon: Plus, href: "/agents/new", label: "New agent", detail: "Agents" };
+    return {
+      icon: Plus,
+      href: "/agents/new",
+      label: "New agent",
+      breadcrumbs: [
+        { label: "Agents", href: "/agents" },
+        { label: "New agent", href: "/agents/new" },
+      ],
+      detail: "Mandate draft",
+    };
   }
+
   const agentMatch = /^\/agents\/([^/]+)/.exec(pathname);
   if (agentMatch) {
+    const slug = agentMatch[1];
     return {
       icon: Compass,
-      href: `/agents/${agentMatch[1]}`,
+      href: `/agents/${slug}`,
       label: "Agent",
-      detail: agentMatch[1],
+      breadcrumbs: [
+        { label: "Agents", href: "/agents" },
+        { label: slug, href: `/agents/${slug}`, technical: true },
+      ],
+      detail: slug,
       technical: true,
     };
   }
+
+  if (pathname === "/agents") {
+    return {
+      icon: Compass,
+      href: "/agents",
+      label: "Agents",
+      breadcrumbs: [{ label: "Agents", href: "/agents" }],
+      detail: "Registry",
+    };
+  }
+
+  if (pathname.startsWith("/decisions/")) {
+    const decMatch = /^\/decisions\/([^/]+)/.exec(pathname);
+    const id = decMatch ? decMatch[1].slice(0, 8) : "detail";
+    return {
+      icon: Gauge,
+      href: pathname,
+      label: "Decision",
+      breadcrumbs: [
+        { label: "Decisions", href: "/decisions" },
+        { label: `Decision ${id}`, technical: true },
+      ],
+      detail: "Policy evaluation",
+    };
+  }
+
+  if (pathname === "/decisions") {
+    return {
+      icon: Gauge,
+      href: "/decisions",
+      label: "Decisions",
+      breadcrumbs: [{ label: "Decisions", href: "/decisions" }],
+      detail: "Ledger",
+    };
+  }
+
+  if (pathname === "/markets/launch" || pathname.startsWith("/markets")) {
+    return {
+      icon: ChartDonut,
+      href: "/markets/launch",
+      label: "Markets",
+      breadcrumbs: [{ label: "Markets", href: "/markets/launch" }, { label: "Launch" }],
+      detail: "ClawPump & Meteora DBC",
+    };
+  }
+
+  if (pathname === "/transactions" || pathname.startsWith("/transactions/")) {
+    return {
+      icon: ListChecks,
+      href: "/transactions",
+      label: "Transactions",
+      breadcrumbs: [{ label: "Transactions", href: "/transactions" }],
+      detail: "Settlement ledger",
+    };
+  }
+
+  if (pathname.startsWith("/proofs/")) {
+    const proofMatch = /^\/proofs\/([^/]+)/.exec(pathname);
+    const proofId = proofMatch ? proofMatch[1] : "receipt";
+    const isDemo = proofId === "demo-proof";
+    return {
+      icon: FileMagnifyingGlass,
+      href: pathname,
+      label: "Proof",
+      breadcrumbs: [
+        { label: "Proofs", href: "/proofs" },
+        {
+          label: isDemo ? "Demo receipt" : `Receipt ${proofId.slice(0, 8)}`,
+          technical: !isDemo,
+        },
+      ],
+      detail: isDemo ? "Deterministic demo" : "Hash verification",
+    };
+  }
+
+  if (pathname === "/proofs") {
+    return {
+      icon: FileMagnifyingGlass,
+      href: "/proofs",
+      label: "Proofs",
+      breadcrumbs: [{ label: "Proofs", href: "/proofs" }],
+      detail: "Evidence registry",
+    };
+  }
+
   if (pathname === "/settings" || pathname.startsWith("/settings/")) {
-    return { icon: SlidersHorizontal, href: "/settings", label: "Settings" };
+    return {
+      icon: SlidersHorizontal,
+      href: "/settings",
+      label: "Settings",
+      breadcrumbs: [{ label: "Settings", href: "/settings" }],
+      detail: "Capabilities",
+    };
   }
-  const section = navigation.find(
-    ({ match }) => pathname === match || pathname.startsWith(`${match}/`),
-  );
-  if (section) {
-    return { icon: section.icon, href: section.href, label: section.label };
+
+  if (pathname === "/disclosures" || pathname.startsWith("/disclosures/")) {
+    return {
+      icon: ShieldWarning,
+      href: "/disclosures",
+      label: "Disclosures",
+      breadcrumbs: [{ label: "Disclosures", href: "/disclosures" }],
+      detail: "Risk & boundaries",
+    };
   }
-  return { icon: Compass, href: "/", label: "Navis", detail: "Overview" };
+
+  return {
+    icon: Compass,
+    href: "/",
+    label: "Navis",
+    breadcrumbs: [{ label: "Navis", href: "/" }],
+    detail: "Overview",
+  };
 }
 
 function BearingMark() {
@@ -108,7 +282,8 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const isCurrent = (match: string) =>
-    pathname === match || pathname.startsWith(`${match}/`);
+    pathname === match || (match !== "/" && pathname.startsWith(`${match}/`));
+
   const context = routeContextFor(pathname);
   const ContextIcon = context.icon;
 
@@ -172,21 +347,27 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
           <span>NAVIS</span>
         </Link>
 
-        <nav className="rail-navigation">
-          {navigation.map(({ label, icon: Icon, href, match }) => {
+        <nav className="rail-navigation" aria-label="Workspace sections">
+          {navigation.map(({ label, icon: Icon, href, match, helpTopic }) => {
             const current = isCurrent(match);
             return (
-              <Link
-                className="rail-link"
-                data-current={current || undefined}
-                data-label={label}
-                href={href}
-                key={label}
-                aria-current={current ? "page" : undefined}
-              >
-                <Icon aria-hidden="true" size={20} weight="regular" />
-                <span>{label}</span>
-              </Link>
+              <div className="rail-item" key={label}>
+                <Link
+                  className="rail-link"
+                  data-current={current || undefined}
+                  data-label={label}
+                  href={href}
+                  aria-current={current ? "page" : undefined}
+                >
+                  <Icon aria-hidden="true" size={20} weight="regular" />
+                  <span>{label}</span>
+                </Link>
+                {helpTopic ? (
+                  <span className="rail-item-hint">
+                    <InfoHint topic={helpTopic} label={`About ${label}`} />
+                  </span>
+                ) : null}
+              </div>
             );
           })}
         </nav>
@@ -217,17 +398,23 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
           <BearingMark />
           <span>NAVIS</span>
         </Link>
-        <button
-          ref={menuButtonRef}
-          className="icon-button"
-          type="button"
-          onClick={() => setMobileNavOpen(true)}
-          aria-label="Open navigation"
-          aria-expanded={mobileNavOpen}
-          aria-controls="mobile-navigation"
-        >
-          <List aria-hidden="true" size={22} />
-        </button>
+        <div className="mobile-header-actions">
+          <span className="network-truth">
+            <ModeStamp mode={capabilities.mode} />
+            <ClusterStamp cluster={capabilities.cluster} />
+          </span>
+          <button
+            ref={menuButtonRef}
+            className="icon-button"
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-navigation"
+          >
+            <List aria-hidden="true" size={22} />
+          </button>
+        </div>
       </header>
 
       {mobileNavOpen ? (
@@ -254,21 +441,27 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
               <X size={22} />
             </button>
           </div>
-          <nav className="mobile-navigation">
-            {navigation.map(({ label, icon: Icon, href, match }) => {
+          <nav className="mobile-navigation" aria-label="Mobile navigation">
+            {navigation.map(({ label, icon: Icon, href, match, helpTopic }) => {
               const current = isCurrent(match);
               return (
-                <Link
-                  className="rail-link"
-                  data-current={current || undefined}
-                  href={href}
-                  key={label}
-                  onClick={() => setMobileNavOpen(false)}
-                  aria-current={current ? "page" : undefined}
-                >
-                  <Icon aria-hidden="true" size={20} />
-                  <span>{label}</span>
-                </Link>
+                <div className="mobile-nav-item" key={label}>
+                  <Link
+                    className="rail-link"
+                    data-current={current || undefined}
+                    href={href}
+                    onClick={() => setMobileNavOpen(false)}
+                    aria-current={current ? "page" : undefined}
+                  >
+                    <Icon aria-hidden="true" size={20} />
+                    <span>{label}</span>
+                  </Link>
+                  {helpTopic ? (
+                    <span className="mobile-nav-hint">
+                      <InfoHint topic={helpTopic} label={`About ${label}`} />
+                    </span>
+                  ) : null}
+                </div>
               );
             })}
             <Link
@@ -294,25 +487,53 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
 
       <div className="workspace-column" inert={mobileNavOpen ? true : undefined}>
         <header className="workspace-bar">
-          <Link
-            className="route-context"
-            href={context.href}
-            aria-label={
-              context.detail ? `${context.label}, ${context.detail}` : context.label
-            }
-          >
+          <div className="route-context">
             <span className="route-context-icon" aria-hidden="true">
               <ContextIcon size={16} />
             </span>
-            <span className="route-context-copy">
-              <strong>{context.label}</strong>
+            <div className="route-context-copy">
+              <nav className="route-breadcrumbs" aria-label="Breadcrumb">
+                <ol className="breadcrumbs-list">
+                  {context.breadcrumbs.map((crumb, idx) => {
+                    const isLast = idx === context.breadcrumbs.length - 1;
+                    return (
+                      <li key={crumb.label} className="breadcrumb-segment">
+                        {idx > 0 ? (
+                          <CaretRight
+                            size={11}
+                            className="breadcrumb-separator"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {isLast || !crumb.href ? (
+                          <span
+                            className="breadcrumb-current"
+                            aria-current={isLast ? "page" : undefined}
+                            data-technical={crumb.technical || undefined}
+                          >
+                            {crumb.label}
+                          </span>
+                        ) : (
+                          <Link
+                            className="breadcrumb-link"
+                            href={crumb.href}
+                            data-technical={crumb.technical || undefined}
+                          >
+                            {crumb.label}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
               {context.detail ? (
                 <small data-technical={context.technical || undefined}>
                   {context.detail}
                 </small>
               ) : null}
-            </span>
-          </Link>
+            </div>
+          </div>
 
           <div className="workspace-actions">
             <span className="network-truth">

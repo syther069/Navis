@@ -41,6 +41,24 @@ export const infoHintContent = {
     why: "The page reports verification of the document's hashes and cross-references. Those checks establish internal consistency, not independent proof of authorship, policy inputs or onchain settlement.",
     next: "Follow the decision and agent links to see the run in context. If verification fails, do not rely on the receipt until the failure is understood.",
   },
+  navDecisions: {
+    title: "Decisions ledger",
+    what: "Automated trade or rebalance proposals evaluated against hard risk policies.",
+    why: "Policy checks precede every execution. Proposals cannot move funds without passing deterministic boundaries.",
+    next: "Inspect individual decisions to review the observed inputs, policy thresholds, and verified receipts.",
+  },
+  navMarkets: {
+    title: "Markets & launch",
+    what: "Liquidity discovery and dynamic bonding curve profiles for equity-backed tokens.",
+    why: "Connects agent portfolios to governed pools while keeping PreStocks catalogues read-only.",
+    next: "Review pair configurations, run preflight checks, or track onchain bonding curve progress.",
+  },
+  navProofs: {
+    title: "Proof receipts",
+    what: "Locally recomputable cryptographic evidence binding intent, policies, and outcomes.",
+    why: "Proves execution compliance deterministically without relying on trust in offchain reporting.",
+    next: "Verify document hashes, review state transitions, or audit timeline integrity.",
+  },
 } as const satisfies Record<string, InfoHintEntry>;
 
 export type InfoHintKey = keyof typeof infoHintContent;
