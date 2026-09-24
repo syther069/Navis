@@ -17,7 +17,6 @@ import {
   PreStocksCatalogue,
   PreStocksUnavailable,
 } from "@/components/markets/prestocks/prestocks-catalogue";
-import { PreStocksResearchView } from "@/components/markets/prestocks/prestocks-research";
 import { SponsorPanelState } from "@/components/markets/sponsor-panel-state";
 import { RouteHeader } from "@/components/route-primitives";
 import { AddressValue } from "@/components/shared/address-value";
@@ -56,10 +55,6 @@ import {
 } from "@/lib/integrations/meteora/broadcast-safety";
 import { listMeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
 import { getPreStocksCatalogue } from "@/lib/integrations/prestocks/client";
-import {
-  orderByPremiumSignal,
-  researchRow,
-} from "@/lib/integrations/prestocks/research";
 
 export const metadata: Metadata = { title: "Market launch" };
 export const dynamic = "force-dynamic";
@@ -276,23 +271,10 @@ async function ClawPumpSection({
     contextPromise,
   ]);
 
-  if (!clawpump.configured) {
-    return (
-      <SponsorPanelState
-        provider="ClawPump"
-        icon={Coins}
-        status="not_configured"
-        title="Provider not configured."
-        description={CLAWPUMP_NOT_CONFIGURED}
-        headingId="clawpump-state-title"
-      />
-    );
-  }
-
   const catalogue =
     clawpump.pairs.status === "available" ? clawpump.pairs.catalogue : null;
   const states = deriveClawPumpStates({
-    configured: true,
+    configured: clawpump.configured,
     verified: clawpump.verification?.result === "connected",
     linkedAgentCount: launchContext.clawpumpAgents.length,
     stockPairCount: catalogue?.stockPairs.length ?? 0,
@@ -301,19 +283,24 @@ async function ClawPumpSection({
       : null,
     launch: launchContext.storedLaunch,
   });
+  const apiResult =
+    clawpump.pairs.status === "available"
+      ? catalogue && catalogue.pairs.length > 0
+        ? "available"
+        : "empty"
+      : clawpump.pairs.status;
 
-  return (
-    <>
-      <div className="route-grid">
+  if (!clawpump.configured) {
+    return (
+      <div className="clawpump-unavailable" data-testid="clawpump-section">
         <section
-          className="route-panel"
+          className="route-panel clawpump-state-panel"
           aria-labelledby="clawpump-state-title"
-          data-testid="clawpump-section"
         >
           <div className="panel-heading">
             <Coins aria-hidden="true" size={20} />
             <div>
-              <span>ClawPump</span>
+              <span>ClawPump / integration monitor</span>
               <h2 id="clawpump-state-title">Provider integration state</h2>
             </div>
           </div>
@@ -321,6 +308,38 @@ async function ClawPumpSection({
             current={states.current}
             connection={states.connection}
             steps={states.steps}
+            apiResult={apiResult}
+            providerResult={null}
+          />
+          <p className="clawpump-unavailable-note" id="clawpump-unavailable-title">
+            {CLAWPUMP_NOT_CONFIGURED}
+          </p>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="route-grid clawpump-overview">
+        <section
+          className="route-panel clawpump-state-panel"
+          aria-labelledby="clawpump-state-title"
+          data-testid="clawpump-section"
+        >
+          <div className="panel-heading">
+            <Coins aria-hidden="true" size={20} />
+            <div>
+              <span>ClawPump / integration monitor</span>
+              <h2 id="clawpump-state-title">Provider integration state</h2>
+            </div>
+          </div>
+          <ClawPumpStateTrack
+            current={states.current}
+            connection={states.connection}
+            steps={states.steps}
+            apiResult={apiResult}
+            providerResult={clawpump.verification?.result ?? null}
           />
           <div className="clawpump-identities">
             <span className="route-eyebrow">Linked agents</span>
@@ -430,49 +449,68 @@ async function ClawPumpSection({
                 not presented as stock pairs.
               </p>
             ) : null}
-            <div className="pair-list">
-              {catalogue.pairs.map((asset) => (
-                <article
-                  className="pair-card"
-                  key={asset.mint}
-                  data-classification={asset.classification}
-                >
-                  <div>
-                    <strong>{asset.symbol}</strong>
-                    <span>{asset.name}</span>
-                    <span>{asset.classificationSource}</span>
-                  </div>
-                  <AddressValue value={asset.mint} label={`${asset.symbol} mint`} />
-                  <span>
-                    {asset.decimals} decimals ·{" "}
-                    {asset.tokenProgram.status === "verified"
-                      ? asset.tokenProgram.program
-                      : "token program unverified"}{" "}
-                    · {asset.cluster}
-                    {asset.prestocks ? ` · PreStocks ${asset.prestocks.symbol}` : ""}
-                    {asset.onchainMetadata
-                      ? ` · on-chain "${asset.onchainMetadata.name}" (${asset.onchainMetadata.symbol})`
-                      : ""}
-                  </span>
-                  <StatusBadge
-                    tone={
-                      asset.classification === "tokenized_stock"
-                        ? "pass"
-                        : asset.classification === "unclassified"
-                          ? "warn"
-                          : "neutral"
-                    }
-                  >
-                    {asset.classification === "tokenized_stock"
-                      ? "Tokenized stock"
-                      : asset.classification === "wrapped_sol"
-                        ? "Wrapped SOL pair"
-                        : asset.classification === "stablecoin"
-                          ? "Stablecoin"
-                          : "Unconfirmed"}
-                  </StatusBadge>
-                </article>
-              ))}
+            <div className="data-table-wrap clawpump-pair-table">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Quote asset</th>
+                    <th scope="col">Classification</th>
+                    <th scope="col">Mint / network</th>
+                    <th scope="col" className="num">
+                      Decimals
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalogue.pairs.map((asset) => (
+                    <tr key={asset.mint} data-classification={asset.classification}>
+                      <td>
+                        <strong>{asset.symbol}</strong>
+                        <span>{asset.name}</span>
+                      </td>
+                      <td>
+                        <StatusBadge
+                          tone={
+                            asset.classification === "tokenized_stock"
+                              ? "pass"
+                              : asset.classification === "unclassified"
+                                ? "warn"
+                                : "neutral"
+                          }
+                        >
+                          {asset.classification === "tokenized_stock"
+                            ? "Tokenized stock"
+                            : asset.classification === "wrapped_sol"
+                              ? "Wrapped SOL pair"
+                              : asset.classification === "stablecoin"
+                                ? "Stablecoin"
+                                : "Unconfirmed"}
+                        </StatusBadge>
+                        <small>{asset.classificationSource}</small>
+                      </td>
+                      <td>
+                        <AddressValue
+                          value={asset.mint}
+                          label={`${asset.symbol} mint`}
+                        />
+                        <small>
+                          {asset.tokenProgram.status === "verified"
+                            ? asset.tokenProgram.program
+                            : "token program unverified"}{" "}
+                          · {asset.cluster}
+                          {asset.prestocks
+                            ? ` · PreStocks ${asset.prestocks.symbol}`
+                            : ""}
+                          {asset.onchainMetadata
+                            ? ` · on-chain "${asset.onchainMetadata.name}" (${asset.onchainMetadata.symbol})`
+                            : ""}
+                        </small>
+                      </td>
+                      <td className="num">{asset.decimals}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
           <LaunchPreflightForm
@@ -570,25 +608,7 @@ async function PreStocksSection({
       />
     );
   }
-  return (
-    <>
-      <PreStocksCatalogue catalogue={prestocks.data} />
-      <section className="route-panel prestocks-panel" aria-label="PreStocks research">
-        <PreStocksResearchView
-          research={orderByPremiumSignal(prestocks.data.assets.map(researchRow))}
-          capturedAt={prestocks.data.capturedAt}
-          sourceUrl={prestocks.data.sourceUrl}
-        />
-        <p className="route-copy">
-          The Atlas demo run on <Link href="/agents/atlas">/agents/atlas</Link> can use
-          this catalogue as its asset universe: the allowlist becomes these contract
-          addresses, freshness is this read time, and the proposal rotates the richest
-          premium into the deepest discount. The run result shows the allocation impact
-          per asset. No PreStocks execution path exists.
-        </p>
-      </section>
-    </>
-  );
+  return <PreStocksCatalogue catalogue={prestocks.data} />;
 }
 
 export default function MarketLaunchPage() {
@@ -603,9 +623,23 @@ export default function MarketLaunchPage() {
       <RouteHeader
         eyebrow="Sponsor surfaces"
         title="Market launch preflight"
-        description="Review pair discovery, payment, payout, and fee consequences before any launch authorization. ClawPump, Meteora DBC and PreStocks each report their own loading, empty or unavailable state."
-        meta={env.clawpumpApiKey ? "ClawPump key present" : "ClawPump not configured"}
+        description="Read-only market research and provider readiness before launch authorization. PreStocks, ClawPump and Meteora DBC show independent states."
+        meta="PreStocks / read-only catalogue"
       />
+      <Suspense
+        fallback={
+          <SponsorPanelState
+            provider="PreStocks catalogue"
+            icon={Buildings}
+            status="loading"
+            title="Reading the PreStocks catalogue"
+            description="Fetching the read-only economic-exposure token list from the provider."
+            headingId="prestocks-state-title"
+          />
+        }
+      >
+        <PreStocksSection prestocksPromise={prestocksPromise} />
+      </Suspense>
       <Suspense
         fallback={
           <SponsorPanelState
@@ -639,20 +673,6 @@ export default function MarketLaunchPage() {
           prestocksPromise={prestocksPromise}
           contextPromise={contextPromise}
         />
-      </Suspense>
-      <Suspense
-        fallback={
-          <SponsorPanelState
-            provider="PreStocks catalogue"
-            icon={Buildings}
-            status="loading"
-            title="Reading the PreStocks catalogue"
-            description="Fetching the read-only economic-exposure token list from the provider."
-            headingId="prestocks-state-title"
-          />
-        }
-      >
-        <PreStocksSection prestocksPromise={prestocksPromise} />
       </Suspense>
     </>
   );

@@ -1,21 +1,22 @@
-import {
-  ArrowSquareOut,
-  ChartLineUp,
-  Database,
-  ListChecks,
-} from "@phosphor-icons/react/dist/ssr";
+import { ChartLineUp, Database, ListChecks } from "@phosphor-icons/react/dist/ssr";
 import { desc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { EmptyState, RouteHeader } from "@/components/route-primitives";
-import { AssuranceBadge } from "@/components/shared/assurance-badge";
-import { StatusBadge, type StatusTone } from "@/components/shared/domain-primitives";
-import { assuranceForExecution } from "@/lib/assurance";
+import { RouteHeader } from "@/components/route-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
+import {
+  TRANSACTION_STATE_ORDER,
+  TRANSACTION_STATE_META,
+  TransactionStateBadge,
+} from "@/components/shared/transaction-state";
+import {
+  ExecutionLedgerRow,
+  LaunchLedgerRow,
+} from "@/components/transactions/ledger-row";
 import { getDatabase } from "@/lib/db/client";
 import { agents, decisions, executionAttempts, marketLaunches } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { summarizeMeteoraLaunchEvidence } from "@/lib/services/meteora-reconciliation";
 
 export const metadata: Metadata = { title: "Transactions" };
 export const dynamic = "force-dynamic";
@@ -73,7 +74,9 @@ async function loadLaunchRows() {
       cluster: marketLaunches.cluster,
       providerRequestId: marketLaunches.providerRequestId,
       baseMint: marketLaunches.baseMint,
+      quoteMint: marketLaunches.quoteMint,
       poolAddress: marketLaunches.poolAddress,
+      payoutWallet: marketLaunches.payoutWallet,
       transactionSignature: marketLaunches.transactionSignature,
       metadata: marketLaunches.metadata,
       createdAt: marketLaunches.createdAt,
@@ -85,55 +88,6 @@ async function loadLaunchRows() {
     .innerJoin(agents, eq(agents.id, marketLaunches.agentId))
     .orderBy(desc(marketLaunches.createdAt))
     .limit(25);
-}
-
-function toneForExecution(state: ExecutionRow["state"]): StatusTone {
-  if (state === "confirmed") return "pass";
-  if (state === "submitted" || state === "unknown_pending") return "pending";
-  if (state === "failed" || state === "rejected" || state === "cancelled")
-    return "block";
-  if (state === "simulated") return "simulation";
-  return "neutral";
-}
-
-function toneForLaunch(status: string): StatusTone {
-  if (status === "confirmed" || status === "pool_confirmed") return "pass";
-  if (
-    status.includes("submitting") ||
-    status.includes("submitted") ||
-    status.includes("pending") ||
-    status.includes("signature_confirmed")
-  )
-    return "pending";
-  if (status.includes("failed") || status.includes("rejected")) return "block";
-  if (status.includes("simulated")) return "simulation";
-  return "neutral";
-}
-
-function toneForEvidence(label: string): StatusTone {
-  if (label === "protocol_verified") return "pass";
-  if (label === "signature_confirmed") return "pending";
-  if (label === "evidence_incomplete") return "block";
-  return "neutral";
-}
-
-function formatDate(value: Date | null) {
-  if (!value) return "Not recorded";
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(value);
-}
-
-function shortHash(value: string | null) {
-  if (!value) return "Not recorded";
-  return `${value.slice(0, 8)}…${value.slice(-6)}`;
-}
-
-function explorerUrl(signature: string, cluster: "devnet" | "mainnet-beta") {
-  const clusterQuery = cluster === "devnet" ? "?cluster=devnet" : "";
-  return `https://explorer.solana.com/tx/${signature}${clusterQuery}`;
 }
 
 function resolveFilter(value: string | string[] | undefined): TransactionFilter {
@@ -177,18 +131,52 @@ export default async function TransactionsPage({
       <RouteHeader
         eyebrow="Execution ledger"
         title="Transactions"
-        description="A read-only audit trail for execution attempts and sponsor market launches."
+        description="Recorded execution attempts and market launches, from preparation through network evidence."
         meta={persistenceReady ? "Persistent records" : "Persistence unavailable"}
       />
 
       {!persistenceReady ? (
-        <EmptyState
-          icon={Database}
-          label="Database required"
-          title="No transaction ledger is available in this instance."
-          description="Set DATABASE_URL to enable persistent execution attempts, launch records, statuses, signatures, and failure evidence."
-          action={{ label: "Open capabilities", href: "/settings" }}
-        />
+        <section
+          className="transaction-empty"
+          aria-labelledby="transaction-empty-title"
+        >
+          <div className="transaction-empty-mark">
+            <Database aria-hidden="true" size={26} weight="light" />
+          </div>
+          <div className="transaction-empty-copy">
+            <span className="transaction-kicker">Ledger / unavailable</span>
+            <h2 id="transaction-empty-title">
+              No transaction ledger is available in this instance.
+            </h2>
+            <p>
+              Persistent storage is not configured. Once available, this read-only
+              ledger lists actual execution attempts and market launches, including
+              network evidence and failures. The lifecycle below is a reference, not
+              recorded activity.
+            </p>
+            <p className="transaction-empty-note">
+              DATABASE_URL is required to read persisted records.
+            </p>
+            <Link href="/settings" className="transaction-empty-link">
+              Open capabilities <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+          <aside className="transaction-empty-index" aria-label="Ledger record types">
+            <span className="transaction-empty-index-title">In the ledger</span>
+            <div>
+              <span>01</span>
+              <strong>Execution attempts</strong>
+            </div>
+            <div>
+              <span>02</span>
+              <strong>Market launches</strong>
+            </div>
+            <div>
+              <span>03</span>
+              <strong>Network evidence</strong>
+            </div>
+          </aside>
+        </section>
       ) : (
         <div className="route-grid transaction-grid">
           <nav className="transaction-filters" aria-label="Transaction state filters">
@@ -218,50 +206,7 @@ export default async function TransactionsPage({
             {filteredExecutions.length > 0 ? (
               <div className="transaction-list">
                 {filteredExecutions.map((row) => (
-                  <article className="transaction-row" key={row.id}>
-                    <div>
-                      <span>{formatDate(row.createdAt)}</span>
-                      <h3>{String(row.proposal.action).replaceAll("_", " ")}</h3>
-                      <code>{shortHash(row.decisionHash)}</code>
-                    </div>
-                    <StatusBadge tone={toneForExecution(row.state)}>
-                      {row.state}
-                    </StatusBadge>
-                    <div>
-                      <span>Cluster</span>
-                      <strong>{row.cluster}</strong>
-                    </div>
-                    <div>
-                      <span>Slot</span>
-                      <strong>
-                        {row.slot ? row.slot.toString() : "Not confirmed"}
-                      </strong>
-                    </div>
-                    {row.transactionSignature && row.state !== "simulated" ? (
-                      <Link
-                        className="secondary-button"
-                        href={explorerUrl(row.transactionSignature, row.cluster)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Explorer <ArrowSquareOut aria-hidden="true" size={14} />
-                      </Link>
-                    ) : (
-                      <span className="transaction-muted">No explorer link</span>
-                    )}
-                    <div className="transaction-evidence">
-                      <AssuranceBadge
-                        assurance={assuranceForExecution({
-                          state: row.state,
-                          transactionSignature: row.transactionSignature,
-                          mode: row.agentMode,
-                        })}
-                      />
-                    </div>
-                    {row.safeError ? (
-                      <p className="transaction-error">{row.safeError}</p>
-                    ) : null}
-                  </article>
+                  <ExecutionLedgerRow row={row} key={row.id} />
                 ))}
               </div>
             ) : (
@@ -283,69 +228,50 @@ export default async function TransactionsPage({
             {filteredLaunches.length > 0 ? (
               <div className="transaction-list">
                 {filteredLaunches.map((row) => (
-                  <article className="transaction-row" key={row.id}>
-                    <div>
-                      <span>{formatDate(row.createdAt)}</span>
-                      <h3>
-                        {row.provider} · {row.agentSlug}
-                      </h3>
-                      <code>{row.providerRequestId ?? row.id}</code>
-                    </div>
-                    <StatusBadge tone={toneForLaunch(row.status)}>
-                      {row.status}
-                    </StatusBadge>
-                    <div>
-                      <span>Base mint</span>
-                      <strong>{shortHash(row.baseMint)}</strong>
-                    </div>
-                    <div>
-                      <span>Pool</span>
-                      <strong>{shortHash(row.poolAddress)}</strong>
-                    </div>
-                    {(() => {
-                      const evidence = summarizeMeteoraLaunchEvidence(
-                        row.status,
-                        row.metadata,
-                      );
-                      if (!evidence) return null;
-                      return (
-                        <div className="transaction-evidence">
-                          <StatusBadge tone={toneForEvidence(evidence.label)}>
-                            {evidence.label.replaceAll("_", " ")}
-                          </StatusBadge>
-                          <span>
-                            slot {evidence.slot ?? "n/a"} · fee{" "}
-                            {evidence.feeLamports ?? "n/a"} lamports · account{" "}
-                            {shortHash(evidence.account)}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    {row.transactionSignature ? (
-                      <Link
-                        className="secondary-button"
-                        href={explorerUrl(row.transactionSignature, row.cluster)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Explorer <ArrowSquareOut aria-hidden="true" size={14} />
-                      </Link>
-                    ) : (
-                      <span className="transaction-muted">Awaiting real signature</span>
-                    )}
-                  </article>
+                  <LaunchLedgerRow row={row} key={row.id} />
                 ))}
               </div>
             ) : (
               <p className="route-copy">
-                No market-launch records match this filter. Prepared or simulated
-                Meteora transactions stay off this ledger until a signed transaction is
-                submitted.
+                No market-launch records match this filter. Prepared and simulated
+                records, when present, are labelled as such and do not represent
+                submitted transactions.
               </p>
             )}
           </section>
         </div>
       )}
+      <section
+        className="transaction-lifecycle"
+        aria-labelledby="transaction-lifecycle-title"
+      >
+        <div className="transaction-lifecycle-intro">
+          <div>
+            <span className="transaction-kicker">Reference / 01</span>
+            <h2 id="transaction-lifecycle-title">
+              Transaction lifecycle <InfoHint topic="transactionLifecycle" />
+            </h2>
+            <p>
+              These are possible stages, not a claim that a transaction has reached
+              them. Records on this page show only their recorded state.
+            </p>
+          </div>
+          <span className="transaction-lifecycle-count">09 states</span>
+        </div>
+        <div className="transaction-lifecycle-list">
+          {TRANSACTION_STATE_ORDER.map((state, index) => (
+            <div className="transaction-lifecycle-item" key={state}>
+              <span className="transaction-lifecycle-index">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <TransactionStateBadge state={state} />
+              <span className="transaction-lifecycle-description">
+                {TRANSACTION_STATE_META[state].description}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
     </>
   );
 }
