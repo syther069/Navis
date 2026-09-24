@@ -21,6 +21,10 @@ Use the managed `artifacts/navis: web` and `artifacts/api-server: API Server` wo
 - `lib/navis-core`: original domain, policy, authentication, integration and persistence logic.
 - `.migration-backup`: original import retained for reference.
 
+## Vercel
+
+The GitHub repository still deploys to Vercel. Root `vercel.json` installs with pnpm, builds the frontend, then `artifacts/api-server/build-vercel.mjs` writes a Build Output bundle to `.vercel/output`: static frontend plus the Express API as one `/api/*` function. Keep this working when changing build config.
+
 ## Configuration and safety
 
 Connect the **existing NAVIS database** through workspace secrets. A configured `DATABASE_URL` does not prove schema readiness. The supplied workspace database has no NAVIS tables; no schema migration or seeding was performed. Storage failures return explicit errors instead of invented empty results.
