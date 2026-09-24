@@ -1,13 +1,11 @@
-import {
-  ArrowRight,
-  ShieldCheck,
-  Sparkle,
-  Stack,
-  TrendUp,
-} from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
+import { Sparkle, Stack, TrendUp } from "@phosphor-icons/react/dist/ssr";
+import React from "react";
 
+import { DecisionRecordView } from "@/components/decisions/decision-record-view";
 import { PolicyResult, StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
+import { demoAgentBundle } from "@/fixtures/demo-agent";
+import { demoProof } from "@/fixtures/demo-proof";
 
 type TreasuryPosition = Readonly<{
   key: string;
@@ -29,6 +27,26 @@ export function AgentOverview({
   policyChecks: readonly React.ComponentProps<typeof PolicyResult>[];
 }) {
   const pricedSubtotal = Number(treasury.pricedSubtotalMicros) / 1_000_000;
+  const { proposal, context } = demoProof.document.decision;
+  const inputAsset = demoAgentBundle.assets[0];
+  const outputAsset = demoAgentBundle.assets[1];
+
+  // Map risk boundaries from policy checks
+  const riskBoundaries = policyChecks.map((check) => ({
+    label: check.label,
+    observed: check.observed,
+    threshold: check.threshold,
+    status: check.status,
+  }));
+
+  const formattedChecks = policyChecks.map((check) => ({
+    rule: check.label.replaceAll(" ", "_"),
+    label: check.label,
+    observed: check.observed,
+    threshold: check.threshold,
+    status: check.status,
+    explanation: check.detail,
+  }));
 
   return (
     <>
@@ -38,6 +56,7 @@ export function AgentOverview({
             <StatusBadge tone="active">Monitoring</StatusBadge>
             <span>Strategy v1.0</span>
             <span>Demo fixture</span>
+            <InfoHint topic="atlas" label="About Atlas" />
           </div>
           <h2 id="agent-title">Atlas</h2>
           <p>
@@ -51,117 +70,168 @@ export function AgentOverview({
         </div>
       </section>
 
-      <div className="primary-grid">
-        <section className="decision-surface" aria-labelledby="decision-title">
-          <div className="section-kicker">
-            <Sparkle aria-hidden="true" size={16} /> Decision command
+      {/* 9-Part Structured Decision Record for Prepared Demo Decision */}
+      <section
+        className="prepared-decision-record-section"
+        aria-label="Prepared decision record"
+      >
+        <div className="section-kicker">
+          <Sparkle aria-hidden="true" size={16} />
+          <span>Prepared Baseline Decision Record</span>
+        </div>
+
+        <DecisionRecordView
+          decisionId="demo-decision"
+          agentName="Atlas"
+          agentSlug="atlas"
+          strategyVersion={1}
+          policyVersion={1}
+          cluster="devnet"
+          mode="demo"
+          timestamp={demoProof.document.decision.context.requestedAt}
+          state="approved"
+          stateLabel="Approved · Simulated"
+          action={proposal.action}
+          scenario="balanced"
+          universeLabel="4 demo assets"
+          thesis={proposal.thesis}
+          signalSource={
+            proposal.evidence?.[0]?.sourceId ??
+            "Deterministic demo relative-strength fixture"
+          }
+          confidenceBps={proposal.confidenceBps}
+          invalidationConditions={proposal.invalidationConditions}
+          inputAsset={
+            inputAsset
+              ? {
+                  symbol: inputAsset.symbol,
+                  name: inputAsset.name,
+                  mint: inputAsset.mint,
+                  decimals: inputAsset.decimals,
+                }
+              : undefined
+          }
+          outputAsset={
+            outputAsset
+              ? {
+                  symbol: outputAsset.symbol,
+                  name: outputAsset.name,
+                  mint: outputAsset.mint,
+                  decimals: outputAsset.decimals,
+                }
+              : undefined
+          }
+          availableLiquidityUsd="2,000.00"
+          quoteObservedAt={context.marketInputs?.[0]?.observedAt}
+          quoteExpiresAt={context.marketInputs?.[0]?.quoteExpiresAt}
+          policyHash={demoProof.document.riskPolicy.hash}
+          policyApproved={demoProof.document.policyEvaluation.approved}
+          policyChecks={formattedChecks}
+          riskBoundaries={riskBoundaries}
+          orderAmountUi={
+            proposal.action !== "HOLD" ? proposal.inputAmount.uiAmount : undefined
+          }
+          orderAmountRaw={
+            proposal.action !== "HOLD" ? proposal.inputAmount.rawAmount : undefined
+          }
+          expectedOutputUi={
+            proposal.action !== "HOLD"
+              ? proposal.minimumOutputAmount.uiAmount
+              : undefined
+          }
+          expectedOutputRaw={
+            proposal.action !== "HOLD"
+              ? proposal.minimumOutputAmount.rawAmount
+              : undefined
+          }
+          maxSlippageBps={proposal.maxSlippageBps}
+          proposalSummaryLine={
+            proposal.action !== "HOLD"
+              ? `${proposal.action} ${inputAsset?.symbol ?? "EQA"} into ${outputAsset?.symbol ?? "EQB"}, amount ${proposal.inputAmount.uiAmount} (${proposal.inputAmount.rawAmount} base units at 6 decimals), max slippage ${proposal.maxSlippageBps} bps.`
+              : "HOLD: no asset moves."
+          }
+          rawPayload={{
+            decisionId: "demo-decision",
+            proposal,
+            context,
+          }}
+          approvalStatus="demo_simulation"
+          approvalNote="The prepared Atlas demo runs in simulated demo mode. No transaction was built, signed, or transmitted on Solana."
+          executionState="simulated"
+          executionSummary="Simulated: a demo execution attempt was recorded. No transaction was built, signed, or sent."
+          gasFeeLamports={0}
+          proofId="demo-proof"
+          receiptHash={demoProof.receiptHash}
+          assuranceLevel="offchain_integrity"
+          assuranceOrigin="demo_simulation"
+          openDecisionHref="/agents/atlas/decisions/demo-decision"
+          viewProofHref="/proofs/demo-proof"
+          accessNote="Public reference demo record with canonical hash anchoring."
+        />
+      </section>
+
+      {/* Treasury Portfolio Section */}
+      <section
+        className="route-panel treasury-summary-panel"
+        aria-labelledby="treasury-title"
+      >
+        <div className="panel-heading">
+          <Stack aria-hidden="true" size={22} />
+          <div>
+            <span>Treasury</span>
+            <h2 id="treasury-title">Demo portfolio snapshot</h2>
           </div>
-          <div className="decision-copy">
-            <div>
-              <span className="decision-state">Recorded demo decision</span>
-              <h2 id="decision-title">Review the constrained rebalance proposal.</h2>
-              <p>
-                Atlas received the immutable demo snapshot, strategy version, and
-                deterministic risk policy shown alongside this decision.
-              </p>
-            </div>
-            <Link
-              className="primary-button"
-              href="/agents/atlas/decisions/demo-decision"
+        </div>
+
+        <div className="treasury-priced-total">
+          <span>Priced subtotal</span>
+          <strong className="tabular-num">
+            $
+            {pricedSubtotal.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}{" "}
+            USD
+          </strong>
+          <small>Excludes unpriced balances · Captured at {treasury.capturedAt}</small>
+        </div>
+
+        <div className="treasury-positions-grid">
+          {treasury.positions.map((position) => (
+            <div
+              key={position.key}
+              className="treasury-position-card"
+              data-unpriced={position.valuation === null || undefined}
             >
-              Inspect decision <ArrowRight aria-hidden="true" size={18} />
-            </Link>
-          </div>
-
-          <div className="decision-context" aria-label="Decision context">
-            <div>
-              <span>Universe</span>
-              <strong>4 demo assets</strong>
-            </div>
-            <div>
-              <span>Policy</span>
-              <strong>Balanced mandate</strong>
-            </div>
-            <div>
-              <span>Execution</span>
-              <strong>Hash-verified simulation</strong>
-            </div>
-          </div>
-
-          <div className="empty-proof">
-            <div className="proof-node" aria-hidden="true" />
-            <div>
-              <strong>One simulated decision recorded</strong>
-              <p>
-                Its proof spine connects the proposal to exact checks and a simulation
-                receipt without an explorer link.
-              </p>
-              <Link className="text-link" href="/decisions">
-                Open decision ledger
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <aside className="agent-ledger" aria-label="Agent constraints and treasury">
-          <section className="ledger-section" aria-labelledby="constraints-title">
-            <div className="ledger-heading">
-              <div>
-                <span>Risk policy</span>
-                <h2 id="constraints-title">Constraint ledger</h2>
+              <div className="position-head">
+                <strong className="position-symbol">{position.symbol}</strong>
+                <span className="position-amount tabular-num">
+                  {position.amount} units
+                </span>
               </div>
-              <ShieldCheck aria-hidden="true" size={22} />
-            </div>
-            <div className="constraint-list">
-              {policyChecks.map((constraint) => (
-                <PolicyResult key={constraint.label} {...constraint} />
-              ))}
-            </div>
-          </section>
-
-          <section
-            className="ledger-section treasury-summary"
-            aria-labelledby="treasury-title"
-          >
-            <div className="ledger-heading">
-              <div>
-                <span>Treasury</span>
-                <h2 id="treasury-title">Demo portfolio snapshot</h2>
-              </div>
-              <Stack aria-hidden="true" size={22} />
-            </div>
-            <div className="treasury-priced-total">
-              <span>Priced subtotal</span>
-              <strong>${pricedSubtotal.toLocaleString("en-US")}</strong>
-              <small>Excludes every unpriced balance · {treasury.capturedAt}</small>
-            </div>
-            <div className="treasury-position-list">
-              {treasury.positions.map((position) => (
-                <div
-                  key={position.key}
-                  data-unpriced={position.valuation === null || undefined}
-                >
-                  <span>
-                    <strong>{position.symbol}</strong>
-                    <small>{position.amount} units</small>
+              <div className="position-val-row">
+                {position.valuation ? (
+                  <strong className="position-valuation tabular-num">
+                    $
+                    {(Number(position.valuation) / 1_000_000).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    USD
+                  </strong>
+                ) : (
+                  <span className="treasury-unpriced">
+                    <TrendUp size={14} /> Unpriced
                   </span>
-                  {position.valuation ? (
-                    <strong>
-                      $
-                      {(Number(position.valuation) / 1_000_000).toLocaleString("en-US")}
-                    </strong>
-                  ) : (
-                    <span className="treasury-unpriced">
-                      <TrendUp size={14} /> Unpriced
-                    </span>
-                  )}
-                  {position.reason ? <small>{position.reason}</small> : null}
-                </div>
-              ))}
+                )}
+              </div>
+              {position.reason ? (
+                <small className="position-reason">{position.reason}</small>
+              ) : null}
             </div>
-          </section>
-        </aside>
-      </div>
+          ))}
+        </div>
+      </section>
     </>
   );
 }

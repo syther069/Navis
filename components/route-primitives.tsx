@@ -6,17 +6,29 @@ type RouteHeaderProps = {
   title: string;
   description: string;
   meta?: string;
+  actions?: React.ReactNode;
 };
 
-export function RouteHeader({ eyebrow, title, description, meta }: RouteHeaderProps) {
+export function RouteHeader({
+  eyebrow,
+  title,
+  description,
+  meta,
+  actions,
+}: RouteHeaderProps) {
   return (
     <header className="route-header">
-      <div>
+      <div className="route-header-main">
         <span className="route-eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
-      {meta ? <span className="route-meta">{meta}</span> : null}
+      {meta || actions ? (
+        <div className="route-header-aside">
+          {meta ? <span className="route-meta">{meta}</span> : null}
+          {actions ? <div className="route-header-actions">{actions}</div> : null}
+        </div>
+      ) : null}
     </header>
   );
 }
