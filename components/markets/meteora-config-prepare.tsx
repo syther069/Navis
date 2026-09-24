@@ -11,6 +11,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
 import { StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
+import { StageTrack, type Stage } from "@/components/shared/stage-track";
 import type {
   MeteoraQuoteProfileAvailability,
   MeteoraQuoteProfileId,
@@ -18,7 +20,6 @@ import type {
 import { signMeteoraDevnetTransaction } from "@/lib/integrations/meteora/wallet-signing";
 import type { SavedMeteoraLaunch } from "@/lib/integrations/meteora/recovery";
 
-import { MeteoraTimeline, type MeteoraTimelineStep } from "./meteora-timeline";
 import { MeteoraLaunchRecovery } from "./meteora-launch-recovery";
 
 /** Base58 transaction signature explorer link for the active cluster. */
@@ -270,70 +271,116 @@ export function MeteoraConfigPrepare({
   const signedBytes = Boolean(flow?.signedSerializedTransaction);
   const simulationFailed = Boolean(flow?.simulation && flow.simulation.error !== null);
   const simulationPassed = Boolean(flow?.simulation && flow.simulation.error === null);
-  const timelineSteps: MeteoraTimelineStep[] = [
-    {
-      key: "wallet",
-      label: "Wallet connected",
-      state: connected ? "done" : "pending",
-    },
+  const stages: Stage[] = [
     {
       key: "configuration",
-      label: "Configuration validated",
-      state: flow ? "done" : connected ? "current" : "pending",
+      label: "Configuration",
+      hint: "meteoraConfig",
+      state:
+        flow?.prepared || flow?.submitted
+          ? "complete"
+          : !executionEnabled || !profileReady
+            ? "blocked"
+            : "current",
+      detail:
+        flow?.submitted && !flow.prepared
+          ? "Saved launch record restored; no signing material was restored."
+          : flow?.prepared
+            ? "Server-approved quote profile resolved for this prepared config."
+            : !profileReady
+              ? "The selected quote profile is not ready."
+              : !executionEnabled
+                ? "Transaction preparation is unavailable in this execution mode."
+                : connected
+                  ? "Choose a quote profile and prepare the config."
+                  : "Connect a wallet to continue.",
     },
     {
-      key: "prepared",
-      label: "Transaction prepared",
-      state: flow ? "done" : "pending",
-    },
-    {
-      key: "approval",
-      label: "Awaiting wallet approval",
-      state: signedBytes ? "done" : flow ? "current" : "pending",
-    },
-    {
-      key: "signed",
-      label: "Transaction signed",
-      state: signedBytes ? "done" : "pending",
+      key: "preparation",
+      label: "Transaction Preparation",
+      hint: "preparation",
+      state:
+        flow?.prepared || flow?.submitted
+          ? "complete"
+          : state.status === "loading"
+            ? "current"
+            : "pending",
+      detail:
+        flow?.submitted && !flow.prepared
+          ? "Saved launch record restored; prepared bytes are not available in this tab."
+          : flow?.prepared
+            ? "Unsigned transaction prepared; no transaction has been sent."
+            : "Awaiting an unsigned transaction.",
     },
     {
       key: "simulation",
-      label: "Simulation passed",
+      label: "Simulation",
+      hint: "simulation",
       state: simulationPassed
-        ? "done"
+        ? "simulated"
         : simulationFailed
           ? "failed"
-          : signedBytes
+          : flow?.simulating
             ? "current"
-            : "pending",
-    },
-    {
-      key: "submission",
-      label: "Submission",
-      state: flow?.submitted ? "done" : flow?.submitting ? "current" : "pending",
-    },
-    {
-      key: "confirmation",
-      label: "Confirmation",
-      state:
-        flow?.confirmation?.launch?.status === "failed"
-          ? "failed"
-          : flow?.confirmation?.evidence?.signature
-            ? "done"
-            : flow?.confirming || flow?.confirmation
+            : flow?.prepared
               ? "current"
               : "pending",
+      detail: simulationPassed
+        ? "RPC simulation passed only. No transaction was executed."
+        : simulationFailed
+          ? "RPC simulation returned an error."
+          : "No passing simulation recorded.",
     },
     {
-      key: "verification",
-      label: "Onchain verification",
-      state:
-        flow?.confirmation?.launch?.status === "confirmed"
-          ? "done"
-          : flow?.confirmation
-            ? "current"
-            : "pending",
+      key: "approval",
+      label: "Wallet Approval",
+      hint: "signing",
+      state: signedBytes ? "complete" : flow?.simulating ? "current" : "pending",
+      detail: signedBytes
+        ? "Wallet signed for RPC simulation only; not broadcast."
+        : "The wallet signature is requested during simulation; a restored launch does not restore signed bytes.",
     },
+    broadcastAvailable
+      ? {
+          key: "broadcast",
+          label: "Broadcast",
+          hint: "broadcast",
+          state: flow?.submitted?.launch.transactionSignature
+            ? "complete"
+            : flow?.submitting
+              ? "current"
+              : "pending",
+          detail: flow?.submitted?.launch.transactionSignature
+            ? "Signed transaction sent; the signature is recorded on the launch."
+            : "Not broadcast. Sending requires a passing simulation and your wallet signature.",
+        }
+      : {
+          key: "broadcast",
+          label: "Broadcast",
+          hint: "broadcast",
+          state: "disabled",
+          detail: `Broadcasting is disabled for this deployment. ${broadcastBlockedReason} A prepared transaction is not executed.`,
+        },
+    broadcastAvailable
+      ? {
+          key: "confirmation",
+          label: "Confirmation",
+          hint: "confirmation",
+          state:
+            flow?.submitted?.launch.status === "confirmed" ? "complete" : "pending",
+          detail:
+            flow?.submitted?.launch.status === "confirmed"
+              ? "The launch record reports a confirmed signature."
+              : "No confirmation recorded. Submitted is not confirmed.",
+        }
+      : {
+          key: "confirmation",
+          label: "Confirmation",
+          hint: "confirmation",
+          state: "disabled",
+          detail:
+            "Unavailable while broadcast is disabled. A prepared transaction is not executed.",
+        },
   ];
 
   function resumeLaunch(launch: SavedMeteoraLaunch) {
@@ -806,20 +853,6 @@ export function MeteoraConfigPrepare({
 
   return (
     <div className="meteora-prepare">
-      <MeteoraLaunchRecovery
-        key={walletAddress ?? "disconnected"}
-        cluster={cluster}
-        disabled={
-          !connected ||
-          Boolean(
-            flow?.submitting ||
-            flow?.poolSubmitting ||
-            flow?.simulating ||
-            flow?.poolSimulating,
-          )
-        }
-        onResume={resumeLaunch}
-      />
       <div className="meteora-profile-picker">
         <label className="form-field">
           <span>Quote profile</span>
@@ -957,7 +990,28 @@ export function MeteoraConfigPrepare({
         </div>
       ) : null}
 
-      <MeteoraTimeline steps={timelineSteps} />
+      <div className="meteora-flow" aria-label="Config transaction lifecycle">
+        <div className="meteora-section-heading">
+          <span className="route-eyebrow">Execution pathway / config</span>
+          <h3>Six stages. No broadcast.</h3>
+          <p>Preparation and simulation are review steps, not onchain execution.</p>
+        </div>
+        <StageTrack stages={stages} label="Meteora config transaction stages" />
+      </div>
+      <MeteoraLaunchRecovery
+        key={walletAddress ?? "disconnected"}
+        cluster={cluster}
+        disabled={
+          !connected ||
+          Boolean(
+            flow?.submitting ||
+            flow?.poolSubmitting ||
+            flow?.simulating ||
+            flow?.poolSimulating,
+          )
+        }
+        onResume={resumeLaunch}
+      />
 
       {state.status === "ready" ? (
         <PreparedTransactionReview
@@ -1152,72 +1206,78 @@ function PreparedTransactionReview({
         </div>
         <StatusBadge tone="pending">Unsigned</StatusBadge>
       </div>
-      <dl className="meteora-address-list">
-        <div>
-          <dt>Config signer</dt>
-          <dd>
-            <AddressValue value={prepared.accounts.config} label="config signer" />
-          </dd>
+      <p className="form-note">Built for review, not submitted to the network.</p>
+      <details className="tech-disclosure">
+        <summary>Inspect prepared transaction · accounts and metadata</summary>
+        <div className="tech-disclosure-body">
+          <dl className="meteora-address-list">
+            <div>
+              <dt>Config signer</dt>
+              <dd>
+                <AddressValue value={prepared.accounts.config} label="config signer" />
+              </dd>
+            </div>
+            <div>
+              <dt>Payer</dt>
+              <dd>
+                <AddressValue value={prepared.accounts.payer} label="payer" />
+              </dd>
+            </div>
+            <div>
+              <dt>Required signatures</dt>
+              <dd>{prepared.review.signaturesRequired}</dd>
+            </div>
+            <div>
+              <dt>Instructions</dt>
+              <dd>{prepared.review.instructions}</dd>
+            </div>
+            <div>
+              <dt>Message hash</dt>
+              <dd>
+                <code>{prepared.messageSha256}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Blockhash</dt>
+              <dd>
+                <code>{prepared.recentBlockhash}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Last valid block height</dt>
+              <dd>{prepared.lastValidBlockHeight}</dd>
+            </div>
+            <div>
+              <dt>Migration threshold</dt>
+              <dd>
+                {prepared.review.migrationQuoteThresholdSol} {prepared.quote.symbol}
+              </dd>
+            </div>
+            <div>
+              <dt>Quote profile</dt>
+              <dd>
+                <code>{prepared.quote.profileId}</code> · {prepared.quote.name} (
+                {prepared.quote.symbol}, {prepared.quote.decimals} decimals)
+              </dd>
+            </div>
+            <div>
+              <dt>Quote mint</dt>
+              <dd>
+                <AddressValue value={prepared.quote.mint} label="quote mint" />
+              </dd>
+            </div>
+            <div>
+              <dt>Quote provenance</dt>
+              <dd>
+                {prepared.quote.provenance}
+                {prepared.quote.onchain
+                  ? ` Verified ${prepared.quote.onchain.tokenProgram} mint with ${prepared.quote.onchain.decimals} decimals at slot ${prepared.quote.onchain.verifiedAtSlot}${prepared.quote.onchain.tokenBadge ? `; Meteora token badge ${prepared.quote.onchain.tokenBadge}` : ""}.`
+                  : ""}
+              </dd>
+            </div>
+          </dl>
         </div>
-        <div>
-          <dt>Payer</dt>
-          <dd>
-            <AddressValue value={prepared.accounts.payer} label="payer" />
-          </dd>
-        </div>
-        <div>
-          <dt>Required signatures</dt>
-          <dd>{prepared.review.signaturesRequired}</dd>
-        </div>
-        <div>
-          <dt>Instructions</dt>
-          <dd>{prepared.review.instructions}</dd>
-        </div>
-        <div>
-          <dt>Message hash</dt>
-          <dd>
-            <code>{prepared.messageSha256}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>Blockhash</dt>
-          <dd>
-            <code>{prepared.recentBlockhash}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>Last valid block height</dt>
-          <dd>{prepared.lastValidBlockHeight}</dd>
-        </div>
-        <div>
-          <dt>Migration threshold</dt>
-          <dd>
-            {prepared.review.migrationQuoteThresholdSol} {prepared.quote.symbol}
-          </dd>
-        </div>
-        <div>
-          <dt>Quote profile</dt>
-          <dd>
-            <code>{prepared.quote.profileId}</code> · {prepared.quote.name} (
-            {prepared.quote.symbol}, {prepared.quote.decimals} decimals)
-          </dd>
-        </div>
-        <div>
-          <dt>Quote mint</dt>
-          <dd>
-            <AddressValue value={prepared.quote.mint} label="quote mint" />
-          </dd>
-        </div>
-        <div>
-          <dt>Quote provenance</dt>
-          <dd>
-            {prepared.quote.provenance}
-            {prepared.quote.onchain
-              ? ` Verified ${prepared.quote.onchain.tokenProgram} mint with ${prepared.quote.onchain.decimals} decimals at slot ${prepared.quote.onchain.verifiedAtSlot}${prepared.quote.onchain.tokenBadge ? `; Meteora token badge ${prepared.quote.onchain.tokenBadge}` : ""}.`
-              : ""}
-          </dd>
-        </div>
-      </dl>
+      </details>
       <div className="meteora-simulation-actions">
         <label className="form-field">
           <span>Launch owner</span>
@@ -1246,6 +1306,7 @@ function PreparedTransactionReview({
           <FileMagnifyingGlass aria-hidden="true" size={16} />
           {simulating ? "Simulating" : "Sign and simulate"}
         </button>
+        <InfoHint topic="signing" label="About wallet signing for simulation" />
         <p className="form-note">
           This wallet signature authorizes the exact prepared transaction until the
           blockhash expires. Navis uses it here for RPC simulation only.
@@ -1253,6 +1314,9 @@ function PreparedTransactionReview({
       </div>
       {simulation ? <SimulationReview simulation={simulation} /> : null}
       <div className="meteora-submit-actions">
+        <div className="meteora-action-title">
+          Broadcast <InfoHint topic="broadcast" label="About broadcast" />
+        </div>
         <button
           className="primary-button"
           type="button"
@@ -1272,7 +1336,7 @@ function PreparedTransactionReview({
             ? simulation && simulation.error === null
               ? `Simulation passed. Submission broadcasts the signed transaction to ${cluster}; the signature and outcome are recorded for reconciliation.`
               : "Submission unlocks after the signed transaction passes simulation."
-            : `${broadcastBlockedReason} Preparation and simulation remain available for review.`}
+            : `${broadcastBlockedReason} Broadcasting is intentionally disabled in Navis. A prepared transaction is not executed; preparation and simulation remain available for review.`}
         </p>
       </div>
       {submitted ? (
@@ -1432,6 +1496,9 @@ function PoolCreationReview({
           </div>
           {simulation ? <SimulationReview simulation={simulation} /> : null}
           <div className="meteora-submit-actions">
+            <div className="meteora-action-title">
+              Broadcast <InfoHint topic="broadcast" label="About broadcast" />
+            </div>
             <button
               className="primary-button"
               type="button"
@@ -1453,7 +1520,7 @@ function PoolCreationReview({
                 ? simulation && simulation.error === null
                   ? `Pool simulation passed. Submission broadcasts to ${cluster} and records the signature.`
                   : "Pool submission unlocks after a passing pool simulation."
-                : broadcastBlockedReason}
+                : `${broadcastBlockedReason} Broadcasting is intentionally disabled in Navis. A prepared transaction is not executed.`}
             </p>
           </div>
         </div>
@@ -1581,10 +1648,13 @@ function SimulationReview({ simulation }: { simulation: SimulationResult }) {
           <span>RPC slot {simulation.contextSlot}</span>
           <h3>{failed ? "Simulation returned an error" : "Simulation passed"}</h3>
         </div>
-        <StatusBadge tone={failed ? "warn" : "pass"}>
-          {failed ? "Review" : "Pass"}
+        <StatusBadge tone={failed ? "warn" : "simulation"}>
+          {failed ? "Review" : "Simulated only"}
         </StatusBadge>
       </div>
+      <p className="form-note">
+        RPC simulation only. This is not an executed transaction.
+      </p>
       <dl className="meteora-address-list">
         <div>
           <dt>Signed by</dt>
@@ -1600,9 +1670,11 @@ function SimulationReview({ simulation }: { simulation: SimulationResult }) {
         </div>
       </dl>
       {simulation.logs.length > 0 ? (
-        <details>
+        <details className="tech-disclosure">
           <summary>RPC logs</summary>
-          <pre>{simulation.logs.slice(0, 20).join("\n")}</pre>
+          <div className="tech-disclosure-body">
+            <pre>{simulation.logs.slice(0, 20).join("\n")}</pre>
+          </div>
         </details>
       ) : null}
     </div>

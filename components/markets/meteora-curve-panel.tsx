@@ -2,6 +2,7 @@ import { LockKey, ShieldCheck, WarningCircle } from "@phosphor-icons/react/dist/
 
 import { AddressValue } from "@/components/shared/address-value";
 import { SourceStamp, StatusBadge } from "@/components/shared/domain-primitives";
+import { InfoHint } from "@/components/shared/info-hint";
 import type { MeteoraCurvePreview } from "@/lib/integrations/meteora/config";
 
 import type { MeteoraQuoteProfileAvailability } from "@/lib/integrations/meteora/quote-profiles";
@@ -64,83 +65,27 @@ export function MeteoraCurvePanel({
         wallet execution confirms onchain.
       </p>
 
-      <div className="meteora-profiles">
-        {previews.map((item) => (
-          <article
-            key={item.profileId}
-            className="meteora-profile-card"
-            aria-labelledby={`meteora-profile-${item.profileId}`}
-          >
-            <div className="meteora-profile-heading">
-              <div>
-                <span className="route-eyebrow">{item.profileLabel}</span>
-                <h3 id={`meteora-profile-${item.profileId}`}>
-                  <code>{item.profileId}</code>
-                </h3>
-              </div>
-              <StatusBadge
-                tone={
-                  item.availability.status === "available" ? "active" : "simulation"
-                }
-              >
-                {item.availability.status === "available"
-                  ? `Available on ${item.cluster}`
-                  : item.availability.status === "gated"
-                    ? `Gated on ${item.cluster}`
-                    : `Unavailable on ${item.cluster}`}
-              </StatusBadge>
-            </div>
-            <p className="route-copy">{item.rationale.summary}</p>
-            <p className="form-note">{item.availability.reason}</p>
-            <dl className="meteora-rationale">
-              <div>
-                <dt>Price band</dt>
-                <dd>
-                  {item.rationale.priceBand} Threshold{" "}
-                  {item.pricing.migrationQuoteThreshold} {item.quoteUnit} (
-                  {item.pricing.migrationQuoteThresholdRaw} raw units,{" "}
-                  {item.token.quoteDecimals} quote decimals).
-                </dd>
-              </div>
-              <div>
-                <dt>Fee schedule</dt>
-                <dd>{item.rationale.feeSchedule}</dd>
-              </div>
-              <div>
-                <dt>Graduation</dt>
-                <dd>{item.rationale.graduation}</dd>
-              </div>
-              <div>
-                <dt>Locked liquidity</dt>
-                <dd>{item.rationale.lockedLiquidity}</dd>
-              </div>
-              <div>
-                <dt>Issuer and treasury</dt>
-                <dd>{item.rationale.issuerAndTreasury}</dd>
-              </div>
-              <div>
-                <dt>Quote mint</dt>
-                <dd>
-                  {item.quoteMint ? (
-                    <AddressValue value={item.quoteMint} label="wrapped SOL mint" />
-                  ) : (
-                    "Resolved per request from the live PreStocks catalogue and checked onchain (token program, decimals, Meteora token badge); never a constant and never a substitute mint."
-                  )}
-                </dd>
-              </div>
-            </dl>
-          </article>
-        ))}
+      <div className="meteora-section-heading">
+        <span className="route-eyebrow">01 / Launch economics</span>
+        <h3>
+          Bonding curve specification{" "}
+          <InfoHint topic="meteoraConfig" label="About Meteora configuration" />
+        </h3>
+        <p>
+          Server-approved profile preview. Values below describe configuration, not a
+          deployed pool.
+        </p>
       </div>
-
-      <div className="meteora-metrics">
+      <div className="meteora-metrics" aria-label="Preview economics">
         <article>
-          <span>Market cap path</span>
-          <strong>
-            {preview.pricing.initialMarketCapQuote} {preview.quoteUnit} to{" "}
-            {preview.pricing.migrationMarketCapQuote} {preview.quoteUnit}
+          <span>Price band</span>
+          <strong className="meteora-spec-description">
+            {preview.rationale.priceBand}
           </strong>
-          <small>DBC launch to migration ({preview.profileId})</small>
+          <small>
+            Market cap: {preview.pricing.initialMarketCapQuote} –{" "}
+            {preview.pricing.migrationMarketCapQuote} {preview.quoteUnit}
+          </small>
         </article>
         <article>
           <span>Migration threshold</span>
@@ -163,103 +108,193 @@ export function MeteoraCurvePanel({
         </article>
       </div>
 
-      <div className="meteora-config-grid">
-        <dl>
-          <div>
-            <dt>Token standard</dt>
-            <dd>{preview.token.standard}</dd>
-          </div>
-          <div>
-            <dt>Supply</dt>
-            <dd>{preview.token.totalSupply}</dd>
-          </div>
-          <div>
-            <dt>Leftover supply</dt>
-            <dd>{preview.token.leftover}</dd>
-          </div>
-          <div>
-            <dt>Decimals</dt>
-            <dd>
-              {preview.token.baseDecimals} base / {preview.token.quoteDecimals} quote
-            </dd>
-          </div>
-          <div>
-            <dt>Authority</dt>
-            <dd>{preview.token.authority}</dd>
-          </div>
-          <div>
-            <dt>Creator trading share</dt>
-            <dd>{preview.fees.creatorTradingFeeSharePercent}%</dd>
-          </div>
-          <div>
-            <dt>Base fee schedule</dt>
-            <dd>
-              {preview.fees.baseFeeMode}: {preview.fees.baseTradingFeeBps} to{" "}
-              {preview.fees.endingTradingFeeBps} bps over {preview.fees.feePeriods}{" "}
-              periods / {preview.fees.feeDurationSeconds} seconds
-            </dd>
-          </div>
-          <div>
-            <dt>Fee collection</dt>
-            <dd>
-              {preview.fees.collectedIn}; pool creation fee{" "}
-              {preview.fees.poolCreationFeeLamports} lamports; first-swap minimum{" "}
-              {preview.fees.firstSwapMinimumFeeEnabled ? "enabled" : "disabled"}
-            </dd>
-          </div>
-          <div>
-            <dt>Migration fee</dt>
-            <dd>
-              {preview.fees.migrationFeePercent}% with{" "}
-              {preview.fees.creatorMigrationFeeSharePercent}% creator share
-            </dd>
-          </div>
-          <div>
-            <dt>LP distribution</dt>
-            <dd>
-              Partner {preview.migration.partnerClaimablePercent}% claimable /{" "}
-              {preview.migration.partnerPermanentlyLockedPercent}% locked, creator{" "}
-              {preview.migration.creatorClaimablePercent}% claimable /{" "}
-              {preview.migration.creatorPermanentlyLockedPercent}% locked
-            </dd>
-          </div>
-          <div>
-            <dt>Activation</dt>
-            <dd>{preview.activation.type}</dd>
-          </div>
-          <div>
-            <dt>Locked vesting</dt>
-            <dd>
-              {preview.vesting.totalLockedAmount} locked /{" "}
-              {preview.vesting.cliffUnlockAmount} cliff unlock /{" "}
-              {preview.vesting.periods} periods / {preview.vesting.totalDurationSeconds}
-              s duration / {preview.vesting.cliffDurationSeconds}s cliff
-            </dd>
-          </div>
-        </dl>
-
-        <div className="meteora-addresses">
-          <span>Program evidence</span>
-          <AddressValue value={preview.programId} label="Meteora DBC program" />
-          <span>Quote mint</span>
-          {preview.quoteMint ? (
-            <AddressValue value={preview.quoteMint} label="wrapped SOL mint" />
-          ) : (
-            <code>resolved per request</code>
-          )}
-          <span>Profiles</span>
-          <code>{previews.map((item) => item.profileId).join(", ")}</code>
-        </div>
+      <div className="meteora-section-heading">
+        <span className="route-eyebrow">02 / Approved quote profiles</span>
+        <h3>Profile availability</h3>
+      </div>
+      <div className="meteora-profiles">
+        {previews.map((item) => (
+          <article
+            key={item.profileId}
+            className="meteora-profile-card"
+            aria-labelledby={`meteora-profile-${item.profileId}`}
+          >
+            <div className="meteora-profile-heading">
+              <div>
+                <span className="route-eyebrow">{item.profileLabel}</span>
+                <h3 id={`meteora-profile-${item.profileId}`}>
+                  <code>{item.profileId}</code>
+                </h3>
+              </div>
+              <StatusBadge
+                tone={item.availability.status === "available" ? "active" : "neutral"}
+              >
+                {item.availability.status === "available"
+                  ? `Available on ${item.cluster}`
+                  : item.availability.status === "gated"
+                    ? `Gated on ${item.cluster}`
+                    : `Unavailable on ${item.cluster}`}
+              </StatusBadge>
+            </div>
+            <p className="route-copy">{item.rationale.summary}</p>
+            <p className="form-note">{item.availability.reason}</p>
+            <details className="tech-disclosure">
+              <summary>Rationale, quote mint and fee schedule</summary>
+              <div className="tech-disclosure-body">
+                <dl className="meteora-rationale">
+                  <div>
+                    <dt>Price band</dt>
+                    <dd>
+                      {item.rationale.priceBand} Threshold{" "}
+                      {item.pricing.migrationQuoteThreshold} {item.quoteUnit} (
+                      {item.pricing.migrationQuoteThresholdRaw} raw units,{" "}
+                      {item.token.quoteDecimals} quote decimals).
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Fee schedule</dt>
+                    <dd>{item.rationale.feeSchedule}</dd>
+                  </div>
+                  <div>
+                    <dt>Graduation</dt>
+                    <dd>{item.rationale.graduation}</dd>
+                  </div>
+                  <div>
+                    <dt>Locked liquidity</dt>
+                    <dd>{item.rationale.lockedLiquidity}</dd>
+                  </div>
+                  <div>
+                    <dt>Issuer and treasury</dt>
+                    <dd>{item.rationale.issuerAndTreasury}</dd>
+                  </div>
+                  <div>
+                    <dt>Quote mint</dt>
+                    <dd>
+                      {item.quoteMint ? (
+                        <AddressValue value={item.quoteMint} label="wrapped SOL mint" />
+                      ) : (
+                        "Resolved per request from the live PreStocks catalogue and checked onchain (token program, decimals, Meteora token badge); never a constant and never a substitute mint."
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </details>
+          </article>
+        ))}
       </div>
 
+      <details className="tech-disclosure meteora-technical">
+        <summary>
+          Technical configuration · token, fee, vesting and program evidence
+        </summary>
+        <div className="tech-disclosure-body">
+          <div className="meteora-config-grid">
+            <dl>
+              <div>
+                <dt>Token standard</dt>
+                <dd>{preview.token.standard}</dd>
+              </div>
+              <div>
+                <dt>Supply</dt>
+                <dd>{preview.token.totalSupply}</dd>
+              </div>
+              <div>
+                <dt>Leftover supply</dt>
+                <dd>{preview.token.leftover}</dd>
+              </div>
+              <div>
+                <dt>Decimals</dt>
+                <dd>
+                  {preview.token.baseDecimals} base / {preview.token.quoteDecimals}{" "}
+                  quote
+                </dd>
+              </div>
+              <div>
+                <dt>Authority</dt>
+                <dd>{preview.token.authority}</dd>
+              </div>
+              <div>
+                <dt>Creator trading share</dt>
+                <dd>{preview.fees.creatorTradingFeeSharePercent}%</dd>
+              </div>
+              <div>
+                <dt>Base fee schedule</dt>
+                <dd>
+                  {preview.fees.baseFeeMode}: {preview.fees.baseTradingFeeBps} to{" "}
+                  {preview.fees.endingTradingFeeBps} bps over {preview.fees.feePeriods}{" "}
+                  periods / {preview.fees.feeDurationSeconds} seconds
+                </dd>
+              </div>
+              <div>
+                <dt>Fee collection</dt>
+                <dd>
+                  {preview.fees.collectedIn}; pool creation fee{" "}
+                  {preview.fees.poolCreationFeeLamports} lamports; first-swap minimum{" "}
+                  {preview.fees.firstSwapMinimumFeeEnabled ? "enabled" : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Migration fee</dt>
+                <dd>
+                  {preview.fees.migrationFeePercent}% with{" "}
+                  {preview.fees.creatorMigrationFeeSharePercent}% creator share
+                </dd>
+              </div>
+              <div>
+                <dt>LP distribution</dt>
+                <dd>
+                  Partner {preview.migration.partnerClaimablePercent}% claimable /{" "}
+                  {preview.migration.partnerPermanentlyLockedPercent}% locked, creator{" "}
+                  {preview.migration.creatorClaimablePercent}% claimable /{" "}
+                  {preview.migration.creatorPermanentlyLockedPercent}% locked
+                </dd>
+              </div>
+              <div>
+                <dt>Activation</dt>
+                <dd>{preview.activation.type}</dd>
+              </div>
+              <div>
+                <dt>Locked vesting</dt>
+                <dd>
+                  {preview.vesting.totalLockedAmount} locked /{" "}
+                  {preview.vesting.cliffUnlockAmount} cliff unlock /{" "}
+                  {preview.vesting.periods} periods /{" "}
+                  {preview.vesting.totalDurationSeconds}s duration /{" "}
+                  {preview.vesting.cliffDurationSeconds}s cliff
+                </dd>
+              </div>
+            </dl>
+
+            <div className="meteora-addresses">
+              <span>Program evidence</span>
+              <AddressValue value={preview.programId} label="Meteora DBC program" />
+              <span>Quote mint</span>
+              {preview.quoteMint ? (
+                <AddressValue value={preview.quoteMint} label="wrapped SOL mint" />
+              ) : (
+                <code>resolved per request</code>
+              )}
+              <span>Profiles</span>
+              <code>{previews.map((item) => item.profileId).join(", ")}</code>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <div className="meteora-execution-gate">
-        <LockKey aria-hidden="true" size={18} />
-        <div>
-          <strong>Transaction builder is review-first.</strong>
+        <div className="meteora-gate-intro">
+          <LockKey aria-hidden="true" size={18} />
+          <strong>
+            03 / Transaction builder · review-first{" "}
+            <InfoHint topic="preparation" label="About transaction preparation" />
+          </strong>
           <p>
             Navis prepares an unsigned config transaction for review before any wallet
-            signature. Pool creation, simulation, submission, and persistence stay
-            separate.
+            signature. Simulation is not execution.{" "}
+            {broadcastAvailable
+              ? "Broadcast needs a passing simulation and your wallet signature."
+              : "Broadcasting is disabled for this deployment."}
           </p>
         </div>
         <MeteoraConfigPrepare
