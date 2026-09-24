@@ -1,0 +1,32 @@
+{
+  "name": "@workspace/navis-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./lib/domain": "./lib/domain/index.ts",
+    "./*": "./*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.12",
+    "@solana/wallet-adapter-base": "0.9.27",
+    "@solana/web3.js": "^1.99.0",
+    "bn.js": "^5.2.5",
+    "bs58": "^6.0.0",
+    "drizzle-orm": "catalog:",
+    "fastestsmallesttextencoderdecoder": "^1.0.22",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0",
+    "pino": "^9.14.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.23.1"
+  }
+}

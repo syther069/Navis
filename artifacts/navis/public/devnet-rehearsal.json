@@ -1,0 +1,9 @@
+{
+  "name": "Navis Devnet Rehearsal",
+  "symbol": "NVTEST",
+  "description": "Devnet-only test token for verifying the Navis Meteora DBC wallet flow. No monetary value, equity rights, or mainnet market.",
+  "attributes": [
+    { "trait_type": "network", "value": "devnet" },
+    { "trait_type": "purpose", "value": "integration test" }
+  ]
+}

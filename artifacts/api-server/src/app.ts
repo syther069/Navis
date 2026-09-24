@@ -1,5 +1,5 @@
 import express, { type Express } from "express";
-import cors from "cors";
+import navisRouter from "./navis/router";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -25,10 +25,14 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use("/api", navisRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  req.log.error({ errorType: error instanceof Error ? error.name : typeof error }, "NAVIS request failed");
+  res.status(503).set("Cache-Control", "private, no-store").json({ error: "The service is temporarily unavailable. Try again." });
+});
 
 export default app;

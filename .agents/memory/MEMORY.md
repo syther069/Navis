@@ -1,0 +1,1 @@
+- [NAVIS data honesty](navis-data-honesty.md) — primary workspace excludes inherited demo fixtures; policy approval, wallet consent, simulation, and settlement stay distinct.

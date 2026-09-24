@@ -1,45 +1,34 @@
-# [Project name]
+# NAVIS
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Solana workspace for policy-constrained proposals, wallet approval, and verifiable receipts.
 
-## Run & Operate
+## Running
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+Use the managed `artifacts/navis: web` and `artifacts/api-server: API Server` workflows. The Vite frontend is mounted at `/`; the Express backend preserves the original `/api/*` contracts.
 
-## Stack
+- `pnpm --filter @workspace/navis run typecheck`
+- `pnpm --filter @workspace/navis run test`
+- `pnpm --filter @workspace/api-server run typecheck`
+- `pnpm --filter @workspace/api-server run test`
+- `pnpm --filter @workspace/navis-core run typecheck`
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+## Structure
 
-## Where things live
+- `artifacts/navis/src/components/workspace`: dashboard, Atlas, lifecycle and decision record UI.
+- `artifacts/navis/src/app/styles`: existing NAVIS semantic tokens plus workspace styles.
+- `artifacts/navis/src/pages/workspace-pages.tsx`: persisted record loading.
+- `artifacts/api-server/src/navis`: preserved API routes and server page-data adapters.
+- `lib/navis-core`: original domain, policy, authentication, integration and persistence logic.
+- `.migration-backup`: original import retained for reference.
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+## Configuration and safety
 
-## Architecture decisions
+Connect the **existing NAVIS database** through workspace secrets. A configured `DATABASE_URL` does not prove schema readiness. The supplied workspace database has no NAVIS tables; no schema migration or seeding was performed. Storage failures return explicit errors instead of invented empty results.
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+Wallet authentication requires `SESSION_SECRET`, the existing database, and a trusted application origin. The original server configuration uses `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_SOLANA_CLUSTER`; neither is exposed as a browser secret. Optional integration settings remain server-only. Production must supply its exact trusted HTTPS origin.
 
-## Product
+Do not enable Meteora broadcasting or execution flags as part of UI work. Never treat policy approval as wallet approval, a simulation as settlement, or configuration as verified connectivity. Primary workspace views use actual records; fictional examples remain only in explicitly labelled demo paths/disclosures.
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+## Design
 
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+Use existing NAVIS Geist Sans UI typography, IBM Plex Mono tabular financial values, 4px spacing scale, dark neutral surfaces, brass actions, and semantic status colors. Use the shared accessible InfoHint for explanations. Atlas is a structured nine-part decision record, not a chat interface.

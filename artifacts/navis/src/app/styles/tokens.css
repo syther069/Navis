@@ -1,0 +1,164 @@
+/*
+ * Navis design tokens.
+ *
+ * Cascade layers: the legacy stylesheet in app/globals.css lives in
+ * `navis-legacy`; the redesigned system files are imported into
+ * `navis-system`, declared after it, so they win without specificity games.
+ */
+@layer navis-legacy, navis-system;
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --canvas: #0f141b;
+  --canvas-subtle: #131923;
+  --surface: #171e28;
+  --surface-raised: #1d2531;
+  --surface-hover: #232d3a;
+  --border: #28323f;
+  --border-strong: #3b4757;
+
+  /* Text */
+  --text-primary: #eef2f6;
+  --text-secondary: #b7c1cd;
+  --text-muted: #8e9aa8;
+  --text-disabled: #66717f;
+
+  /* Accent: one brass, used for action, position and focus only */
+  --accent: #d9a441;
+  --accent-hover: #e3b45a;
+  --accent-active: #c69436;
+  --accent-ink: #1a1205;
+
+  /* Semantic status */
+  --success: #4fc38a;
+  --warning: #e0a43c;
+  --danger: #e8706c;
+  --info: #6fa8e6;
+  --simulation: #a89fd6;
+
+  /* Tinted fills derived from the status colours, never new hex values */
+  --tint-accent: color-mix(in srgb, var(--accent) 10%, transparent);
+  --tint-success: color-mix(in srgb, var(--success) 12%, transparent);
+  --tint-warning: color-mix(in srgb, var(--warning) 12%, transparent);
+  --tint-danger: color-mix(in srgb, var(--danger) 12%, transparent);
+  --tint-info: color-mix(in srgb, var(--info) 12%, transparent);
+  --tint-simulation: color-mix(in srgb, var(--simulation) 12%, transparent);
+  --line-success: color-mix(in srgb, var(--success) 34%, transparent);
+  --line-warning: color-mix(in srgb, var(--warning) 36%, transparent);
+  --line-danger: color-mix(in srgb, var(--danger) 36%, transparent);
+  --line-info: color-mix(in srgb, var(--info) 36%, transparent);
+  --line-simulation: color-mix(in srgb, var(--simulation) 36%, transparent);
+
+  /* Legacy aliases: keep the older rule set resolving while it is retired */
+  --brand: var(--accent);
+  --brand-hover: var(--accent-hover);
+  --brand-ink: var(--accent-ink);
+  --destructive: var(--danger);
+  --positive: var(--success);
+  --color-border-subtle: var(--border);
+  --color-surface-raised: var(--surface-raised);
+  --color-text-muted: var(--text-muted);
+  --text-xs: 0.75rem;
+
+  /* Type families */
+  --font-ui: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  /* Type roles */
+  --type-display: clamp(1.625rem, 1.2rem + 1.6vw, 2.125rem);
+  --type-h1: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+  --type-h2: 1.125rem;
+  --type-h3: 1rem;
+  --type-body: 0.9375rem;
+  --type-secondary: 0.875rem;
+  --type-label: 0.8125rem;
+  --type-caption: 0.75rem;
+  --type-numeric: 0.875rem;
+  --type-technical: 0.75rem;
+  --leading-tight: 1.2;
+  --leading-heading: 1.3;
+  --leading-body: 1.55;
+  --measure: 68ch;
+
+  /* Legacy size aliases used by the older rule set */
+  --text-display: var(--type-display);
+  --text-h1: var(--type-h1);
+  --text-h2: var(--type-h2);
+  --text-h3: var(--type-h3);
+  --text-body: var(--type-body);
+  --text-compact: var(--type-secondary);
+  --text-label: var(--type-label);
+  --text-meta: var(--type-caption);
+
+  /* Spacing: 4px base */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Semantic spacing */
+  --gutter: clamp(1rem, 2.5vw, 2rem);
+  --section-gap: 1.75rem;
+  --panel-pad: 1.375rem;
+  --stack-gap: 0.75rem;
+  --inline-gap: 0.5rem;
+  --heading-gap: 0.375rem;
+  --page-gutter: var(--gutter);
+
+  /* Radius */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+
+  /* Controls */
+  --control-compact: 2.125rem;
+  --control-default: 2.5rem;
+  --control-primary: 2.625rem;
+  --touch-target: 2.75rem;
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+
+  /* Elevation: one light source, tinted to the canvas */
+  --shadow-popover: 0 10px 30px rgb(4 8 14 / 40%);
+  --shadow-dialog: 0 24px 70px rgb(4 8 14 / 50%);
+
+  /* Z-index */
+  --z-bar: 15;
+  --z-rail: 20;
+  --z-notice: 25;
+  --z-drawer: 50;
+  --z-popover: 70;
+  --z-dialog: 100;
+  --z-skip: 110;
+
+  /* Motion */
+  --duration-press: 90ms;
+  --duration-fast: 140ms;
+  --duration-state: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --rail-width: 14.5rem;
+  --rail-width-compact: 4.75rem;
+  --content-max: 88rem;
+}
+
+@media (max-width: 620px) {
+  :root {
+    --section-gap: 1.25rem;
+    --panel-pad: 1rem;
+  }
+}
