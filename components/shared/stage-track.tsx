@@ -19,7 +19,7 @@ import type { InfoHintKey } from "@/components/shared/info-hint-content";
  * - current: the stage the user or system is on right now.
  * - pending: not reached yet.
  * - simulated: ran as a simulation only (no value moved).
- * - disabled: intentionally unavailable in this build (e.g. Meteora broadcast).
+ * - disabled: unavailable in this deployment (e.g. Meteora broadcast while its gate is closed).
  * - failed: attempted and failed.
  * - blocked: refused by policy, configuration or provider.
  */
