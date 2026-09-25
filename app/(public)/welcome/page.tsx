@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 
 import { FAQ_ITEMS } from "@/components/landing/faq-data";
+import { CaptureDeck } from "@/components/motion/capture-deck";
 import { StatusLabel, type IntegrationStatus } from "../status-label";
 
 export const metadata: Metadata = {
@@ -434,38 +434,7 @@ export default function WelcomePage() {
               hypothetical transaction.
             </p>
           </div>
-          <div className="public-gallery">
-            {captures.map(({ src, title, caption }, index) => (
-              <figure
-                key={src}
-                className={
-                  index === 0
-                    ? "public-capture public-capture-feature"
-                    : "public-capture"
-                }
-              >
-                <div className="public-capture-frame">
-                  <Image
-                    src={src}
-                    width={1440}
-                    height={900}
-                    alt={`${title} screen in the NAVIS product`}
-                    sizes={
-                      index === 0
-                        ? "(max-width: 760px) 100vw, 1120px"
-                        : "(max-width: 760px) 100vw, 550px"
-                    }
-                  />
-                </div>
-                <figcaption>
-                  <span>
-                    {String(index + 1).padStart(2, "0")} / {title}
-                  </span>
-                  <p>{caption}</p>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
+          <CaptureDeck captures={captures} />
         </div>
       </section>
 

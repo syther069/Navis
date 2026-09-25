@@ -63,6 +63,11 @@ export default function AtlasPage() {
       <NavisIntro
         solanaRpcConfigured={capabilities.solanaRpcConfigured}
         cluster={capabilities.cluster}
+        mode={capabilities.mode}
+        liveExecution={
+          capabilities.devnetExecutionAvailable ||
+          capabilities.mainnetExecutionAvailable
+        }
       />
       <RunDecisionPanel />
       <div className="prepared-example-label">

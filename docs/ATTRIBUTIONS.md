@@ -68,6 +68,22 @@ Official references were rechecked on 2026-09-20:
 
 Navis itself is released under the MIT licence (`LICENSE`, copyright TANUJ CHANDA; `license` field in `package.json`). The sponsor SDKs and every dependency listed above keep their own licences, which are compatible with redistribution under MIT.
 
+## UI motion (free Skiper sources)
+
+Adapted, not dropped in as demos. Lucide, Swiper, Framer Motion, and Number Flow were not added.
+
+| Source | Navis file | Use |
+| --- | --- | --- |
+| Skiper 41 ProgressiveBlur | `components/motion/progressive-blur.tsx` | Public page edge fade |
+| Skiper 58 TextRoll | `components/motion/text-roll.tsx` | Public nav hover |
+| Skiper 99 MenuIcon | `components/motion/menu-toggle.tsx` | Mobile menu |
+| Skiper 48 carousel (idea only) | `components/motion/capture-deck.tsx` | Live product screenshots, CSS scroll. No Swiper. |
+| Skiper 37 numbers (idea only) | not used | Would require fake counters. Navis metrics stay static and real. |
+
+CssLink and the Atlas status island are Navis originals. They stand in for Pro Skiper 40 / Skiper 2, which were not provided.
+
+Free Skiper license requires attribution: https://skiper-ui.com and @gurvinder-singh02 / https://gxuri.me
+
 ## Claim boundaries
 
 - Navis does not claim ownership of Solana, ClawPump, Meteora, PreStocks, Next.js, React, Drizzle, or wallet-adapter technology.

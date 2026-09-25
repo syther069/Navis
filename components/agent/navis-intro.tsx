@@ -1,15 +1,23 @@
 import Link from "next/link";
 
 import { DevnetPulse } from "@/components/agent/devnet-pulse";
+import { AgentIsland } from "@/components/motion/agent-island";
 
 type NavisIntroProps = {
   solanaRpcConfigured: boolean;
   cluster: string;
+  mode?: string;
+  liveExecution?: boolean;
 };
 
 const honestyStamps = ["Demo", "Offchain receipts", "Devnet", "No live execution"];
 
-export function NavisIntro({ solanaRpcConfigured, cluster }: NavisIntroProps) {
+export function NavisIntro({
+  solanaRpcConfigured,
+  cluster,
+  mode = "demo",
+  liveExecution = false,
+}: NavisIntroProps) {
   return (
     <section className="route-panel navis-intro" aria-labelledby="navis-intro-title">
       <span className="route-eyebrow">What Navis is</span>
@@ -49,6 +57,7 @@ export function NavisIntro({ solanaRpcConfigured, cluster }: NavisIntroProps) {
         </Link>
       </div>
       <div className="navis-intro-footer">
+        <AgentIsland mode={mode} cluster={cluster} liveExecution={liveExecution} />
         <ul className="navis-intro-stamps" aria-label="Honesty notes">
           {honestyStamps.map((stamp) => (
             <li key={stamp}>{stamp}</li>

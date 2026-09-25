@@ -7,13 +7,11 @@ import {
   FileMagnifyingGlass,
   Gauge,
   ListChecks,
-  List,
   LockKey,
   Plus,
   ShieldWarning,
   SlidersHorizontal,
   SquaresFour,
-  X,
   type Icon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -25,6 +23,7 @@ import { ClusterStamp, ModeStamp } from "@/components/shared/domain-primitives";
 import { InfoHint } from "@/components/shared/info-hint";
 import type { InfoHintKey } from "@/components/shared/info-hint-content";
 import { WalletControl } from "@/components/wallet/wallet-control";
+import { MenuToggle } from "@/components/motion/menu-toggle";
 
 type WorkspaceShellProps = {
   capabilities: PublicCapabilities;
@@ -441,17 +440,14 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
             <ModeStamp mode={capabilities.mode} />
             <ClusterStamp cluster={capabilities.cluster} />
           </span>
-          <button
+          <MenuToggle
             ref={menuButtonRef}
-            className="icon-button"
-            type="button"
+            open={mobileNavOpen}
             onClick={() => setMobileNavOpen(true)}
             aria-label="Open navigation"
             aria-expanded={mobileNavOpen}
             aria-controls="mobile-navigation"
-          >
-            <List aria-hidden="true" size={22} />
-          </button>
+          />
         </div>
       </header>
 
@@ -469,15 +465,12 @@ export function WorkspaceShell({ capabilities, children }: WorkspaceShellProps) 
               <BearingMark />
               <span id="mobile-navigation-title">NAVIS</span>
             </div>
-            <button
+            <MenuToggle
               ref={closeButtonRef}
-              className="icon-button"
-              type="button"
+              open
               onClick={() => setMobileNavOpen(false)}
               aria-label="Close navigation"
-            >
-              <X size={22} />
-            </button>
+            />
           </div>
           <nav className="mobile-navigation" aria-label="Mobile navigation">
             <Link

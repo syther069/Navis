@@ -1,0 +1,180 @@
+/* Motion primitives adapted from free Skiper files, plus Navis originals. */
+
+.navis-progressive-blur {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  z-index: 8;
+  width: 100%;
+  user-select: none;
+  background: linear-gradient(to bottom, var(--canvas), transparent);
+  mask-image: linear-gradient(to bottom, var(--canvas) 40%, transparent);
+}
+
+.navis-progressive-blur[data-position="top"] {
+  top: 0;
+}
+
+.navis-progressive-blur[data-position="bottom"] {
+  top: auto;
+  bottom: 0;
+  background: linear-gradient(to top, var(--canvas), transparent);
+  mask-image: linear-gradient(to top, var(--canvas) 40%, transparent);
+}
+
+.public-site {
+  position: relative;
+}
+
+.navis-text-roll {
+  display: inline-block;
+  overflow: hidden;
+  height: 1.15em;
+  vertical-align: bottom;
+}
+
+.navis-text-roll-track {
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--duration-state) var(--ease-standard);
+}
+
+.navis-css-link:hover .navis-text-roll-track,
+.navis-text-roll:hover .navis-text-roll-track {
+  transform: translateY(-50%);
+}
+
+.navis-css-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.navis-css-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.15em;
+  left: 0;
+  height: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: var(--accent);
+  content: "";
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.navis-css-link:hover::after,
+.navis-css-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.navis-menu-toggle {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.navis-menu-toggle span {
+  position: absolute;
+  left: 50%;
+  width: 1rem;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  translate: -50% 0;
+  transition:
+    transform var(--duration-state) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.navis-menu-toggle span:nth-child(1) {
+  top: calc(50% - 5px);
+}
+.navis-menu-toggle span:nth-child(2) {
+  top: 50%;
+}
+.navis-menu-toggle span:nth-child(3) {
+  top: calc(50% + 5px);
+}
+
+.navis-menu-toggle[data-open] span:nth-child(1) {
+  top: 50%;
+  transform: rotate(45deg);
+}
+.navis-menu-toggle[data-open] span:nth-child(2) {
+  opacity: 0;
+}
+.navis-menu-toggle[data-open] span:nth-child(3) {
+  top: 50%;
+  transform: rotate(-45deg);
+}
+
+.navis-capture-deck {
+  margin-top: var(--space-8);
+  overflow: hidden;
+}
+
+.navis-capture-track {
+  display: flex;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0 0 var(--space-4);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+}
+
+.navis-capture-track li {
+  flex: 0 0 min(36rem, 86vw);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.navis-agent-island {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption);
+}
+
+.navis-agent-island-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--simulation);
+}
+
+.navis-agent-island[data-state="gated-live"] .navis-agent-island-dot {
+  background: var(--success);
+}
+
+.navis-agent-island[data-state="held"] .navis-agent-island-dot {
+  background: var(--warning);
+}
+
+.navis-agent-island-cluster {
+  color: var(--text-muted);
+  font-family: var(--font-data);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navis-text-roll-track,
+  .navis-css-link::after,
+  .navis-menu-toggle span {
+    transition: none;
+  }
+
+  .navis-css-link:hover .navis-text-roll-track {
+    transform: none;
+  }
+}
