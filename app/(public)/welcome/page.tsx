@@ -8,8 +8,63 @@ import { StatusLabel, type IntegrationStatus } from "../status-label";
 export const metadata: Metadata = {
   title: "Overview",
   description:
-    "Understand NAVIS: agent proposals, deterministic policy, wallet authorization and hash-verifiable receipts, with clear current limitations.",
+    "Navis is a governed Solana equity-agent workspace: observe, analyze, decide, prepare execution, and prove it.",
 };
+
+const loop = [
+  {
+    id: "observe",
+    title: "Observe",
+    copy: "Read portfolio state, catalogue facts, and network posture. Nothing is invented to fill a gap.",
+  },
+  {
+    id: "analyze",
+    title: "Analyze",
+    copy: "Atlas forms a proposal from those facts against a written mandate.",
+  },
+  {
+    id: "decide",
+    title: "Decide",
+    copy: "Deterministic policy checks the proposal. One failed rule stops the run.",
+  },
+  {
+    id: "execute",
+    title: "Execute",
+    copy: "Preparation can reach a wallet. The agent never signs. Mainnet broadcast is blocked.",
+  },
+  {
+    id: "prove",
+    title: "Prove",
+    copy: "A hash-verifiable receipt binds inputs, checks, action, and whatever evidence actually exists.",
+  },
+] as const;
+
+const lifecycle = [
+  {
+    title: "Portfolio detected",
+    copy: "Balances and research facts enter the run as a snapshot.",
+  },
+  {
+    title: "Market conditions analyzed",
+    copy: "Atlas reads the snapshot against its mandate.",
+  },
+  {
+    title: "Risk evaluated",
+    copy: "Fixed policy rules measure size, reserve, position, and slippage.",
+  },
+  {
+    title: "Decision generated",
+    copy: "Approve or reject is a code result, not a chatbot verdict.",
+  },
+  {
+    title: "Execution prepared",
+    copy: "Eligible paths can prepare a transaction. Demo runs stay simulated.",
+  },
+  {
+    title: "Proof recorded",
+    copy: "The receipt is inspectable. Settlement is claimed only when a signature exists.",
+  },
+] as const;
 
 const workflow = [
   { title: "Market Data", copy: "Read-only research facts enter the decision." },
@@ -114,6 +169,18 @@ const captures = [
   },
 ] as const;
 
+const proofChain = [
+  { label: "Decision", copy: "What was proposed, and whether policy approved it." },
+  { label: "Reason", copy: "The mandate thesis and the check that passed or failed." },
+  { label: "Inputs", copy: "Snapshot facts the run actually used." },
+  { label: "Action", copy: "The intended movement, if any, after policy." },
+  {
+    label: "Transaction",
+    copy: "Present only when a wallet signed and Navis stored evidence.",
+  },
+  { label: "Proof", copy: "Hashes you can recompute in the browser." },
+] as const;
+
 export default function WelcomePage() {
   return (
     <>
@@ -123,21 +190,25 @@ export default function WelcomePage() {
             <span className="public-eyebrow-dot" /> NAVIS / Public overview
           </span>
           <h1 id="hero-title">
-            An agent can propose.
+            Your treasury stays yours.
             <br />
-            <em>Only you can authorize.</em>
+            The agent stays accountable.
           </h1>
           <p>
-            NAVIS is a governed Solana equity-agent workspace. Inspect an Atlas
-            proposal, see deterministic policy checks, and verify the resulting
-            receipt—without mistaking a demo decision for an executed trade.
+            Navis is a governed Solana equity-agent workspace. Atlas can reason over
+            portfolio state and prepare an action. Deterministic policy can stop it.
+            Only your wallet can authorize value movement, and every run leaves a
+            receipt you can inspect.
           </p>
           <div className="public-actions">
             <Link className="public-button public-button-primary" href="/start">
-              Get oriented <span aria-hidden="true">↗</span>
+              Launch Navis <span aria-hidden="true">↗</span>
             </Link>
-            <Link className="public-button public-button-secondary" href="/">
-              Open workspace <span aria-hidden="true">↗</span>
+            <Link
+              className="public-button public-button-secondary"
+              href="/agents/atlas"
+            >
+              Explore the agent <span aria-hidden="true">↗</span>
             </Link>
           </div>
           <span className="public-hero-disclosure">
@@ -182,29 +253,59 @@ export default function WelcomePage() {
       </section>
 
       <section
-        className="public-section public-container public-definition"
-        id="what-is-navis"
-        aria-labelledby="what-title"
+        className="public-section public-section-surface"
+        id="loop"
+        aria-labelledby="loop-title"
+      >
+        <div className="public-container">
+          <div className="public-section-heading public-heading-wide">
+            <span className="public-eyebrow">How Navis works</span>
+            <h2 id="loop-title">Observe, then prove.</h2>
+            <p>
+              Intelligence is useful only when every step is visible. This is the
+              product loop, not a promise of unsupervised trading.
+            </p>
+          </div>
+          <ol className="public-loop" aria-label="Navis agent loop">
+            {loop.map((step, index) => (
+              <li key={step.id}>
+                <span className="public-loop-index">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <strong>{step.title}</strong>
+                <p>{step.copy}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section
+        className="public-section public-container"
+        id="lifecycle"
+        aria-labelledby="lifecycle-title"
       >
         <div className="public-section-heading">
-          <span className="public-eyebrow">01 / The premise</span>
-          <h2 id="what-title">
-            A decision workspace, <span>not a brokerage.</span>
+          <span className="public-eyebrow">Decision lifecycle</span>
+          <h2 id="lifecycle-title">
+            One run, <span>end to end.</span>
           </h2>
         </div>
-        <div className="public-definition-copy">
-          <p>
-            NAVIS exists to keep an agent&apos;s analysis separate from authority over a
-            wallet. Atlas can form a proposal from market information; fixed policy
-            rules evaluate it before anyone considers execution.
-          </p>
-          <p>
-            The current public experience lets you explore fresh Balanced and Oversized
-            Atlas demo decisions, read-only PreStocks research, launch preflights and
-            hash-verifiable receipts. It does not offer mainnet execution or PreStocks
-            trading. PreStocks tokens are not legal shares.
-          </p>
-        </div>
+        <ol className="public-lifecycle" aria-label="Illustrative decision lifecycle">
+          {lifecycle.map((step, index) => (
+            <li key={step.title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <strong>{step.title}</strong>
+                <p>{step.copy}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="public-workflow-note">
+          Illustrative of the product sequence. Live Atlas runs use the facts they
+          actually fetched; demo receipts are simulations.
+        </p>
       </section>
 
       <section
@@ -214,7 +315,7 @@ export default function WelcomePage() {
       >
         <div className="public-container">
           <div className="public-section-heading public-heading-wide">
-            <span className="public-eyebrow">02 / The sequence</span>
+            <span className="public-eyebrow">The sequence</span>
             <h2 id="workflow-title">How a decision moves.</h2>
             <p>
               Each boundary is visible. A passed policy check is not a wallet signature
@@ -245,184 +346,137 @@ export default function WelcomePage() {
 
       <section
         className="public-section public-container"
-        id="use-cases"
-        aria-labelledby="uses-title"
+        id="execution"
+        aria-labelledby="execution-title"
       >
         <div className="public-section-heading">
-          <span className="public-eyebrow">03 / In the workspace</span>
-          <h2 id="uses-title">What you can inspect today.</h2>
+          <span className="public-eyebrow">Onchain execution</span>
+          <h2 id="execution-title">
+            Intelligence reaches the chain <span>only through a wallet.</span>
+          </h2>
         </div>
-        <div className="public-use-grid">
-          <article>
-            <span>01 / Evaluate</span>
-            <h3>Compare two proposals.</h3>
-            <p>
-              Run Atlas&apos;s Balanced and Oversized demo scenarios. See which policy
-              checks pass or fail and why.
-            </p>
-            <Link href="/agents/atlas">
-              View Atlas <span aria-hidden="true">↗</span>
-            </Link>
-          </article>
-          <article>
-            <span>02 / Research</span>
-            <h3>Read the market context.</h3>
-            <p>
-              Inspect read-only PreStocks facts and market-source information. These are
-              research inputs, not execution quotes.
-            </p>
-            <Link href="/markets/launch">
-              Explore markets <span aria-hidden="true">↗</span>
-            </Link>
-          </article>
-          <article>
-            <span>03 / Verify</span>
-            <h3>Check the evidence.</h3>
-            <p>
-              Open a demo receipt and recompute document hashes in your browser.
-              Integrity is not proof of settlement.
-            </p>
-            <Link href="/proofs/demo-proof">
-              Verify demo receipt <span aria-hidden="true">↗</span>
-            </Link>
-          </article>
+        <div className="public-definition-copy">
+          <p>
+            Navis connects Atlas to Solana as infrastructure: wallet adapter,
+            transaction preparation, optional gated devnet submission, and verification
+            of whatever evidence was stored. The agent never holds keys.
+          </p>
+          <p>
+            Today the public Atlas demo is offchain. A passing demo verdict or a
+            verified receipt is not Solana settlement.
+          </p>
         </div>
       </section>
 
       <section
         className="public-section public-section-surface"
-        id="integrations"
-        aria-labelledby="integrations-title"
+        id="proof"
+        aria-labelledby="proof-title"
       >
         <div className="public-container">
           <div className="public-section-heading public-heading-wide">
-            <span className="public-eyebrow">04 / Integration register</span>
-            <h2 id="integrations-title">Connected is not the same as executable.</h2>
+            <span className="public-eyebrow">Transparency</span>
+            <h2 id="proof-title">Proof is inspectable.</h2>
             <p>
-              These labels describe the scope of the current product, not a promise of
-              future availability.
+              Human-readable first. Technical hashes second. Nothing is upgraded beyond
+              the evidence on the record.
             </p>
           </div>
-          <div className="public-integration-list">
-            {integrations.map(({ name, status, description }) => (
-              <div className="public-integration-row" key={name}>
-                <h3>{name}</h3>
-                <StatusLabel status={status} />
-                <p>{description}</p>
-              </div>
+          <ol className="public-proof-chain" aria-label="Proof inspection order">
+            {proofChain.map((item) => (
+              <li key={item.label}>
+                <strong>{item.label}</strong>
+                <p>{item.copy}</p>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section
-        className="public-section public-container public-control"
-        id="user-control"
-        aria-labelledby="control-title"
-      >
-        <div className="public-section-heading">
-          <span className="public-eyebrow">05 / Authority</span>
-          <h2 id="control-title">The wallet stays yours.</h2>
-          <p>
-            Atlas never signs, submits or holds keys. A passing proposal still requires
-            you to review and sign any eligible value-moving devnet transaction in your
-            wallet.
-          </p>
-        </div>
-        <div className="public-control-list">
-          <div>
-            <span>01</span>
-            <p>Review the proposal and its policy result.</p>
-          </div>
-          <div>
-            <span>02</span>
-            <p>Reject or approve in your own wallet if an action is eligible.</p>
-          </div>
-          <div>
-            <span>03</span>
-            <p>Inspect the receipt. A demo receipt has no onchain signature.</p>
-          </div>
-        </div>
-      </section>
-
-      <section
-        className="public-section public-section-surface"
-        id="why-solana"
-        aria-labelledby="solana-title"
-      >
-        <div className="public-container public-solana-layout">
-          <div className="public-section-heading">
-            <span className="public-eyebrow">06 / Network context</span>
-            <h2 id="solana-title">Why Solana?</h2>
-          </div>
-          <div>
-            <p>
-              Solana provides the wallet authority, network/cluster boundaries and
-              transaction semantics for governed value movement. Those boundaries let
-              the product distinguish an unsigned preparation, a signed submission and a
-              confirmed transaction.
-            </p>
-            <p>
-              Today the public Atlas demo is offchain. No Solana settlement should be
-              inferred from a passing demo verdict or a verified receipt.
-            </p>
-          </div>
+          </ol>
+          <Link className="public-text-link" href="/proofs/demo-proof">
+            Open the demo receipt <span aria-hidden="true">↗</span>
+          </Link>
         </div>
       </section>
 
       <section
         className="public-section public-container"
-        id="product"
-        aria-labelledby="product-title"
+        id="integrations"
+        aria-labelledby="integrations-title"
       >
         <div className="public-section-heading public-heading-wide">
-          <span className="public-eyebrow">07 / Inside the product</span>
-          <h2 id="product-title">The actual workspace.</h2>
+          <span className="public-eyebrow">Supported infrastructure</span>
+          <h2 id="integrations-title">Connected is not the same as executable.</h2>
           <p>
-            Captured from the live NAVIS deployment, not illustrations of a hypothetical
-            transaction.
+            Only integrations that exist in this repository. Labels describe current
+            scope, not a roadmap.
           </p>
         </div>
-        <div className="public-gallery">
-          {captures.map(({ src, title, caption }, index) => (
-            <figure
-              key={src}
-              className={
-                index === 0 ? "public-capture public-capture-feature" : "public-capture"
-              }
-            >
-              <div className="public-capture-frame">
-                <Image
-                  src={src}
-                  width={1440}
-                  height={900}
-                  alt={`${title} screen in the NAVIS product`}
-                  sizes={
-                    index === 0
-                      ? "(max-width: 760px) 100vw, 1120px"
-                      : "(max-width: 760px) 100vw, 550px"
-                  }
-                />
-              </div>
-              <figcaption>
-                <span>
-                  {String(index + 1).padStart(2, "0")} / {title}
-                </span>
-                <p>{caption}</p>
-              </figcaption>
-            </figure>
+        <div className="public-integration-list">
+          {integrations.map(({ name, status, description }) => (
+            <div className="public-integration-row" key={name}>
+              <h3>{name}</h3>
+              <StatusLabel status={status} />
+              <p>{description}</p>
+            </div>
           ))}
         </div>
       </section>
 
       <section
         className="public-section public-section-surface"
+        id="product"
+        aria-labelledby="product-title"
+      >
+        <div className="public-container">
+          <div className="public-section-heading public-heading-wide">
+            <span className="public-eyebrow">Inside the product</span>
+            <h2 id="product-title">The actual workspace.</h2>
+            <p>
+              Captured from the live NAVIS deployment, not illustrations of a
+              hypothetical transaction.
+            </p>
+          </div>
+          <div className="public-gallery">
+            {captures.map(({ src, title, caption }, index) => (
+              <figure
+                key={src}
+                className={
+                  index === 0
+                    ? "public-capture public-capture-feature"
+                    : "public-capture"
+                }
+              >
+                <div className="public-capture-frame">
+                  <Image
+                    src={src}
+                    width={1440}
+                    height={900}
+                    alt={`${title} screen in the NAVIS product`}
+                    sizes={
+                      index === 0
+                        ? "(max-width: 760px) 100vw, 1120px"
+                        : "(max-width: 760px) 100vw, 550px"
+                    }
+                  />
+                </div>
+                <figcaption>
+                  <span>
+                    {String(index + 1).padStart(2, "0")} / {title}
+                  </span>
+                  <p>{caption}</p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="public-section public-container"
         id="faq"
         aria-labelledby="preview-title"
       >
-        <div className="public-container public-preview-layout">
+        <div className="public-preview-layout">
           <div className="public-section-heading">
-            <span className="public-eyebrow">08 / Before you proceed</span>
+            <span className="public-eyebrow">Before you proceed</span>
             <h2 id="preview-title">Good questions to ask.</h2>
             <Link className="public-text-link" href="/faq">
               Read all questions <span aria-hidden="true">↗</span>
@@ -445,22 +499,22 @@ export default function WelcomePage() {
       </section>
 
       <section className="public-final public-container" aria-labelledby="final-title">
-        <span className="public-eyebrow">09 / Start with the evidence</span>
+        <span className="public-eyebrow">Start with the evidence</span>
         <h2 id="final-title">
-          See the decision.
+          Let the agent handle the analysis.
           <br />
-          <em>Keep the authority.</em>
+          Keep the authority.
         </h2>
         <p>
           Explore the demo without connecting a wallet. The onboarding steps are
           optional.
         </p>
         <div className="public-actions">
-          <Link className="public-button public-button-primary" href="/start">
-            Get started <span aria-hidden="true">↗</span>
-          </Link>
-          <Link className="public-button public-button-secondary" href="/">
+          <Link className="public-button public-button-primary" href="/">
             Open workspace <span aria-hidden="true">↗</span>
+          </Link>
+          <Link className="public-button public-button-secondary" href="/agents/atlas">
+            Explore the agent <span aria-hidden="true">↗</span>
           </Link>
         </div>
       </section>

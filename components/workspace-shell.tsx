@@ -12,6 +12,7 @@ import {
   Plus,
   ShieldWarning,
   SlidersHorizontal,
+  SquaresFour,
   X,
   type Icon,
 } from "@phosphor-icons/react";
@@ -39,6 +40,7 @@ type NavItem = {
 };
 
 const navigation: readonly NavItem[] = [
+  { label: "Overview", icon: SquaresFour, href: "/", match: "/" },
   { label: "Agents", icon: Compass, href: "/agents", match: "/agents" },
   {
     label: "Decisions",
@@ -203,7 +205,10 @@ function routeContextFor(pathname: string): RouteContext {
       icon: ChartDonut,
       href: "/markets/launch",
       label: "Markets",
-      breadcrumbs: [{ label: "Markets", href: "/markets" }, { label: "Launch & Liquidity" }],
+      breadcrumbs: [
+        { label: "Markets", href: "/markets" },
+        { label: "Launch & Liquidity" },
+      ],
       detail: "ClawPump & Meteora DBC",
     };
   }

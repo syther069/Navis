@@ -22,6 +22,7 @@
 @import "./styles/receipts.css" layer(navis-system);
 /* Public routes share the same token and cascade layer as the workspace. */
 @import "./styles/public.css" layer(navis-system);
+@import "./styles/command.css" layer(navis-system);
 
 @theme inline {
   --font-sans: var(--font-ui);
