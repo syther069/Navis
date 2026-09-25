@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { FAQ_ITEMS } from "@/components/landing/faq-section";
+import { FAQ_ITEMS } from "@/components/landing/faq-data";
 import { StatusLabel, type IntegrationStatus } from "../status-label";
 
 export const metadata: Metadata = {
