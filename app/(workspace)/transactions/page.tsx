@@ -127,12 +127,10 @@ export default async function TransactionsPage({
     else if (row.state === "rejected") stage = "Blocked";
 
     const actionName = String(row.proposal?.action || "TRADE").replaceAll("_", " ");
-    const inputAsset = row.proposal?.inputMint
-      ? row.proposal.inputMint.slice(0, 4) + "…" + row.proposal.inputMint.slice(-4)
-      : null;
-    const outputAsset = row.proposal?.outputMint
-      ? row.proposal.outputMint.slice(0, 4) + "…" + row.proposal.outputMint.slice(-4)
-      : null;
+    const inputMint = row.proposal && "inputMint" in row.proposal ? (row.proposal.inputMint as string) : null;
+    const outputMint = row.proposal && "outputMint" in row.proposal ? (row.proposal.outputMint as string) : null;
+    const inputAsset = inputMint ? inputMint.slice(0, 4) + "…" + inputMint.slice(-4) : null;
+    const outputAsset = outputMint ? outputMint.slice(0, 4) + "…" + outputMint.slice(-4) : null;
     const assetStr =
       inputAsset && outputAsset
         ? `${inputAsset} → ${outputAsset}`
@@ -154,8 +152,8 @@ export default async function TransactionsPage({
       title: actionName,
       action: actionName,
       asset: assetStr,
-      amount: row.proposal?.inputAmount?.uiAmount
-        ? `${row.proposal.inputAmount.uiAmount} units`
+      amount: row.proposal && "inputAmount" in row.proposal && (row.proposal.inputAmount as any)?.uiAmount
+        ? `${(row.proposal.inputAmount as any).uiAmount} units`
         : null,
       network: row.cluster,
       wallet: row.ownerWallet ?? null,

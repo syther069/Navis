@@ -155,6 +155,54 @@ export const infoHintContent = {
     why: "Atlas signals only appear when an active, verifiable proposal actually exists for that asset. They are never fabricated.",
     next: "Review the full decision record to inspect the agent's quantitative thesis and deterministic policy checks.",
   },
+  preparation: {
+    title: "Transaction preparation",
+    what: "The server builds an unsigned transaction from approved inputs. Nothing has been signed or sent at this point.",
+    why: "Preparing first lets you inspect accounts, amounts and fees before any wallet is asked to sign.",
+    next: "A prepared transaction still needs simulation and your wallet signature. It has not moved any value.",
+  },
+  confirmation: {
+    title: "Confirmation",
+    what: "The network reports that the transaction landed in a block at the requested commitment level.",
+    why: "Only a confirmed signature is evidence of onchain settlement. Submitted is not the same as confirmed.",
+    next: "Open the signature in an explorer to verify it independently.",
+  },
+  networkFees: {
+    title: "Network fees",
+    what: "The SOL fee paid to the network for a transaction, as reported by the record or simulation.",
+    why: "Fees are shown only when recorded. Navis does not estimate or invent a fee.",
+    next: "Compare the recorded fee with the explorer entry for the signature.",
+  },
+  signature: {
+    title: "Transaction signature",
+    what: "The unique identifier of a submitted Solana transaction.",
+    why: "A signature exists only after a signed transaction is submitted. Simulations and prepared transactions have none.",
+    next: "Use the explorer link to look the signature up on the network yourself.",
+  },
+  integrationConnectivity: {
+    title: "Connectivity",
+    what: "Whether Navis is configured for the provider and could complete an authenticated read-only request.",
+    why: "A configured key is not proof of connectivity. Only a successful request counts as connected.",
+    next: "If connectivity fails, later steps stay unavailable rather than showing a guessed result.",
+  },
+  meteoraConfig: {
+    title: "Bonding curve configuration",
+    what: "The Meteora DBC config: price band, fees, migration threshold and locked liquidity for a launch.",
+    why: "The config fixes launch economics before any pool exists. Profiles come from the server allowlist.",
+    next: "A validated config moves to transaction preparation and simulation. Broadcast runs only where the deployment allows it, and only after your wallet signature.",
+  },
+  marketSource: {
+    title: "Market data source",
+    what: "Where a price came from and when Navis read it.",
+    why: "The timestamp is Navis's read time, not a verified exchange quote. Upstream freshness may be unknown.",
+    next: "Treat these prices as research inputs, not execution quotes.",
+  },
+  marketRisk: {
+    title: "Market risk",
+    what: "Known risk facts for the asset, such as eligibility limits and economic-exposure-only rights.",
+    why: "These tokens may lose all value and are not available to every person. Navis does not score risk beyond what the provider discloses.",
+    next: "Read the provider disclosure before relying on any figure.",
+  },
 } as const satisfies Record<string, InfoHintEntry>;
 
 export type InfoHintKey = keyof typeof infoHintContent;

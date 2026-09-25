@@ -115,9 +115,9 @@ async function loadMarketAssets(): Promise<{
   }
 
   // Active Atlas signal check (only real signals from active proposal, NEVER fabricated)
-  const activeProposal = demoProof.document.proposal;
-  const inputMint = activeProposal.inputMint;
-  const outputMint = activeProposal.outputMint;
+  const activeProposal = demoProof.document.decision.proposal;
+  const inputMint = "inputMint" in activeProposal ? activeProposal.inputMint : null;
+  const outputMint = "outputMint" in activeProposal ? activeProposal.outputMint : null;
 
   // Check discovered pair count from ClawPump if configured
   let pairCount = 0;

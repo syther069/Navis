@@ -298,7 +298,7 @@ export function MarketsTable({
 
                     {/* Risk */}
                     <td className="col-risk">
-                      <StatusBadge tone={asset.risk.tone} compact>
+                      <StatusBadge tone={asset.risk.tone}>
                         {asset.risk.label}
                       </StatusBadge>
                     </td>
