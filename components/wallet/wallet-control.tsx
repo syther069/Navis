@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
@@ -49,6 +50,7 @@ export function WalletControl({
     signMessage,
   } = useWallet();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [requestedWallet, setRequestedWallet] = useState<WalletName | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,10 @@ export function WalletControl({
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const connectingWalletRef = useRef<WalletName | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!requestedWallet || wallet?.adapter.name !== requestedWallet) return;
@@ -385,87 +391,90 @@ export function WalletControl({
         <span>{connecting ? "Connecting…" : "Connect wallet"}</span>
       </button>
 
-      {dialogOpen ? (
-        <div className="wallet-dialog-backdrop" role="presentation">
-          <div
-            ref={dialogRef}
-            className="wallet-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="wallet-dialog-title"
-            tabIndex={-1}
-          >
-            <div className="wallet-dialog-heading">
-              <div>
-                <span className="eyebrow">SOLANA WALLET</span>
-                <h2 id="wallet-dialog-title">Connect to Navis</h2>
-              </div>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setDialogOpen(false)}
-                aria-label="Close wallet selector"
+      {mounted && dialogOpen
+        ? createPortal(
+            <div className="wallet-dialog-backdrop" role="presentation">
+              <div
+                ref={dialogRef}
+                className="wallet-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="wallet-dialog-title"
+                tabIndex={-1}
               >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p className="wallet-dialog-copy">
-              Select a compatible wallet. Connecting shares your public address only;
-              Navis will ask separately before any signature.
-            </p>
-
-            <div className="wallet-options">
-              {wallets.length > 0 ? (
-                wallets.map(({ adapter, readyState }) => {
-                  const available =
-                    readyState === WalletReadyState.Installed ||
-                    readyState === WalletReadyState.Loadable;
-                  const isPending = requestedWallet === adapter.name;
-
-                  return (
-                    <button
-                      key={adapter.name}
-                      type="button"
-                      disabled={!available || connecting || isPending}
-                      onClick={() => chooseWallet(adapter.name)}
-                    >
-                      <span className="wallet-option-mark" aria-hidden="true">
-                        {adapter.name.slice(0, 1)}
-                      </span>
-                      <span>
-                        <strong>{adapter.name}</strong>
-                        <small>{available ? "Detected" : "Not installed"}</small>
-                      </span>
-                      <span className="wallet-option-state">
-                        {isPending ? "Opening…" : available ? "Connect" : "Unavailable"}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="wallet-empty-state">
-                  <Wallet size={24} aria-hidden="true" />
-                  <strong>No compatible wallet detected</strong>
-                  <span>
-                    Install a Wallet Standard-compatible Solana wallet, then reload this
-                    page.
-                  </span>
+                <div className="wallet-dialog-heading">
+                  <div>
+                    <span className="eyebrow">SOLANA WALLET</span>
+                    <h2 id="wallet-dialog-title">Connect to Navis</h2>
+                  </div>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={() => setDialogOpen(false)}
+                    aria-label="Close wallet selector"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {error ? (
-              <p className="wallet-error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <p className="wallet-dialog-footnote">
-              Navis never requests a seed phrase or private key.
-            </p>
-          </div>
-        </div>
-      ) : null}
+                <p className="wallet-dialog-copy">
+                  Select a compatible wallet. Connecting shares your public address only;
+                  Navis will ask separately before any signature.
+                </p>
+
+                <div className="wallet-options">
+                  {wallets.length > 0 ? (
+                    wallets.map(({ adapter, readyState }) => {
+                      const available =
+                        readyState === WalletReadyState.Installed ||
+                        readyState === WalletReadyState.Loadable;
+                      const isPending = requestedWallet === adapter.name;
+
+                      return (
+                        <button
+                          key={adapter.name}
+                          type="button"
+                          disabled={!available || connecting || isPending}
+                          onClick={() => chooseWallet(adapter.name)}
+                        >
+                          <span className="wallet-option-mark" aria-hidden="true">
+                            {adapter.name.slice(0, 1)}
+                          </span>
+                          <span>
+                            <strong>{adapter.name}</strong>
+                            <small>{available ? "Detected" : "Not installed"}</small>
+                          </span>
+                          <span className="wallet-option-state">
+                            {isPending ? "Opening…" : available ? "Connect" : "Unavailable"}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="wallet-empty-state">
+                      <Wallet size={24} aria-hidden="true" />
+                      <strong>No compatible wallet detected</strong>
+                      <span>
+                        Install a Wallet Standard-compatible Solana wallet, then reload this
+                        page.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {error ? (
+                  <p className="wallet-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <p className="wallet-dialog-footnote">
+                  Navis never requests a seed phrase or private key.
+                </p>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
