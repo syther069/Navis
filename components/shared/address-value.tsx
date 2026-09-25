@@ -50,11 +50,17 @@ export function AddressValue({
       ) : (
         renderedValue
       )}
-      <button type="button" onClick={copyValue} aria-label={`Copy ${label}`}>
+      <button
+        type="button"
+        className="navis-copy-hash-button"
+        data-state={copyState}
+        onClick={copyValue}
+        aria-label={copyState === "copied" ? `${label} copied` : `Copy ${label}`}
+      >
         {copyState === "copied" ? (
-          <Check aria-hidden="true" size={15} />
+          <Check aria-hidden="true" size={15} weight="bold" />
         ) : (
-          <CopySimple aria-hidden="true" size={15} />
+          <CopySimple aria-hidden="true" size={15} weight="regular" />
         )}
       </button>
       <span className="sr-only" role="status" aria-live="polite">

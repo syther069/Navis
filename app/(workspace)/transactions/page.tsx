@@ -162,8 +162,8 @@ export default async function TransactionsPage({
       amount:
         row.proposal &&
         "inputAmount" in row.proposal &&
-        (row.proposal.inputAmount as any)?.uiAmount
-          ? `${(row.proposal.inputAmount as any).uiAmount} units`
+        (row.proposal.inputAmount as { uiAmount?: number })?.uiAmount
+          ? `${(row.proposal.inputAmount as { uiAmount?: number }).uiAmount} units`
           : null,
       network: row.cluster,
       wallet: row.ownerWallet ?? null,

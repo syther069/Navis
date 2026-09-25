@@ -74,6 +74,7 @@ Adapted, not dropped in as demos. Lucide, Swiper, Framer Motion, and Number Flow
 
 | Source                         | Navis file                               | Use                                                              |
 | ------------------------------ | ---------------------------------------- | ---------------------------------------------------------------- |
+| Skiper 40 CssLink              | `components/skiper/skiper40.tsx`         | Public nav and footer underlines                                 |
 | Skiper 41 ProgressiveBlur      | `components/motion/progressive-blur.tsx` | Public page edge fade                                            |
 | Skiper 58 TextRoll             | `components/motion/text-roll.tsx`        | Public nav hover                                                 |
 | Skiper 99 MenuIcon             | `components/motion/menu-toggle.tsx`      | Mobile menu                                                      |

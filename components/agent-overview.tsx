@@ -2,6 +2,7 @@ import { Sparkle, Stack, TrendUp } from "@phosphor-icons/react/dist/ssr";
 import React from "react";
 
 import { DecisionRecordView } from "@/components/decisions/decision-record-view";
+import { NumberFlow } from "@/components/numbers/number-flow";
 import { PolicyResult, StatusBadge } from "@/components/shared/domain-primitives";
 import { InfoHint } from "@/components/shared/info-hint";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
@@ -186,12 +187,7 @@ export function AgentOverview({
         <div className="treasury-priced-total">
           <span>Priced subtotal</span>
           <strong className="tabular-num">
-            $
-            {pricedSubtotal.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}{" "}
-            USD
+            <NumberFlow value={pricedSubtotal} format="currency" decimals={2} />
           </strong>
           <small>Excludes unpriced balances · Captured at {treasury.capturedAt}</small>
         </div>

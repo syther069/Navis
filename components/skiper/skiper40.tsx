@@ -15,7 +15,10 @@ type LinkProps = {
  */
 export function Link000({ children, href, className }: LinkProps) {
   return (
-    <Link href={href} className={cn("navis-skiper-link navis-skiper-link-000", className)}>
+    <Link
+      href={href}
+      className={cn("navis-skiper-link navis-skiper-link-000", className)}
+    >
       {children}
     </Link>
   );
@@ -37,7 +40,10 @@ export function Link001({ children, href, className }: LinkProps) {
 
 export function Link002({ children, href, className }: LinkProps) {
   return (
-    <Link href={href} className={cn("navis-skiper-link navis-skiper-link-002", className)}>
+    <Link
+      href={href}
+      className={cn("navis-skiper-link navis-skiper-link-002", className)}
+    >
       {children}
       <ExternalMark />
     </Link>
@@ -46,7 +52,10 @@ export function Link002({ children, href, className }: LinkProps) {
 
 export function Link003({ children, href, className }: LinkProps) {
   return (
-    <Link href={href} className={cn("navis-skiper-link navis-skiper-link-003", className)}>
+    <Link
+      href={href}
+      className={cn("navis-skiper-link navis-skiper-link-003", className)}
+    >
       {children}
       <ExternalMark />
     </Link>

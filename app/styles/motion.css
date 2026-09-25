@@ -136,42 +136,211 @@
 .navis-agent-island {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 2rem;
+  gap: var(--space-3);
+  max-width: min(100%, 28rem);
+  min-height: 2.75rem;
   margin: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-raised);
-  padding: 0 var(--space-3) 0 var(--space-2);
+  padding: 0.4rem 0.85rem 0.4rem 0.55rem;
   color: var(--text-secondary);
   font-size: var(--type-caption);
+  transition:
+    min-height var(--duration-state) var(--ease-standard),
+    padding var(--duration-state) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
 }
 
-.navis-agent-island-dot {
+.navis-agent-island-core {
+  position: relative;
+  display: grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--accent);
+}
+
+.navis-agent-island-core > span {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
   background: var(--simulation);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--simulation) 45%, transparent);
+  animation: navis-island-pulse 2.4s ease-in-out infinite;
 }
 
-.navis-agent-island[data-state="gated-live"] .navis-agent-island-dot {
-  background: var(--success);
+.navis-agent-island[data-phase="ready"] .navis-agent-island-core > span {
+  background: var(--accent);
+  animation: none;
 }
 
-.navis-agent-island[data-state="held"] .navis-agent-island-dot {
-  background: var(--warning);
+.navis-agent-island[data-phase="executing"] .navis-agent-island-core > span {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 1.5px solid var(--accent);
+  border-right-color: transparent;
+  background: transparent;
+  animation: navis-island-orbit 0.9s linear infinite;
 }
 
-.navis-agent-island-cluster {
+.navis-agent-island[data-phase="error"] {
+  border-color: var(--line-danger);
+}
+
+.navis-agent-island[data-phase="error"] .navis-agent-island-core {
+  color: var(--danger);
+}
+
+.navis-agent-island-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.05rem;
+}
+
+.navis-agent-island-copy strong {
+  color: var(--text-primary);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.navis-agent-island-copy small {
+  overflow: hidden;
   color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navis-agent-island-progress {
+  margin-left: auto;
+  color: var(--text-primary);
   font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.navis-skiper-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.navis-skiper-link::before {
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  bottom: -0.12em;
+  left: 0;
+  height: 1px;
+  transform: scaleX(0);
+  background: currentColor;
+  content: "";
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navis-skiper-link-000::before {
+  transform-origin: right;
+}
+
+.navis-skiper-link-000:hover::before,
+.navis-skiper-link-000:focus-visible::before {
+  transform-origin: left;
+  transform: scaleX(1);
+}
+
+.navis-skiper-link-001::before,
+.navis-skiper-link-002::before {
+  transform-origin: left;
+}
+
+.navis-skiper-link-001:hover::before,
+.navis-skiper-link-002:hover::before {
+  transform-origin: right;
+  transform: scaleX(1);
+}
+
+.navis-skiper-link-003::before {
+  transform-origin: center;
+}
+
+.navis-skiper-link-003:hover::before {
+  transform: scaleX(1);
+}
+
+.navis-skiper-link-mark {
+  width: 0.55em;
+  height: 0.55em;
+  margin-left: 0.3em;
+  translate: 0 1px;
+  opacity: 0;
+  transition:
+    opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    translate 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navis-skiper-link:hover .navis-skiper-link-mark,
+.navis-skiper-link:focus-visible .navis-skiper-link-mark {
+  translate: 0 0;
+  opacity: 1;
+}
+
+.navis-copy-hash-button {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.navis-copy-hash-button:hover {
+  transform: scale(1.08);
+}
+
+.navis-copy-hash-button:active {
+  transform: scale(0.96);
+}
+
+.navis-number-flow {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-family: var(--font-data);
+  letter-spacing: -0.02em;
+}
+
+@keyframes navis-island-pulse {
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+@keyframes navis-island-orbit {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .navis-text-roll-track,
   .navis-css-link::after,
-  .navis-menu-toggle span {
+  .navis-menu-toggle span,
+  .navis-skiper-link::before,
+  .navis-skiper-link-mark,
+  .navis-copy-hash-button,
+  .navis-agent-island {
     transition: none;
+  }
+
+  .navis-agent-island-core > span,
+  .navis-agent-island[data-phase="executing"] .navis-agent-island-core > span {
+    animation: none;
   }
 
   .navis-css-link:hover .navis-text-roll-track {

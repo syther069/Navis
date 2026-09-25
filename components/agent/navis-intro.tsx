@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { DevnetPulse } from "@/components/agent/devnet-pulse";
-import { AgentIsland } from "@/components/motion/agent-island";
+import { AgentIsland, phaseFromCapabilities } from "@/components/motion/agent-island";
+import { CopyHash } from "@/components/icons/copy-hash";
 
 type NavisIntroProps = {
   solanaRpcConfigured: boolean;
@@ -18,6 +19,8 @@ export function NavisIntro({
   mode = "demo",
   liveExecution = false,
 }: NavisIntroProps) {
+  const island = phaseFromCapabilities({ mode, liveExecution });
+
   return (
     <section className="route-panel navis-intro" aria-labelledby="navis-intro-title">
       <span className="route-eyebrow">What Navis is</span>
@@ -57,7 +60,12 @@ export function NavisIntro({
         </Link>
       </div>
       <div className="navis-intro-footer">
-        <AgentIsland mode={mode} cluster={cluster} liveExecution={liveExecution} />
+        <AgentIsland
+          agentName="Atlas"
+          phase={island.phase}
+          detail={island.detail}
+          cluster={cluster}
+        />
         <ul className="navis-intro-stamps" aria-label="Honesty notes">
           {honestyStamps.map((stamp) => (
             <li key={stamp}>{stamp}</li>
