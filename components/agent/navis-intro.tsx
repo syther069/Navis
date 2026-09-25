@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { DevnetPulse } from "@/components/agent/devnet-pulse";
-import { AgentIsland, phaseFromCapabilities } from "@/components/motion/agent-island";
+import { phaseFromCapabilities } from "@/components/motion/agent-phase";
+import { AgentIsland } from "@/components/motion/agent-island";
 import { CopyHash } from "@/components/icons/copy-hash";
 
 type NavisIntroProps = {
