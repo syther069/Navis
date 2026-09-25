@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Buildings, Coins, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
+import { Buildings, ChartDonut, Coins, Eye, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -691,6 +691,16 @@ export default function MarketLaunchPage() {
         description="Read-only market research and provider readiness before launch authorization. PreStocks, ClawPump and Meteora DBC show independent states."
         meta="PreStocks / read-only catalogue"
       />
+      <nav className="markets-section-tabs" aria-label="Markets sub-navigation">
+        <Link href="/markets" className="tab-item">
+          <Eye size={16} aria-hidden="true" />
+          <span>Market Overview</span>
+        </Link>
+        <Link href="/markets/launch" className="tab-item tab-active" aria-current="page">
+          <ChartDonut size={16} aria-hidden="true" />
+          <span>Launch & Liquidity (Meteora & ClawPump)</span>
+        </Link>
+      </nav>
       <Suspense
         fallback={
           <SponsorPanelState

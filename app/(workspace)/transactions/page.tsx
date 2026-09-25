@@ -1,39 +1,34 @@
-import { ChartLineUp, Database, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowSquareOut,
+  Database,
+  ListChecks,
+} from "@phosphor-icons/react/dist/ssr";
 import { desc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { RouteHeader } from "@/components/route-primitives";
-import { InfoHint } from "@/components/shared/info-hint";
+import { EmptyState, RouteHeader } from "@/components/route-primitives";
 import {
-  TRANSACTION_STATE_ORDER,
-  TRANSACTION_STATE_META,
-  TransactionStateBadge,
-} from "@/components/shared/transaction-state";
-import {
-  ExecutionLedgerRow,
-  LaunchLedgerRow,
-} from "@/components/transactions/ledger-row";
+  TransactionsView,
+  type FormattedTransaction,
+  type TransactionLifecycleStage,
+} from "@/components/transactions/transactions-view";
 import { getDatabase } from "@/lib/db/client";
-import { agents, decisions, executionAttempts, marketLaunches } from "@/lib/db/schema";
+import {
+  agents,
+  decisions,
+  executionAttempts,
+  marketLaunches,
+  users,
+} from "@/lib/db/schema";
 import { env } from "@/lib/env";
 
-export const metadata: Metadata = { title: "Transactions" };
+export const metadata: Metadata = {
+  title: "Transactions",
+  description: "Read-only audit trail and 9-stage execution ledger for all financial operations.",
+};
+
 export const dynamic = "force-dynamic";
-
-type ExecutionRow = Awaited<ReturnType<typeof loadExecutionRows>>[number];
-type TransactionFilter =
-  "all" | "confirmed" | "failed" | "rejected" | "cancelled" | "simulated" | "pending";
-
-const transactionFilters = [
-  { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "failed", label: "Failed" },
-  { value: "rejected", label: "Rejected" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "simulated", label: "Simulated" },
-  { value: "pending", label: "Pending" },
-] satisfies { value: TransactionFilter; label: string }[];
 
 async function loadExecutionRows() {
   if (!env.databaseUrl) return [];
@@ -54,13 +49,16 @@ async function loadExecutionRows() {
       createdAt: executionAttempts.createdAt,
       decisionHash: decisions.decisionHash,
       proposal: decisions.proposal,
+      agentName: agents.name,
       agentMode: agents.mode,
+      ownerWallet: users.wallet,
     })
     .from(executionAttempts)
     .innerJoin(decisions, eq(decisions.id, executionAttempts.decisionId))
     .innerJoin(agents, eq(agents.id, decisions.agentId))
+    .leftJoin(users, eq(users.id, agents.ownerId))
     .orderBy(desc(executionAttempts.createdAt))
-    .limit(25);
+    .limit(50);
 }
 
 async function loadLaunchRows() {
@@ -74,9 +72,7 @@ async function loadLaunchRows() {
       cluster: marketLaunches.cluster,
       providerRequestId: marketLaunches.providerRequestId,
       baseMint: marketLaunches.baseMint,
-      quoteMint: marketLaunches.quoteMint,
       poolAddress: marketLaunches.poolAddress,
-      payoutWallet: marketLaunches.payoutWallet,
       transactionSignature: marketLaunches.transactionSignature,
       metadata: marketLaunches.metadata,
       createdAt: marketLaunches.createdAt,
@@ -87,191 +83,164 @@ async function loadLaunchRows() {
     .from(marketLaunches)
     .innerJoin(agents, eq(agents.id, marketLaunches.agentId))
     .orderBy(desc(marketLaunches.createdAt))
-    .limit(25);
+    .limit(50);
 }
 
-function resolveFilter(value: string | string[] | undefined): TransactionFilter {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  return transactionFilters.some((filter) => filter.value === candidate)
-    ? (candidate as TransactionFilter)
-    : "all";
+function formatDate(value: Date | null) {
+  if (!value) return "Not recorded";
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(value);
 }
 
-function isPendingState(value: string) {
-  return (
-    value === "submitted" || value === "unknown_pending" || value.includes("pending")
-  );
-}
-
-function matchesFilter(
-  filter: TransactionFilter,
-  value: ExecutionRow["state"] | string,
-) {
-  if (filter === "all") return true;
-  if (filter === "pending") return isPendingState(value);
-  return value === filter || value.includes(filter);
+function explorerUrl(signature: string, cluster: "devnet" | "mainnet-beta" | string) {
+  const clusterQuery = cluster === "devnet" ? "?cluster=devnet" : "";
+  return `https://explorer.solana.com/tx/${signature}${clusterQuery}`;
 }
 
 export default async function TransactionsPage({
   searchParams,
-}: PageProps<"/transactions">) {
-  const filter = resolveFilter((await searchParams).state);
+}: {
+  searchParams?: Promise<{ state?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const activeFilter = params.state || "all";
+  const persistenceReady = Boolean(env.databaseUrl);
+
   const [executions, launches] = await Promise.all([
     loadExecutionRows(),
     loadLaunchRows(),
   ]);
-  const filteredExecutions = executions.filter((row) =>
-    matchesFilter(filter, row.state),
+
+  // Format executions into the 9 distinct lifecycle stages
+  const formattedExecutions: FormattedTransaction[] = executions.map((row) => {
+    let stage: TransactionLifecycleStage = "Preparing";
+    if (row.state === "created") stage = "Preparing";
+    else if (row.state === "simulated") stage = "Simulation";
+    else if (row.state === "awaiting_signature") stage = "Awaiting Wallet";
+    else if (row.state === "submitted") stage = "Submitted";
+    else if (row.state === "unknown_pending") stage = "Confirming";
+    else if (row.state === "confirmed") stage = "Confirmed";
+    else if (row.state === "failed" || row.state === "cancelled") stage = "Failed";
+    else if (row.state === "rejected") stage = "Blocked";
+
+    const actionName = String(row.proposal?.action || "TRADE").replaceAll("_", " ");
+    const inputAsset = row.proposal?.inputMint
+      ? row.proposal.inputMint.slice(0, 4) + "…" + row.proposal.inputMint.slice(-4)
+      : null;
+    const outputAsset = row.proposal?.outputMint
+      ? row.proposal.outputMint.slice(0, 4) + "…" + row.proposal.outputMint.slice(-4)
+      : null;
+    const assetStr =
+      inputAsset && outputAsset
+        ? `${inputAsset} → ${outputAsset}`
+        : inputAsset || outputAsset;
+
+    let feeStr: string | null = null;
+    if (row.feeLamports && Number(row.feeLamports) > 0) {
+      const sol = Number(row.feeLamports) / 1_000_000_000;
+      feeStr = `${sol.toFixed(6)} SOL`;
+    }
+
+    const hasSig = Boolean(row.transactionSignature) && row.state !== "simulated";
+
+    return {
+      id: row.id,
+      kind: "execution",
+      stage,
+      rawState: row.state,
+      title: actionName,
+      action: actionName,
+      asset: assetStr,
+      amount: row.proposal?.inputAmount?.uiAmount
+        ? `${row.proposal.inputAmount.uiAmount} units`
+        : null,
+      network: row.cluster,
+      wallet: row.ownerWallet ?? null,
+      fees: feeStr,
+      signature: hasSig ? row.transactionSignature : null,
+      explorerUrl:
+        hasSig && row.transactionSignature
+          ? explorerUrl(row.transactionSignature, row.cluster)
+          : null,
+      slot: row.slot ? row.slot.toString() : null,
+      timestamp: formatDate(row.createdAt),
+      decisionHash: row.decisionHash,
+      errorCode: row.errorCode,
+      safeError: row.safeError,
+      agentName: row.agentName,
+    };
+  });
+
+  // Format launches into the 9 distinct lifecycle stages
+  const formattedLaunches: FormattedTransaction[] = launches.map((row) => {
+    let stage: TransactionLifecycleStage = "Preparing";
+    const st = row.status.toLowerCase();
+    if (st.includes("confirm")) stage = "Confirmed";
+    else if (st.includes("submitting") || st.includes("submitted")) stage = "Submitted";
+    else if (st.includes("pending") || st.includes("verifying")) stage = "Confirming";
+    else if (st.includes("failed") || st.includes("error")) stage = "Failed";
+    else if (st.includes("reject") || st.includes("block")) stage = "Blocked";
+    else if (st.includes("simulat")) stage = "Simulation";
+    else if (st.includes("wallet") || st.includes("await")) stage = "Awaiting Wallet";
+
+    const hasSig = Boolean(row.transactionSignature);
+
+    return {
+      id: row.id,
+      kind: "launch",
+      stage,
+      rawState: row.status,
+      title: `${row.provider} Liquidity Launch`,
+      action: `${row.provider} Launch`,
+      asset: row.baseMint
+        ? row.baseMint.slice(0, 4) + "…" + row.baseMint.slice(-4)
+        : "Liquidity Pair",
+      amount: null,
+      network: row.cluster,
+      wallet: null,
+      fees: null,
+      signature: hasSig ? row.transactionSignature : null,
+      explorerUrl:
+        hasSig && row.transactionSignature
+          ? explorerUrl(row.transactionSignature, row.cluster)
+          : null,
+      slot: null,
+      timestamp: formatDate(row.createdAt),
+      decisionHash: null,
+      errorCode: null,
+      safeError: null,
+      provider: row.provider,
+      agentName: row.agentName,
+    };
+  });
+
+  const allTransactions = [...formattedExecutions, ...formattedLaunches].sort(
+    (a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp),
   );
-  const filteredLaunches = launches.filter((row) => matchesFilter(filter, row.status));
-  const persistenceReady = Boolean(env.databaseUrl);
 
   return (
     <>
       <RouteHeader
         eyebrow="Execution ledger"
         title="Transactions"
-        description="Recorded execution attempts and market launches, from preparation through network evidence."
-        meta={persistenceReady ? "Persistent records" : "Persistence unavailable"}
+        description="A read-only audit trail and 9-stage lifecycle ledger for all agent execution attempts and sponsor market launches."
+        meta={persistenceReady ? `${allTransactions.length} persistent records` : "Persistence unavailable"}
       />
 
       {!persistenceReady ? (
-        <section
-          className="transaction-empty"
-          aria-labelledby="transaction-empty-title"
-        >
-          <div className="transaction-empty-mark">
-            <Database aria-hidden="true" size={26} weight="light" />
-          </div>
-          <div className="transaction-empty-copy">
-            <span className="transaction-kicker">Ledger / unavailable</span>
-            <h2 id="transaction-empty-title">
-              No transaction ledger is available in this instance.
-            </h2>
-            <p>
-              Persistent storage is not configured. Once available, this read-only
-              ledger lists actual execution attempts and market launches, including
-              network evidence and failures. The lifecycle below is a reference, not
-              recorded activity.
-            </p>
-            <p className="transaction-empty-note">
-              DATABASE_URL is required to read persisted records.
-            </p>
-            <Link href="/settings" className="transaction-empty-link">
-              Open capabilities <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
-          <aside className="transaction-empty-index" aria-label="Ledger record types">
-            <span className="transaction-empty-index-title">In the ledger</span>
-            <div>
-              <span>01</span>
-              <strong>Execution attempts</strong>
-            </div>
-            <div>
-              <span>02</span>
-              <strong>Market launches</strong>
-            </div>
-            <div>
-              <span>03</span>
-              <strong>Network evidence</strong>
-            </div>
-          </aside>
-        </section>
+        <EmptyState
+          icon={Database}
+          label="Database required"
+          title="No transaction ledger is available in this instance."
+          description="Set DATABASE_URL to enable persistent execution attempts, launch records, statuses, signatures, and failure evidence."
+          action={{ label: "Open capabilities", href: "/settings" }}
+        />
       ) : (
-        <div className="route-grid transaction-grid">
-          <nav className="transaction-filters" aria-label="Transaction state filters">
-            {transactionFilters.map((item) => (
-              <Link
-                key={item.value}
-                href={
-                  item.value === "all"
-                    ? "/transactions"
-                    : `/transactions?state=${item.value}`
-                }
-                data-current={filter === item.value || undefined}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <section className="route-panel transaction-ledger">
-            <div className="panel-heading">
-              <ListChecks aria-hidden="true" size={20} />
-              <div>
-                <span>Value movement</span>
-                <h2>Execution attempts</h2>
-              </div>
-            </div>
-            {filteredExecutions.length > 0 ? (
-              <div className="transaction-list">
-                {filteredExecutions.map((row) => (
-                  <ExecutionLedgerRow row={row} key={row.id} />
-                ))}
-              </div>
-            ) : (
-              <p className="route-copy">
-                No execution attempts match this filter. Simulations and rejected wallet
-                approvals appear here only after they are persisted.
-              </p>
-            )}
-          </section>
-
-          <section className="route-panel transaction-ledger">
-            <div className="panel-heading">
-              <ChartLineUp aria-hidden="true" size={20} />
-              <div>
-                <span>Sponsor launches</span>
-                <h2>Market launches</h2>
-              </div>
-            </div>
-            {filteredLaunches.length > 0 ? (
-              <div className="transaction-list">
-                {filteredLaunches.map((row) => (
-                  <LaunchLedgerRow row={row} key={row.id} />
-                ))}
-              </div>
-            ) : (
-              <p className="route-copy">
-                No market-launch records match this filter. Prepared and simulated
-                records, when present, are labelled as such and do not represent
-                submitted transactions.
-              </p>
-            )}
-          </section>
-        </div>
+        <TransactionsView transactions={allTransactions} activeFilter={activeFilter} />
       )}
-      <section
-        className="transaction-lifecycle"
-        aria-labelledby="transaction-lifecycle-title"
-      >
-        <div className="transaction-lifecycle-intro">
-          <div>
-            <span className="transaction-kicker">Reference / 01</span>
-            <h2 id="transaction-lifecycle-title">
-              Transaction lifecycle <InfoHint topic="transactionLifecycle" />
-            </h2>
-            <p>
-              These are possible stages, not a claim that a transaction has reached
-              them. Records on this page show only their recorded state.
-            </p>
-          </div>
-          <span className="transaction-lifecycle-count">09 states</span>
-        </div>
-        <div className="transaction-lifecycle-list">
-          {TRANSACTION_STATE_ORDER.map((state, index) => (
-            <div className="transaction-lifecycle-item" key={state}>
-              <span className="transaction-lifecycle-index">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <TransactionStateBadge state={state} />
-              <span className="transaction-lifecycle-description">
-                {TRANSACTION_STATE_META[state].description}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
     </>
   );
 }

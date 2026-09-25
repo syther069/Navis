@@ -152,11 +152,13 @@ async function readRoute(path) {
     headers: {
       accept: "text/html",
       "user-agent": "Navis judge-flow smoke test",
+      connection: "close",
     },
     redirect: "manual",
   });
 
   if (!response.ok) {
+    await response.text().catch(() => {});
     throw new Error(`${path} returned HTTP ${response.status}`);
   }
 
@@ -173,6 +175,7 @@ async function readJsonRoute(path, allowedStatuses) {
   });
 
   if (!allowedStatuses.includes(response.status)) {
+    await response.text().catch(() => {});
     throw new Error(`${path} returned HTTP ${response.status}`);
   }
 
@@ -400,7 +403,7 @@ async function run() {
   } catch (error) {
     failed = true;
     console.error(output.join(""));
-    throw error;
+    console.error(error.message);
   } finally {
     try {
       if (reportPath) {
@@ -435,7 +438,13 @@ async function run() {
       stopServer(server);
     }
   }
+  if (failed) {
+    process.exitCode = 1;
+    return;
+  }
   console.log("Judge-flow smoke passed.");
 }
 
 await run();
+
+
