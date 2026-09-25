@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { questions } from "../faq/questions";
+import { FAQ_ITEMS } from "@/components/landing/faq-data";
 import { StatusLabel, type IntegrationStatus } from "../status-label";
 
 export const metadata: Metadata = {
@@ -430,14 +430,14 @@ export default function WelcomePage() {
           </div>
           <div className="public-preview-list">
             {[2, 3, 4, 5, 9].map((index) => (
-              <details className="public-faq-item" key={questions[index].question}>
+              <details className="public-faq-item" key={FAQ_ITEMS[index].question}>
                 <summary>
-                  <span>{questions[index].question}</span>
+                  <span>{FAQ_ITEMS[index].question}</span>
                   <span className="public-faq-plus" aria-hidden="true">
                     +
                   </span>
                 </summary>
-                <p>{questions[index].answer}</p>
+                <p>{FAQ_ITEMS[index].answer}</p>
               </details>
             ))}
           </div>
