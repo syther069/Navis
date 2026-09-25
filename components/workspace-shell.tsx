@@ -50,7 +50,7 @@ const navigation: readonly NavItem[] = [
   {
     label: "Markets",
     icon: ChartDonut,
-    href: "/markets/launch",
+    href: "/markets",
     match: "/markets",
     helpTopic: "navMarkets",
   },
@@ -188,12 +188,22 @@ function routeContextFor(pathname: string): RouteContext {
     };
   }
 
-  if (pathname === "/markets/launch" || pathname.startsWith("/markets")) {
+  if (pathname === "/markets") {
+    return {
+      icon: ChartDonut,
+      href: "/markets",
+      label: "Markets",
+      breadcrumbs: [{ label: "Markets", href: "/markets" }],
+      detail: "Overview & pricing",
+    };
+  }
+
+  if (pathname === "/markets/launch" || pathname.startsWith("/markets/")) {
     return {
       icon: ChartDonut,
       href: "/markets/launch",
       label: "Markets",
-      breadcrumbs: [{ label: "Markets", href: "/markets/launch" }, { label: "Launch" }],
+      breadcrumbs: [{ label: "Markets", href: "/markets" }, { label: "Launch & Liquidity" }],
       detail: "ClawPump & Meteora DBC",
     };
   }
@@ -244,6 +254,26 @@ function routeContextFor(pathname: string): RouteContext {
       label: "Settings",
       breadcrumbs: [{ label: "Settings", href: "/settings" }],
       detail: "Capabilities",
+    };
+  }
+
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    return {
+      icon: Compass,
+      href: "/onboarding",
+      label: "Onboarding",
+      breadcrumbs: [{ label: "Onboarding", href: "/onboarding" }],
+      detail: "Orientation walkthrough",
+    };
+  }
+
+  if (pathname === "/faq" || pathname.startsWith("/faq/")) {
+    return {
+      icon: ShieldWarning,
+      href: "/faq",
+      label: "FAQ",
+      breadcrumbs: [{ label: "FAQ", href: "/faq" }],
+      detail: "Questions & constraints",
     };
   }
 
