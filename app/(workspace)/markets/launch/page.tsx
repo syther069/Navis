@@ -1,5 +1,11 @@
 import { eq } from "drizzle-orm";
-import { Buildings, ChartDonut, Coins, Eye, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
+import {
+  Buildings,
+  ChartDonut,
+  Coins,
+  Eye,
+  ShieldCheck,
+} from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -696,7 +702,11 @@ export default function MarketLaunchPage() {
           <Eye size={16} aria-hidden="true" />
           <span>Market Overview</span>
         </Link>
-        <Link href="/markets/launch" className="tab-item tab-active" aria-current="page">
+        <Link
+          href="/markets/launch"
+          className="tab-item tab-active"
+          aria-current="page"
+        >
           <ChartDonut size={16} aria-hidden="true" />
           <span>Launch & Liquidity (Meteora & ClawPump)</span>
         </Link>

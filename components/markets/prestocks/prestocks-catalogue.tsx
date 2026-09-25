@@ -78,18 +78,39 @@ export function PreStocksCatalogue({ catalogue }: PreStocksCatalogueProps) {
 
       {/* Dense Comparative Financial Table (Primary Desktop View) */}
       <div className="prestocks-table-wrap">
-        <table className="prestocks-table" aria-label="PreStocks economic-exposure tokens">
+        <table
+          className="prestocks-table"
+          aria-label="PreStocks economic-exposure tokens"
+        >
           <thead>
             <tr>
-              <th scope="col" className="text-left">Asset</th>
-              <th scope="col" className="text-left">Symbol</th>
-              <th scope="col" className="text-right">Token Price</th>
-              <th scope="col" className="text-right">Mark Price</th>
-              <th scope="col" className="text-right">Premium / Disc</th>
-              <th scope="col" className="text-right">Implied Val</th>
-              <th scope="col" className="text-right">Supply</th>
-              <th scope="col" className="text-left">Mint Address</th>
-              <th scope="col" className="text-right">Actions</th>
+              <th scope="col" className="text-left">
+                Asset
+              </th>
+              <th scope="col" className="text-left">
+                Symbol
+              </th>
+              <th scope="col" className="text-right">
+                Token Price
+              </th>
+              <th scope="col" className="text-right">
+                Mark Price
+              </th>
+              <th scope="col" className="text-right">
+                Premium / Disc
+              </th>
+              <th scope="col" className="text-right">
+                Implied Val
+              </th>
+              <th scope="col" className="text-right">
+                Supply
+              </th>
+              <th scope="col" className="text-left">
+                Mint Address
+              </th>
+              <th scope="col" className="text-right">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>

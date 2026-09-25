@@ -168,10 +168,19 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
   };
 
   return (
-    <div className="onboarding-flow-container" aria-label="Lightweight onboarding orientation">
+    <div
+      className="onboarding-flow-container"
+      aria-label="Lightweight onboarding orientation"
+    >
       {/* ── Progress Header ── */}
       <header className="onboarding-header">
-        <div className="onboarding-progress-bar-wrap" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemin={1} aria-valuemax={8}>
+        <div
+          className="onboarding-progress-bar-wrap"
+          role="progressbar"
+          aria-valuenow={currentStepIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={8}
+        >
           <div
             className="onboarding-progress-fill"
             style={{ width: `${((currentStepIndex + 1) / 8) * 100}%` }}
@@ -232,16 +241,22 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
               <div className="preview-wallet-box">
                 <div className="preview-row">
                   <span className="preview-label">Wallet Standard Status:</span>
-                  <strong>{connected ? "Connected" : "Disconnected (Ready to connect)"}</strong>
+                  <strong>
+                    {connected ? "Connected" : "Disconnected (Ready to connect)"}
+                  </strong>
                 </div>
                 {connected && publicKey ? (
                   <div className="preview-row">
                     <span className="preview-label">Connected Public Key:</span>
-                    <code className="tabular-num">{publicKey.toBase58().slice(0, 8)}…{publicKey.toBase58().slice(-8)}</code>
+                    <code className="tabular-num">
+                      {publicKey.toBase58().slice(0, 8)}…
+                      {publicKey.toBase58().slice(-8)}
+                    </code>
                   </div>
                 ) : (
                   <p className="preview-subtext">
-                    Click the wallet button in the top navigation at any time to connect Phantom, Solflare, or standard wallets.
+                    Click the wallet button in the top navigation at any time to connect
+                    Phantom, Solflare, or standard wallets.
                   </p>
                 )}
               </div>
@@ -291,7 +306,9 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
               <div className="preview-proposal-box">
                 <div className="preview-proposal-header">
                   <span className="proposal-tag">BUY / REBALANCE</span>
-                  <span className="proposal-confidence tabular-num">94.00% Confidence</span>
+                  <span className="proposal-confidence tabular-num">
+                    94.00% Confidence
+                  </span>
                 </div>
                 <h4 className="preview-order-text">1.00 EQA → min 0.99 EQB</h4>
                 <p className="preview-thesis">
@@ -339,7 +356,9 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
                 <Signature size={20} />
                 <div>
                   <strong>Zero Autonomous Keys</strong>
-                  <p>Atlas cannot execute. Execution requires your explicit signature.</p>
+                  <p>
+                    Atlas cannot execute. Execution requires your explicit signature.
+                  </p>
                 </div>
               </div>
             )}
@@ -352,11 +371,16 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
                 </div>
                 <div className="preview-row">
                   <span className="preview-label">Canonical SHA-256:</span>
-                  <code className="tabular-num">{demoProof.receiptHash.slice(0, 16)}…</code>
+                  <code className="tabular-num">
+                    {demoProof.receiptHash.slice(0, 16)}…
+                  </code>
                 </div>
                 <div className="preview-assurance">
                   <AssuranceBadge
-                    assurance={describeAssurance("offchain_integrity", "demo_simulation")}
+                    assurance={describeAssurance(
+                      "offchain_integrity",
+                      "demo_simulation",
+                    )}
                     compact
                   />
                 </div>
@@ -369,11 +393,7 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
         <footer className="onboarding-card-footer">
           <div className="footer-left">
             {!isFirst && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handlePrev}
-              >
+              <button type="button" className="secondary-button" onClick={handlePrev}>
                 <ArrowLeft size={14} aria-hidden="true" /> Previous
               </button>
             )}
@@ -385,11 +405,7 @@ export function OnboardingFlow({ onComplete }: { onComplete?: () => void }) {
                 {step.actionText} <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleNext}
-              >
+              <button type="button" className="primary-button" onClick={handleNext}>
                 {step.actionText} <ArrowRight size={14} aria-hidden="true" />
               </button>
             )}

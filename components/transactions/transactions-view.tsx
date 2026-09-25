@@ -29,7 +29,11 @@ import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
-import { SourceStamp, StatusBadge, type StatusTone } from "@/components/shared/domain-primitives";
+import {
+  SourceStamp,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/shared/domain-primitives";
 import { InfoHint } from "@/components/shared/info-hint";
 
 export type TransactionLifecycleStage =
@@ -77,19 +81,22 @@ export const LIFECYCLE_STAGES: readonly {
     stage: "Preparing",
     tone: "neutral",
     icon: CircleDashed,
-    description: "Server assembling unsigned instructions, account keys, and message hash.",
+    description:
+      "Server assembling unsigned instructions, account keys, and message hash.",
   },
   {
     stage: "Simulation",
     tone: "simulation",
     icon: Flask,
-    description: "Dry-run executed against RPC node to verify balance deltas without gas.",
+    description:
+      "Dry-run executed against RPC node to verify balance deltas without gas.",
   },
   {
     stage: "Awaiting Wallet",
     tone: "warn",
     icon: Wallet,
-    description: "Payload delivered to user extension; awaiting manual signature approval.",
+    description:
+      "Payload delivered to user extension; awaiting manual signature approval.",
   },
   {
     stage: "Signing",
@@ -101,31 +108,36 @@ export const LIFECYCLE_STAGES: readonly {
     stage: "Submitted",
     tone: "pending",
     icon: PaperPlaneTilt,
-    description: "Signed transaction sent to Solana RPC leader schedule for block inclusion.",
+    description:
+      "Signed transaction sent to Solana RPC leader schedule for block inclusion.",
   },
   {
     stage: "Confirming",
     tone: "pending",
     icon: ClockCountdown,
-    description: "Awaiting bank commitment and slot finality across cluster validators.",
+    description:
+      "Awaiting bank commitment and slot finality across cluster validators.",
   },
   {
     stage: "Confirmed",
     tone: "pass",
     icon: CheckCircle,
-    description: "Transaction committed in finalized slot with immutable onchain receipt.",
+    description:
+      "Transaction committed in finalized slot with immutable onchain receipt.",
   },
   {
     stage: "Failed",
     tone: "block",
     icon: XCircle,
-    description: "Execution reverted by onchain program, network timeout, or user cancellation.",
+    description:
+      "Execution reverted by onchain program, network timeout, or user cancellation.",
   },
   {
     stage: "Blocked",
     tone: "block",
     icon: Prohibit,
-    description: "Prevented by deterministic risk policy rules or sponsor capability gate.",
+    description:
+      "Prevented by deterministic risk policy rules or sponsor capability gate.",
   },
 ];
 
@@ -134,7 +146,13 @@ function stageTone(stage: TransactionLifecycleStage): StatusTone {
   return found ? found.tone : "neutral";
 }
 
-function StageIcon({ stage, size = 14 }: { stage: TransactionLifecycleStage; size?: number }) {
+function StageIcon({
+  stage,
+  size = 14,
+}: {
+  stage: TransactionLifecycleStage;
+  size?: number;
+}) {
   const found = LIFECYCLE_STAGES.find((s) => s.stage === stage);
   const IconComponent = found ? found.icon : CircleDashed;
   return <IconComponent size={size} aria-hidden="true" />;
@@ -169,7 +187,11 @@ export function TransactionsView({
       // Stage filter
       if (filter !== "all") {
         if (filter === "pending") {
-          if (tx.stage !== "Submitted" && tx.stage !== "Confirming" && tx.stage !== "Awaiting Wallet") {
+          if (
+            tx.stage !== "Submitted" &&
+            tx.stage !== "Confirming" &&
+            tx.stage !== "Awaiting Wallet"
+          ) {
             return false;
           }
         } else if (tx.stage.toLowerCase() !== filter.toLowerCase()) {
@@ -183,10 +205,23 @@ export function TransactionsView({
         const matchesId = tx.id.toLowerCase().includes(q);
         const matchesAction = tx.action.toLowerCase().includes(q);
         const matchesAsset = tx.asset ? tx.asset.toLowerCase().includes(q) : false;
-        const matchesSig = tx.signature ? tx.signature.toLowerCase().includes(q) : false;
-        const matchesHash = tx.decisionHash ? tx.decisionHash.toLowerCase().includes(q) : false;
-        const matchesAgent = tx.agentName ? tx.agentName.toLowerCase().includes(q) : false;
-        if (!matchesId && !matchesAction && !matchesAsset && !matchesSig && !matchesHash && !matchesAgent) {
+        const matchesSig = tx.signature
+          ? tx.signature.toLowerCase().includes(q)
+          : false;
+        const matchesHash = tx.decisionHash
+          ? tx.decisionHash.toLowerCase().includes(q)
+          : false;
+        const matchesAgent = tx.agentName
+          ? tx.agentName.toLowerCase().includes(q)
+          : false;
+        if (
+          !matchesId &&
+          !matchesAction &&
+          !matchesAsset &&
+          !matchesSig &&
+          !matchesHash &&
+          !matchesAgent
+        ) {
           return false;
         }
       }
@@ -198,7 +233,10 @@ export function TransactionsView({
   return (
     <div className="transactions-view-wrap" data-testid="transactions-view">
       {/* 9-Stage Visual Lifecycle Reference Strip */}
-      <section className="transaction-lifecycle-guide" aria-labelledby="lifecycle-guide-heading">
+      <section
+        className="transaction-lifecycle-guide"
+        aria-labelledby="lifecycle-guide-heading"
+      >
         <div className="lifecycle-guide-header">
           <div className="title-with-hint">
             <span className="route-eyebrow">Solana Transaction State Machine</span>
@@ -234,7 +272,11 @@ export function TransactionsView({
 
       {/* Filter and Search Bar */}
       <div className="transaction-toolbar">
-        <div className="filter-pills-row" role="tablist" aria-label="Filter transactions by state">
+        <div
+          className="filter-pills-row"
+          role="tablist"
+          aria-label="Filter transactions by state"
+        >
           <button
             type="button"
             className={`filter-pill ${filter === "all" ? "pill-active" : ""}`}
@@ -247,21 +289,30 @@ export function TransactionsView({
             className={`filter-pill ${filter === "confirmed" ? "pill-active" : ""}`}
             onClick={() => setFilter("confirmed")}
           >
-            Confirmed <span className="font-mono">({countsByStage["confirmed"] || 0})</span>
+            Confirmed{" "}
+            <span className="font-mono">({countsByStage["confirmed"] || 0})</span>
           </button>
           <button
             type="button"
             className={`filter-pill ${filter === "simulation" ? "pill-active" : ""}`}
             onClick={() => setFilter("simulation")}
           >
-            Simulated <span className="font-mono">({countsByStage["simulation"] || 0})</span>
+            Simulated{" "}
+            <span className="font-mono">({countsByStage["simulation"] || 0})</span>
           </button>
           <button
             type="button"
             className={`filter-pill ${filter === "pending" ? "pill-active" : ""}`}
             onClick={() => setFilter("pending")}
           >
-            Pending <span className="font-mono">({(countsByStage["submitted"] || 0) + (countsByStage["confirming"] || 0) + (countsByStage["awaiting wallet"] || 0)})</span>
+            Pending{" "}
+            <span className="font-mono">
+              (
+              {(countsByStage["submitted"] || 0) +
+                (countsByStage["confirming"] || 0) +
+                (countsByStage["awaiting wallet"] || 0)}
+              )
+            </span>
           </button>
           <button
             type="button"
@@ -297,20 +348,43 @@ export function TransactionsView({
 
       {/* Dense Ledger Table */}
       <div className="transaction-table-wrap">
-        <table className="transaction-dense-table" aria-label="Transaction execution ledger">
+        <table
+          className="transaction-dense-table"
+          aria-label="Transaction execution ledger"
+        >
           <thead>
             <tr>
               <th scope="col" className="col-expand" aria-label="Expand row"></th>
-              <th scope="col" className="col-time">Time (UTC)</th>
-              <th scope="col" className="col-stage">Lifecycle Stage</th>
-              <th scope="col" className="col-action">Action / Intent</th>
-              <th scope="col" className="col-asset">Asset</th>
-              <th scope="col" className="col-amount text-right">Amount</th>
-              <th scope="col" className="col-network">Network</th>
-              <th scope="col" className="col-wallet">Wallet Authority</th>
-              <th scope="col" className="col-fees text-right">Fees</th>
-              <th scope="col" className="col-sig">Signature / Evidence</th>
-              <th scope="col" className="col-explorer text-right">Explorer</th>
+              <th scope="col" className="col-time">
+                Time (UTC)
+              </th>
+              <th scope="col" className="col-stage">
+                Lifecycle Stage
+              </th>
+              <th scope="col" className="col-action">
+                Action / Intent
+              </th>
+              <th scope="col" className="col-asset">
+                Asset
+              </th>
+              <th scope="col" className="col-amount text-right">
+                Amount
+              </th>
+              <th scope="col" className="col-network">
+                Network
+              </th>
+              <th scope="col" className="col-wallet">
+                Wallet Authority
+              </th>
+              <th scope="col" className="col-fees text-right">
+                Fees
+              </th>
+              <th scope="col" className="col-sig">
+                Signature / Evidence
+              </th>
+              <th scope="col" className="col-explorer text-right">
+                Explorer
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -340,9 +414,17 @@ export function TransactionsView({
                         type="button"
                         className="row-expand-btn"
                         onClick={() => setExpandedId(isExpanded ? null : tx.id)}
-                        aria-label={isExpanded ? "Collapse transaction detail" : "Expand transaction detail"}
+                        aria-label={
+                          isExpanded
+                            ? "Collapse transaction detail"
+                            : "Expand transaction detail"
+                        }
                       >
-                        {isExpanded ? <CaretDown size={14} /> : <CaretRight size={14} />}
+                        {isExpanded ? (
+                          <CaretDown size={14} />
+                        ) : (
+                          <CaretRight size={14} />
+                        )}
                       </button>
                     </td>
 
@@ -392,7 +474,10 @@ export function TransactionsView({
 
                     {/* Network */}
                     <td className="col-network">
-                      <span className="mode-stamp font-mono" data-mode={tx.network === "mainnet-beta" ? "mainnet" : "devnet"}>
+                      <span
+                        className="mode-stamp font-mono"
+                        data-mode={tx.network === "mainnet-beta" ? "mainnet" : "devnet"}
+                      >
                         {tx.network}
                       </span>
                     </td>
@@ -424,11 +509,16 @@ export function TransactionsView({
                           {tx.signature.slice(0, 6)}…{tx.signature.slice(-4)}
                         </span>
                       ) : tx.decisionHash ? (
-                        <span className="tx-hash-cell font-mono" title={`Decision Hash: ${tx.decisionHash}`}>
+                        <span
+                          className="tx-hash-cell font-mono"
+                          title={`Decision Hash: ${tx.decisionHash}`}
+                        >
                           {tx.decisionHash.slice(0, 8)}… (offchain)
                         </span>
                       ) : (
-                        <span className="tx-status-unrecorded">None (offchain only)</span>
+                        <span className="tx-status-unrecorded">
+                          None (offchain only)
+                        </span>
                       )}
                     </td>
 
@@ -446,7 +536,10 @@ export function TransactionsView({
                           <ArrowSquareOut size={13} />
                         </a>
                       ) : (
-                        <span className="tx-no-explorer" title="No onchain transaction exists">
+                        <span
+                          className="tx-no-explorer"
+                          title="No onchain transaction exists"
+                        >
                           —
                         </span>
                       )}
@@ -460,97 +553,111 @@ export function TransactionsView({
       </div>
 
       {/* Expanded Row Detail Drawer (if an item is expanded) */}
-      {expandedId ? (() => {
-        const item = transactions.find((t) => t.id === expandedId);
-        if (!item) return null;
+      {expandedId
+        ? (() => {
+            const item = transactions.find((t) => t.id === expandedId);
+            if (!item) return null;
 
-        return (
-          <div className="tx-expanded-panel route-panel" data-testid="tx-expanded-panel">
-            <div className="panel-header-row">
-              <div>
-                <span className="route-eyebrow">Audit Record & Trace</span>
-                <h4>Transaction ID: <code className="font-mono">{item.id}</code></h4>
-              </div>
-              <button
-                type="button"
-                className="secondary-button compact-btn"
-                onClick={() => setExpandedId(null)}
+            return (
+              <div
+                className="tx-expanded-panel route-panel"
+                data-testid="tx-expanded-panel"
               >
-                Close Trace
-              </button>
-            </div>
+                <div className="panel-header-row">
+                  <div>
+                    <span className="route-eyebrow">Audit Record & Trace</span>
+                    <h4>
+                      Transaction ID: <code className="font-mono">{item.id}</code>
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button compact-btn"
+                    onClick={() => setExpandedId(null)}
+                  >
+                    Close Trace
+                  </button>
+                </div>
 
-            <div className="tx-expanded-grid">
-              <div className="detail-item">
-                <span className="detail-label">Lifecycle Stage</span>
-                <span className={`lifecycle-stage-badge tone-${stageTone(item.stage)}`}>
-                  <StageIcon stage={item.stage} size={14} />
-                  <strong>{item.stage}</strong>
-                </span>
-                <small className="detail-hint">Raw status: {item.rawState}</small>
-              </div>
+                <div className="tx-expanded-grid">
+                  <div className="detail-item">
+                    <span className="detail-label">Lifecycle Stage</span>
+                    <span
+                      className={`lifecycle-stage-badge tone-${stageTone(item.stage)}`}
+                    >
+                      <StageIcon stage={item.stage} size={14} />
+                      <strong>{item.stage}</strong>
+                    </span>
+                    <small className="detail-hint">Raw status: {item.rawState}</small>
+                  </div>
 
-              <div className="detail-item">
-                <span className="detail-label">Network Slot</span>
-                <strong className="detail-value font-mono">
-                  {item.slot ? item.slot : "Not confirmed in slot"}
-                </strong>
-                <small className="detail-hint">Finalized ledger slot number</small>
-              </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Network Slot</span>
+                    <strong className="detail-value font-mono">
+                      {item.slot ? item.slot : "Not confirmed in slot"}
+                    </strong>
+                    <small className="detail-hint">Finalized ledger slot number</small>
+                  </div>
 
-              <div className="detail-item">
-                <span className="detail-label">Transaction Fees</span>
-                <strong className="detail-value font-mono">
-                  {item.fees ? item.fees : "None / Unbilled"}
-                </strong>
-                <small className="detail-hint">Compute budget execution fee</small>
-              </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Transaction Fees</span>
+                    <strong className="detail-value font-mono">
+                      {item.fees ? item.fees : "None / Unbilled"}
+                    </strong>
+                    <small className="detail-hint">Compute budget execution fee</small>
+                  </div>
 
-              <div className="detail-item">
-                <span className="detail-label">Decision Hash</span>
-                {item.decisionHash ? (
-                  <code className="detail-code font-mono">{item.decisionHash}</code>
-                ) : (
-                  <span className="tx-status-unrecorded">None recorded</span>
-                )}
-                <small className="detail-hint">Cryptographic proposal root</small>
-              </div>
-            </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Decision Hash</span>
+                    {item.decisionHash ? (
+                      <code className="detail-code font-mono">{item.decisionHash}</code>
+                    ) : (
+                      <span className="tx-status-unrecorded">None recorded</span>
+                    )}
+                    <small className="detail-hint">Cryptographic proposal root</small>
+                  </div>
+                </div>
 
-            {/* Error & Redaction Section */}
-            {item.safeError || item.errorCode ? (
-              <div className="tx-error-box">
-                <WarningCircle size={18} className="icon-danger" />
-                <div>
-                  <strong>Execution Failure: {item.errorCode || "Unknown Error"}</strong>
-                  <p>{item.safeError || "No sanitized provider message was captured."}</p>
+                {/* Error & Redaction Section */}
+                {item.safeError || item.errorCode ? (
+                  <div className="tx-error-box">
+                    <WarningCircle size={18} className="icon-danger" />
+                    <div>
+                      <strong>
+                        Execution Failure: {item.errorCode || "Unknown Error"}
+                      </strong>
+                      <p>
+                        {item.safeError ||
+                          "No sanitized provider message was captured."}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Verified Links */}
+                <div className="tx-expanded-actions">
+                  {item.proofId ? (
+                    <Link href={`/proofs/${item.proofId}`} className="secondary-button">
+                      <Fingerprint size={16} />
+                      <span>Verify Cryptographic Receipt</span>
+                    </Link>
+                  ) : null}
+                  {item.explorerUrl ? (
+                    <a
+                      href={item.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="secondary-button"
+                    >
+                      <ArrowSquareOut size={16} />
+                      <span>View On Solana Explorer</span>
+                    </a>
+                  ) : null}
                 </div>
               </div>
-            ) : null}
-
-            {/* Verified Links */}
-            <div className="tx-expanded-actions">
-              {item.proofId ? (
-                <Link href={`/proofs/${item.proofId}`} className="secondary-button">
-                  <Fingerprint size={16} />
-                  <span>Verify Cryptographic Receipt</span>
-                </Link>
-              ) : null}
-              {item.explorerUrl ? (
-                <a
-                  href={item.explorerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="secondary-button"
-                >
-                  <ArrowSquareOut size={16} />
-                  <span>View On Solana Explorer</span>
-                </a>
-              ) : null}
-            </div>
-          </div>
-        );
-      })() : null}
+            );
+          })()
+        : null}
     </div>
   );
 }

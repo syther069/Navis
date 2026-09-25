@@ -28,7 +28,11 @@ export function FaqSection({ defaultFilter = "all" }: { defaultFilter?: string }
   });
 
   return (
-    <div className="faq-section-container" id="faq" aria-label="Frequently Asked Questions">
+    <div
+      className="faq-section-container"
+      id="faq"
+      aria-label="Frequently Asked Questions"
+    >
       {/* ── FAQ Search & Filter Toolbar ── */}
       <div className="faq-toolbar">
         <div className="faq-search-box">

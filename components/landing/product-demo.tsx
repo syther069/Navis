@@ -128,16 +128,25 @@ export function ActualProductDemo() {
   ];
 
   return (
-    <div className="product-demo-terminal" aria-label="Actual NAVIS product demonstration">
+    <div
+      className="product-demo-terminal"
+      aria-label="Actual NAVIS product demonstration"
+    >
       {/* ── Demo Terminal Navigation Bar ── */}
       <div className="demo-terminal-header">
         <div className="terminal-title-group">
           <span className="terminal-dot" />
-          <span className="terminal-title">NAVIS Decision Terminal · Live Workspace UI</span>
+          <span className="terminal-title">
+            NAVIS Decision Terminal · Live Workspace UI
+          </span>
           <span className="terminal-mode-tag">Demo Execution</span>
         </div>
 
-        <nav className="demo-tabs-nav" role="tablist" aria-label="Product demonstration tabs">
+        <nav
+          className="demo-tabs-nav"
+          role="tablist"
+          aria-label="Product demonstration tabs"
+        >
           <button
             type="button"
             role="tab"
@@ -183,12 +192,19 @@ export function ActualProductDemo() {
 
       {/* ── Tab 1: Proposal (Default) ── */}
       {activeTab === "proposal" && (
-        <div className="demo-panel-content" role="tabpanel" aria-label="Atlas proposal view">
+        <div
+          className="demo-panel-content"
+          role="tabpanel"
+          aria-label="Atlas proposal view"
+        >
           <div className="demo-split-view">
             <div className="demo-view-main">
               <div className="proposal-headline-box">
                 <div className="proposal-status-row">
-                  <DecisionStateBadge state="approved" label="Policy Approved · Simulated" />
+                  <DecisionStateBadge
+                    state="approved"
+                    label="Policy Approved · Simulated"
+                  />
                   <span className="proposal-action-pill">{proposal.action}</span>
                 </div>
                 <h3 className="proposal-order-summary">
@@ -222,7 +238,9 @@ export function ActualProductDemo() {
                 </div>
                 <div className="meta-item">
                   <span className="meta-key">Signing Rights</span>
-                  <span className="meta-val-text highlight-val">Wallet Required (0 keys held)</span>
+                  <span className="meta-val-text highlight-val">
+                    Wallet Required (0 keys held)
+                  </span>
                 </div>
               </div>
             </div>
@@ -230,9 +248,9 @@ export function ActualProductDemo() {
             <div className="demo-view-aside">
               <span className="route-eyebrow">Real Terminal Controls</span>
               <p className="demo-aside-text">
-                Every trade proposed by Atlas is packaged into this structured order card.
-                The agent cannot broadcast onchain without clearing all deterministic policy
-                checks.
+                Every trade proposed by Atlas is packaged into this structured order
+                card. The agent cannot broadcast onchain without clearing all
+                deterministic policy checks.
               </p>
               <div className="demo-aside-actions">
                 <Link className="primary-button" href="/agents/atlas">
@@ -253,7 +271,11 @@ export function ActualProductDemo() {
 
       {/* ── Tab 2: Policy Scorecard ── */}
       {activeTab === "policy" && (
-        <div className="demo-panel-content" role="tabpanel" aria-label="Policy evaluation scorecard">
+        <div
+          className="demo-panel-content"
+          role="tabpanel"
+          aria-label="Policy evaluation scorecard"
+        >
           <div className="demo-split-view">
             <div className="demo-view-main">
               <header className="scorecard-header">
@@ -276,7 +298,9 @@ export function ActualProductDemo() {
                     </div>
                     <div className="risk-rule-values">
                       <span className="risk-observed tabular-num">{rule.observed}</span>
-                      <small className="risk-limit tabular-num">/ limit {rule.limit}</small>
+                      <small className="risk-limit tabular-num">
+                        / limit {rule.limit}
+                      </small>
                     </div>
                   </div>
                 ))}
@@ -286,9 +310,9 @@ export function ActualProductDemo() {
             <div className="demo-view-aside">
               <span className="route-eyebrow">Zero Bypass Guarantee</span>
               <p className="demo-aside-text">
-                Policies are evaluated in pure deterministic TypeScript code. If a single
-                rule fails, the entire transaction is rejected instantly and funds are never
-                touched.
+                Policies are evaluated in pure deterministic TypeScript code. If a
+                single rule fails, the entire transaction is rejected instantly and
+                funds are never touched.
               </p>
               <div className="demo-aside-actions">
                 <button
@@ -306,7 +330,11 @@ export function ActualProductDemo() {
 
       {/* ── Tab 3: Market Snapshot ── */}
       {activeTab === "market" && (
-        <div className="demo-panel-content" role="tabpanel" aria-label="Market snapshot and positions">
+        <div
+          className="demo-panel-content"
+          role="tabpanel"
+          aria-label="Market snapshot and positions"
+        >
           <div className="demo-split-view">
             <div className="demo-view-main">
               <div className="dashboard-kpi-banner">
@@ -323,7 +351,9 @@ export function ActualProductDemo() {
                 </div>
                 <div className="dashboard-kpi-item">
                   <span className="kpi-label">Snapshot Slot Height</span>
-                  <code className="kpi-slot tabular-num">{portfolio.document.slot}</code>
+                  <code className="kpi-slot tabular-num">
+                    {portfolio.document.slot}
+                  </code>
                 </div>
                 <div className="dashboard-kpi-item">
                   <span className="kpi-label">Cluster</span>
@@ -356,9 +386,12 @@ export function ActualProductDemo() {
                     </span>
                     <span role="cell" className="cell-num tabular-num">
                       {pos.valuation ? (
-                        `$${(Number(pos.valuation) / 1_000_000).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}`
+                        `$${(Number(pos.valuation) / 1_000_000).toLocaleString(
+                          "en-US",
+                          {
+                            minimumFractionDigits: 2,
+                          },
+                        )}`
                       ) : (
                         <span className="unpriced-pill">
                           <TrendUp size={12} /> Unpriced
@@ -374,7 +407,8 @@ export function ActualProductDemo() {
               <span className="route-eyebrow">Immutable Inputs</span>
               <p className="demo-aside-text">
                 Market data is locked into the decision record at an exact Solana slot
-                height. This prevents time-of-check to time-of-use oracle latency exploits.
+                height. This prevents time-of-check to time-of-use oracle latency
+                exploits.
               </p>
               <div className="demo-aside-actions">
                 <Link className="text-link" href="/markets/launch">
@@ -388,7 +422,11 @@ export function ActualProductDemo() {
 
       {/* ── Tab 4: Verifiable Proof ── */}
       {activeTab === "proof" && (
-        <div className="demo-panel-content" role="tabpanel" aria-label="Cryptographic proof receipt">
+        <div
+          className="demo-panel-content"
+          role="tabpanel"
+          aria-label="Cryptographic proof receipt"
+        >
           <div className="demo-split-view">
             <div className="demo-view-main">
               <div className="proof-card-box">
@@ -398,7 +436,9 @@ export function ActualProductDemo() {
                 </div>
                 <div className="proof-hash-row">
                   <span className="proof-hash-label">Canonical SHA-256 Hash</span>
-                  <code className="proof-hash-val tabular-num">{demoProof.receiptHash}</code>
+                  <code className="proof-hash-val tabular-num">
+                    {demoProof.receiptHash}
+                  </code>
                 </div>
               </div>
 
@@ -423,8 +463,8 @@ export function ActualProductDemo() {
               <span className="route-eyebrow">Independent Audit</span>
               <p className="demo-aside-text">
                 Anyone can verify this receipt in the open-source in-browser verifier.
-                Simulation records stop at offchain integrity; live records require confirmed
-                onchain signatures.
+                Simulation records stop at offchain integrity; live records require
+                confirmed onchain signatures.
               </p>
               <div className="demo-aside-actions">
                 <Link className="primary-button" href="/proofs/demo-proof">

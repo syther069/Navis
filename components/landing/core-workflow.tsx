@@ -42,7 +42,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Reads Solana RPC account balances, Pyth price references, and PreStocks catalogue entries at an exact slot height.",
     input: "Solana slot height, SPL token balances, and pricing sources",
     output: "Immutable PortfolioSnapshot document with USD valuations",
-    safetyInvariant: "Stale data (>300s) or missing valuations halt the pipeline immediately.",
+    safetyInvariant:
+      "Stale data (>300s) or missing valuations halt the pipeline immediately.",
     icon: ChartBar,
     link: { href: "/markets/launch", label: "Inspect Markets" },
   },
@@ -72,7 +73,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Deterministic TypeScript evaluator checking position caps, trade size limits, reserve floors, and slippage tolerance.",
     input: "TradeProposal + RiskPolicyVersion constraints",
     output: "Structured PolicyVerdict (10/10 PASS or blocked violation)",
-    safetyInvariant: "Policy code is deterministic and cannot be bypassed or overridden by AI.",
+    safetyInvariant:
+      "Policy code is deterministic and cannot be bypassed or overridden by AI.",
     icon: ShieldCheck,
     link: { href: "/agents/atlas#risk", label: "View 10 Risk Rules" },
   },
@@ -87,7 +89,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Serializes input/output mints, maximum slippage (e.g. 75 bps), and canonical SHA-256 proposal hash.",
     input: "Approved PolicyVerdict + validated market parameters",
     output: "Canonical DecisionRecord document ready for authorization",
-    safetyInvariant: "Proposals carry explicit 5-minute expiry windows to prevent execution drift.",
+    safetyInvariant:
+      "Proposals carry explicit 5-minute expiry windows to prevent execution drift.",
     icon: FileCode,
     link: { href: "/decisions", label: "View Decisions Ledger" },
   },
@@ -102,7 +105,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Surfaces observed values versus risk limits, required token approvals, and expected balance deltas.",
     input: "DecisionRecord + human review in NAVIS workspace",
     output: "Explicit approval to build the transaction payload",
-    safetyInvariant: "No transaction can be assembled or signed without explicit user trigger.",
+    safetyInvariant:
+      "No transaction can be assembled or signed without explicit user trigger.",
     icon: UserCheck,
     link: { href: "/settings", label: "Review Permissions" },
   },
@@ -132,7 +136,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Submits via Solana RPC, confirms transaction signature, and reads final slot settlement.",
     input: "Signed transaction payload submitted to RPC",
     output: "Solana transaction signature and confirmed slot number",
-    safetyInvariant: "Demo executions halt at simulation; live execution requires explicit flags.",
+    safetyInvariant:
+      "Demo executions halt at simulation; live execution requires explicit flags.",
     icon: PaperPlaneTilt,
     link: { href: "/transactions", label: "View Settlement" },
   },
@@ -147,7 +152,8 @@ export const CORE_WORKFLOW_STEPS: readonly WorkflowStep[] = [
       "Links market snapshot, proposal, policy verdict, and transaction signature into an immutable record.",
     input: "Full execution evidence chain + canonicalization serializer",
     output: "ProofReceipt document with SHA-256 hash and assurance level",
-    safetyInvariant: "Receipts can be recomputed locally without trusting NAVIS servers.",
+    safetyInvariant:
+      "Receipts can be recomputed locally without trusting NAVIS servers.",
     icon: Fingerprint,
     link: { href: "/proofs/demo-proof", label: "Verify Proof in Browser" },
   },
@@ -178,7 +184,11 @@ export function CoreWorkflowDiagram() {
               >
                 <div className="node-badge-row">
                   <span className="node-num tabular-num">{step.stepNumber}</span>
-                  <Icon className="node-icon" size={16} weight={isActive ? "bold" : "regular"} />
+                  <Icon
+                    className="node-icon"
+                    size={16}
+                    weight={isActive ? "bold" : "regular"}
+                  />
                 </div>
                 <strong className="node-title">{step.title}</strong>
                 <span className="node-eyebrow">{step.eyebrow}</span>

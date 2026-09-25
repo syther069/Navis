@@ -13,10 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import {
-  MarketsTable,
-  type MarketAssetRow,
-} from "@/components/markets/markets-table";
+import { MarketsTable, type MarketAssetRow } from "@/components/markets/markets-table";
 import { RouteHeader } from "@/components/route-primitives";
 import { InfoHint } from "@/components/shared/info-hint";
 import { demoAgentBundle } from "@/fixtures/demo-agent";
@@ -31,7 +28,8 @@ import { researchRow } from "@/lib/integrations/prestocks/research";
 
 export const metadata: Metadata = {
   title: "Markets",
-  description: "Financial markets overview, PreStocks catalogue, and tokenized equity pairs.",
+  description:
+    "Financial markets overview, PreStocks catalogue, and tokenized equity pairs.",
 };
 
 export const dynamic = "force-dynamic";
@@ -41,7 +39,8 @@ const FALLBACK_DEMO_ROWS = [
   {
     name: "OpenAI PreStocks",
     symbol: "OPENAI",
-    description: "Economic exposure to OpenAI valuation dynamics. Read-only tokenized equity representation.",
+    description:
+      "Economic exposure to OpenAI valuation dynamics. Read-only tokenized equity representation.",
     contract_address: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
     markPrice: 240,
     tokenPrice: 250,
@@ -54,7 +53,8 @@ const FALLBACK_DEMO_ROWS = [
   {
     name: "SpaceX PreStocks",
     symbol: "SPACEX",
-    description: "Economic exposure to SpaceX equity performance. Tokenized on Solana Token-2022.",
+    description:
+      "Economic exposure to SpaceX equity performance. Tokenized on Solana Token-2022.",
     contract_address: "PreSpceXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
     markPrice: 150,
     tokenPrice: 120,
@@ -255,17 +255,21 @@ export default async function MarketsPage() {
         <div className="banner-text">
           <strong>Institutional Market Guidance & Read-Only Exposure</strong>
           <p>
-            PreStocks tokens represent pure economic exposure and convey no voting, dividend, or
-            legal equity ownership rights. Market values are research snapshots from the PreStocks
-            catalogue read time and do not constitute executable quotes. Autonomous Atlas signals
-            appear exclusively when a verifiable proposal exists.
+            PreStocks tokens represent pure economic exposure and convey no voting,
+            dividend, or legal equity ownership rights. Market values are research
+            snapshots from the PreStocks catalogue read time and do not constitute
+            executable quotes. Autonomous Atlas signals appear exclusively when a
+            verifiable proposal exists.
           </p>
         </div>
         <InfoHint topic="marketData" label="About market data & pricing" />
       </div>
 
       {/* Interactive Dense Table Component */}
-      <section className="route-panel markets-main-panel" aria-label="Market assets table">
+      <section
+        className="route-panel markets-main-panel"
+        aria-label="Market assets table"
+      >
         <MarketsTable assets={rows} capturedAt={capturedAt} sourceUrl={sourceUrl} />
       </section>
     </>

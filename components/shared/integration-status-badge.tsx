@@ -37,59 +37,62 @@ export type IntegrationStatusMeta = Readonly<{
   icon: Icon;
 }>;
 
-export const INTEGRATION_STATUS_META: Record<
-  IntegrationStatus,
-  IntegrationStatusMeta
-> = {
-  LIVE: {
-    label: "LIVE",
-    tier: "production",
-    description: "Active in production on Solana mainnet with live settlement.",
-    icon: Pulse,
-  },
-  CONNECTED: {
-    label: "CONNECTED",
-    tier: "connected",
-    description: "Verified external API or protocol connection active.",
-    icon: LinkIcon,
-  },
-  "READ-ONLY": {
-    label: "READ-ONLY",
-    tier: "informational",
-    description: "Read queries and metadata inspection only. Value actions disabled.",
-    icon: Eye,
-  },
-  DEVNET: {
-    label: "DEVNET",
-    tier: "devnet",
-    description: "Operating against Solana devnet test cluster with simulated capital.",
-    icon: CheckCircle,
-  },
-  SIMULATION: {
-    label: "SIMULATION",
-    tier: "simulation",
-    description: "Evaluated offchain in deterministic runtime. Zero onchain transactions.",
-    icon: Flask,
-  },
-  "PREPARATION ONLY": {
-    label: "PREPARATION ONLY",
-    tier: "draft",
-    description: "Transaction payload is constructed and verified, but execution is withheld.",
-    icon: PencilSimple,
-  },
-  BLOCKED: {
-    label: "BLOCKED",
-    tier: "blocked",
-    description: "Feature or route is disabled pending required prerequisite verification.",
-    icon: LockKey,
-  },
-  PLANNED: {
-    label: "PLANNED",
-    tier: "future",
-    description: "Roadmap integration. No code or network connection currently active.",
-    icon: Clock,
-  },
-};
+export const INTEGRATION_STATUS_META: Record<IntegrationStatus, IntegrationStatusMeta> =
+  {
+    LIVE: {
+      label: "LIVE",
+      tier: "production",
+      description: "Active in production on Solana mainnet with live settlement.",
+      icon: Pulse,
+    },
+    CONNECTED: {
+      label: "CONNECTED",
+      tier: "connected",
+      description: "Verified external API or protocol connection active.",
+      icon: LinkIcon,
+    },
+    "READ-ONLY": {
+      label: "READ-ONLY",
+      tier: "informational",
+      description: "Read queries and metadata inspection only. Value actions disabled.",
+      icon: Eye,
+    },
+    DEVNET: {
+      label: "DEVNET",
+      tier: "devnet",
+      description:
+        "Operating against Solana devnet test cluster with simulated capital.",
+      icon: CheckCircle,
+    },
+    SIMULATION: {
+      label: "SIMULATION",
+      tier: "simulation",
+      description:
+        "Evaluated offchain in deterministic runtime. Zero onchain transactions.",
+      icon: Flask,
+    },
+    "PREPARATION ONLY": {
+      label: "PREPARATION ONLY",
+      tier: "draft",
+      description:
+        "Transaction payload is constructed and verified, but execution is withheld.",
+      icon: PencilSimple,
+    },
+    BLOCKED: {
+      label: "BLOCKED",
+      tier: "blocked",
+      description:
+        "Feature or route is disabled pending required prerequisite verification.",
+      icon: LockKey,
+    },
+    PLANNED: {
+      label: "PLANNED",
+      tier: "future",
+      description:
+        "Roadmap integration. No code or network connection currently active.",
+      icon: Clock,
+    },
+  };
 
 export function IntegrationStatusBadge({
   status,

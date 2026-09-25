@@ -16,7 +16,11 @@ import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 
 import { AddressValue } from "@/components/shared/address-value";
-import { SourceStamp, StatusBadge, type StatusTone } from "@/components/shared/domain-primitives";
+import {
+  SourceStamp,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/shared/domain-primitives";
 import { InfoHint } from "@/components/shared/info-hint";
 
 export type MarketAssetRow = Readonly<{
@@ -67,11 +71,13 @@ const numberFormatter = new Intl.NumberFormat("en-US", {
 function formatTime(iso: string) {
   try {
     const d = new Date(iso);
-    return d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    }) + " UTC";
+    return (
+      d.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }) + " UTC"
+    );
   } catch {
     return iso;
   }
@@ -102,7 +108,8 @@ export function MarketsTable({
   }, [assets, search]);
 
   const selectedAsset = useMemo(
-    () => (selectedSymbol ? assets.find((a) => a.symbol === selectedSymbol) ?? null : null),
+    () =>
+      selectedSymbol ? (assets.find((a) => a.symbol === selectedSymbol) ?? null) : null,
     [assets, selectedSymbol],
   );
 
@@ -145,11 +152,18 @@ export function MarketsTable({
 
       {/* Dense Institutional Table */}
       <div className="markets-table-container">
-        <table className="markets-dense-table" aria-label="Financial markets comparative data">
+        <table
+          className="markets-dense-table"
+          aria-label="Financial markets comparative data"
+        >
           <thead>
             <tr>
-              <th scope="col" className="col-asset">Asset</th>
-              <th scope="col" className="col-symbol">Symbol</th>
+              <th scope="col" className="col-asset">
+                Asset
+              </th>
+              <th scope="col" className="col-symbol">
+                Symbol
+              </th>
               <th scope="col" className="col-num col-price">
                 <span>Price</span>
               </th>
@@ -162,16 +176,24 @@ export function MarketsTable({
               <th scope="col" className="col-num col-valuation">
                 <span>Implied Val</span>
               </th>
-              <th scope="col" className="col-timestamp">Timestamp</th>
-              <th scope="col" className="col-source">Source</th>
+              <th scope="col" className="col-timestamp">
+                Timestamp
+              </th>
+              <th scope="col" className="col-source">
+                Source
+              </th>
               <th scope="col" className="col-signal">
                 <span className="th-with-hint">
                   Atlas Signal
                   <InfoHint topic="atlasSignal" label="About Atlas signals" />
                 </span>
               </th>
-              <th scope="col" className="col-risk">Risk Profile</th>
-              <th scope="col" className="col-actions">Actions</th>
+              <th scope="col" className="col-risk">
+                Risk Profile
+              </th>
+              <th scope="col" className="col-actions">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -221,8 +243,12 @@ export function MarketsTable({
                         </span>
                         <div className="asset-name-group">
                           <strong className="asset-name">{asset.name}</strong>
-                          <span className="asset-mint-snippet" title={asset.contractAddress}>
-                            {asset.contractAddress.slice(0, 4)}…{asset.contractAddress.slice(-4)}
+                          <span
+                            className="asset-mint-snippet"
+                            title={asset.contractAddress}
+                          >
+                            {asset.contractAddress.slice(0, 4)}…
+                            {asset.contractAddress.slice(-4)}
                           </span>
                         </div>
                       </div>
@@ -242,7 +268,9 @@ export function MarketsTable({
 
                     {/* Change / Premium */}
                     <td className="col-num col-change">
-                      <span className={`premium-indicator font-mono tone-${premiumTone}`}>
+                      <span
+                        className={`premium-indicator font-mono tone-${premiumTone}`}
+                      >
                         {premiumSigned}
                       </span>
                     </td>
@@ -271,7 +299,10 @@ export function MarketsTable({
 
                     {/* Source */}
                     <td className="col-source">
-                      <span className="source-tag-compact" title={`Source: ${asset.source}`}>
+                      <span
+                        className="source-tag-compact"
+                        title={`Source: ${asset.source}`}
+                      >
                         {asset.source}
                       </span>
                     </td>
@@ -281,7 +312,8 @@ export function MarketsTable({
                       {hasSignal ? (
                         <span
                           className={`signal-badge ${
-                            asset.atlasSignal!.action.includes("IN") || asset.atlasSignal!.action === "BUY"
+                            asset.atlasSignal!.action.includes("IN") ||
+                            asset.atlasSignal!.action === "BUY"
                               ? "signal-in"
                               : "signal-out"
                           }`}
@@ -290,7 +322,10 @@ export function MarketsTable({
                           {asset.atlasSignal!.action}
                         </span>
                       ) : (
-                        <span className="signal-none" title="No active Atlas signal recorded for this asset">
+                        <span
+                          className="signal-none"
+                          title="No active Atlas signal recorded for this asset"
+                        >
                           —
                         </span>
                       )}
@@ -393,7 +428,8 @@ export function MarketsTable({
                 <span className="metric-label">Premium / Discount</span>
                 <strong
                   className={`metric-value font-mono tone-${
-                    selectedAsset.premiumPercent === null || selectedAsset.premiumPercent === 0
+                    selectedAsset.premiumPercent === null ||
+                    selectedAsset.premiumPercent === 0
                       ? "neutral"
                       : selectedAsset.premiumPercent > 0
                         ? "warn"
@@ -446,7 +482,8 @@ export function MarketsTable({
                     </span>
                     {selectedAsset.atlasSignal.confidenceBps ? (
                       <span className="confidence-pill font-mono">
-                        {(selectedAsset.atlasSignal.confidenceBps / 100).toFixed(0)}% confidence
+                        {(selectedAsset.atlasSignal.confidenceBps / 100).toFixed(0)}%
+                        confidence
                       </span>
                     ) : null}
                   </div>
@@ -455,7 +492,9 @@ export function MarketsTable({
                   </p>
                   <div className="signal-meta-row">
                     <CheckCircle size={14} className="icon-pass" />
-                    <span>Real proposal verified from active Atlas decision record</span>
+                    <span>
+                      Real proposal verified from active Atlas decision record
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -465,9 +504,9 @@ export function MarketsTable({
                     <strong>No active Atlas signal</strong>
                   </div>
                   <p className="signal-empty-desc">
-                    Atlas is not currently proposing a position change for {selectedAsset.symbol}.
-                    Signals are only generated when an evaluated decision mandate specifically rotates
-                    into or out of this asset.
+                    Atlas is not currently proposing a position change for{" "}
+                    {selectedAsset.symbol}. Signals are only generated when an evaluated
+                    decision mandate specifically rotates into or out of this asset.
                   </p>
                 </div>
               )}

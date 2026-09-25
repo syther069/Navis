@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { CssLink } from "@/components/motion/css-link";
 import { ProgressiveBlur } from "@/components/motion/progressive-blur";
+import { Link000, Link001 } from "@/components/skiper/skiper40";
 
 const GITHUB_URL = "https://github.com/syther069/Navis";
 const SOLANA_URL = "https://solana.com";
@@ -27,15 +27,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <span>NAVIS</span>
           </Link>
           <nav className="public-nav" aria-label="Public navigation">
-            <CssLink href="/welcome" roll>
-              Overview
-            </CssLink>
-            <CssLink href="/faq" roll>
-              FAQ
-            </CssLink>
-            <CssLink href="/start" roll>
-              Get started
-            </CssLink>
+            <Link000 href="/welcome">Overview</Link000>
+            <Link000 href="/faq">FAQ</Link000>
+            <Link000 href="/start">Get started</Link000>
           </nav>
           <Link className="public-header-action" href="/">
             Open workspace <span aria-hidden="true">↗</span>
@@ -56,43 +50,22 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </div>
           <nav aria-label="Product">
             <span>Product</span>
-            <CssLink href="/welcome">Overview</CssLink>
-            <CssLink href="/start">Get started</CssLink>
-            <CssLink href="/">Workspace</CssLink>
-            <CssLink href="/agents/atlas">Atlas</CssLink>
+            <Link000 href="/welcome">Overview</Link000>
+            <Link000 href="/start">Get started</Link000>
+            <Link000 href="/">Workspace</Link000>
+            <Link000 href="/agents/atlas">Atlas</Link000>
           </nav>
           <nav aria-label="Evidence">
             <span>Evidence</span>
-            <CssLink href="/faq">FAQ</CssLink>
-            <CssLink href="/disclosures">Disclosures</CssLink>
-            <CssLink href="/proofs/demo-proof">Demo receipt</CssLink>
-            <a
-              className="navis-css-link"
-              href={GITHUB_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              GitHub
-            </a>
+            <Link000 href="/faq">FAQ</Link000>
+            <Link000 href="/disclosures">Disclosures</Link000>
+            <Link000 href="/proofs/demo-proof">Demo receipt</Link000>
+            <Link001 href={GITHUB_URL}>GitHub</Link001>
           </nav>
           <nav aria-label="Ecosystem">
             <span>Ecosystem</span>
-            <a
-              className="navis-css-link"
-              href={SOLANA_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Solana
-            </a>
-            <a
-              className="navis-css-link"
-              href={METEORA_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Meteora
-            </a>
+            <Link001 href={SOLANA_URL}>Solana</Link001>
+            <Link001 href={METEORA_URL}>Meteora</Link001>
           </nav>
         </div>
         <div className="public-container public-footer-legal">

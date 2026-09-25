@@ -22,7 +22,8 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     question: "Why does NAVIS exist, and why not let AI trade directly?",
     answer:
       "Granting AI agents direct access to private keys or unconstrained financial authority leads to catastrophic failure modes: LLMs hallucinate non-existent tokens, miscalculate slippage, suffer prompt injection, or overconcentrate capital. NAVIS exists to ensure that AI is restricted to an advisory, proposal role. All execution invariants are enforced by deterministic, non-AI code before any transaction is built.",
-    constraintNote: "NAVIS code is strictly deterministic. The AI model has zero access to private keys or execution hooks.",
+    constraintNote:
+      "NAVIS code is strictly deterministic. The AI model has zero access to private keys or execution hooks.",
   },
   {
     id: "how-does-it-work",
@@ -46,7 +47,8 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     question: "What does the user control?",
     answer:
       "You control 100% of capital authorization and policy parameters. You connect your own Solana wallet, define the risk constraints (maximum single trade size, position caps, minimum SOL reserve, slippage ceilings), decide whether to approve or reject proposals, and sign transactions locally in your browser. NAVIS never holds your keys.",
-    constraintNote: "No funds can leave your wallet without an explicit ed25519 signature from your browser wallet extension.",
+    constraintNote:
+      "No funds can leave your wallet without an explicit ed25519 signature from your browser wallet extension.",
   },
   {
     id: "autonomous-signing",
@@ -69,7 +71,8 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     question: "What integrations are real versus simulated or planned?",
     answer:
       "Every integration is labeled according to its actual current state: Solana Wallet Standard and the Cryptographic Proof Verifier are LIVE; PreStocks is READ-ONLY for equity catalogue data; ClawPump Partner API is CONNECTED for agent discovery; Meteora DBC SDK is PREPARATION ONLY for quotes and pool configuration; Solana RPC is DEVNET operational; Atlas AI is SIMULATION (deterministic demo fixture) / CONNECTED (OpenAI); and Pyth Network Oracles are PLANNED for future onchain feeds.",
-    constraintNote: "We never misrepresent planned integrations as live. A PREPARATION ONLY integration builds transaction bytes but does not broadcast.",
+    constraintNote:
+      "We never misrepresent planned integrations as live. A PREPARATION ONLY integration builds transaction bytes but does not broadcast.",
   },
   {
     id: "current-availability",

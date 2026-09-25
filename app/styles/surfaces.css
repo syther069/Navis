@@ -2264,7 +2264,9 @@
 .workflow-node-active {
   background: var(--surface-raised);
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), var(--shadow-popover);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    var(--shadow-popover);
 }
 
 .node-badge-row {
@@ -3043,8 +3045,7 @@
   padding: var(--space-10) var(--panel-pad);
   background:
     radial-gradient(75% 95% at 82% 0%, rgba(245, 185, 66, 0.08), transparent 58%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 28%),
-    var(--surface);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 28%), var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
 }
@@ -3507,4 +3508,3 @@
     padding-bottom: var(--space-1);
   }
 }
-

@@ -6,7 +6,8 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 
-export type MeteoraTimelineStepState = "done" | "current" | "pending" | "failed" | "disabled";
+export type MeteoraTimelineStepState =
+  "done" | "current" | "pending" | "failed" | "disabled";
 
 export type MeteoraTimelineStep = Readonly<{
   key: string;
@@ -24,7 +25,11 @@ export function MeteoraTimeline({ steps }: { steps: readonly MeteoraTimelineStep
   return (
     <ol className="meteora-timeline" aria-label="Transaction timeline">
       {steps.map((step) => (
-        <li key={step.key} data-state={step.state} className={`timeline-step-item state-${step.state}`}>
+        <li
+          key={step.key}
+          data-state={step.state}
+          className={`timeline-step-item state-${step.state}`}
+        >
           <span className="step-icon-wrap" aria-hidden="true">
             {step.state === "done" ? (
               <CheckCircle size={15} weight="fill" />
@@ -40,7 +45,9 @@ export function MeteoraTimeline({ steps }: { steps: readonly MeteoraTimelineStep
           </span>
           <div className="step-text-wrap">
             <span>{step.label}</span>
-            {step.detail ? <small className="step-subdetail">{step.detail}</small> : null}
+            {step.detail ? (
+              <small className="step-subdetail">{step.detail}</small>
+            ) : null}
           </div>
         </li>
       ))}

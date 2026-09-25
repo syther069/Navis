@@ -65,7 +65,8 @@ export const REAL_INTEGRATIONS: readonly IntegrationItem[] = [
     status: "PREPARATION ONLY",
     description:
       "Dynamic Bonding Curve (DBC) and DLMM SDK integration to prepare liquidity pool configurations, price quotes, and swap instructions.",
-    executionBoundary: "Prepares transaction payloads only; cannot broadcast without user wallet signature.",
+    executionBoundary:
+      "Prepares transaction payloads only; cannot broadcast without user wallet signature.",
     evidenceSource: "Official Meteora TypeScript SDK v1",
     icon: Coins,
   },
@@ -87,7 +88,8 @@ export const REAL_INTEGRATIONS: readonly IntegrationItem[] = [
     status: "CONNECTED",
     description:
       "Partner integration for agent registration, creator wallet allocation, and token launch pair metadata through clawpump.tech/api/v1.",
-    executionBoundary: "Agent creator wallets are distinct from connected user wallets.",
+    executionBoundary:
+      "Agent creator wallets are distinct from connected user wallets.",
     evidenceSource: "Verified Partner API key (cpk_ token prefix)",
     icon: LinkIcon,
   },
@@ -98,7 +100,8 @@ export const REAL_INTEGRATIONS: readonly IntegrationItem[] = [
     status: "SIMULATION",
     description:
       "Analytical mandate evaluator. Evaluates portfolio balance snapshots and investment thesis to propose rebalance trades.",
-    executionBoundary: "Zero execution privileges. Proposes only; policy engine must approve.",
+    executionBoundary:
+      "Zero execution privileges. Proposes only; policy engine must approve.",
     evidenceSource: "Deterministic Demo Fixture & OpenAI API adapter",
     icon: Cpu,
   },
@@ -109,7 +112,8 @@ export const REAL_INTEGRATIONS: readonly IntegrationItem[] = [
     status: "PLANNED",
     description:
       "Direct onchain Pyth oracle price account ingestion for sub-second real-world asset price feeds and confidence intervals.",
-    executionBoundary: "Not currently active. Current quotes use PreStocks catalogue and snapshot feeds.",
+    executionBoundary:
+      "Not currently active. Current quotes use PreStocks catalogue and snapshot feeds.",
     evidenceSource: "Roadmap: Pyth Solana receiver program",
     icon: ShieldCheck,
   },
