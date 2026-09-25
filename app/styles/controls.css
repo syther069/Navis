@@ -350,6 +350,13 @@
     background var(--duration-fast) var(--ease-standard);
 }
 
+.wallet-options > button > span:nth-of-type(2) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .wallet-options > button:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-hover);
